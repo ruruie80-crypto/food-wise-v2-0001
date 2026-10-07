@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="•$To“">
+  <rect width="64" height="64" rx="16" fill="#1b6b43"/>
+  <rect x="14" y="16" width="36" height="28" rx="3" fill="#ffe14a"/>
+  <path d="M14 22h36" stroke="#1c1915" stroke-width="2"/>
+  <text x="32" y="38" text-anchor="middle" font-family="sans-serif" font-size="16" font-weight="700" fill="#1c1915">¥</text>
+</svg>
