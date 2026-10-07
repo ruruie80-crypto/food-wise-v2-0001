@@ -119,6 +119,7 @@ type AppContextValue = {
   markAlertsRead: () => void;
   setPremiumPreview: (on: boolean) => void;
   reset: () => void;
+  acceptHandoff: (record: unknown) => string;
 };
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -352,6 +353,15 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setPremiumPreview: (on) => patch({ premiumPreview: on }),
     reset: () => {
       clearStorage();
+    },
+    acceptHandoff: (record: unknown) => {
+      const next = sanitize(record);
+      next.onboarded = true;
+      writeStorage(next);
+      const area = areas.find((item) => item.id === next.areaId);
+      const plan = next.focus === "cheap" ? next.cheap : next.balanced;
+      const planLabel = plan ? `献立 ${plan.cost.toLocaleString("ja-JP")}円` : "献立なし";
+      return `${area?.name ?? "生活圏"} · 値札${next.observations.length}件 · ${planLabel}`;
     },
   };
 

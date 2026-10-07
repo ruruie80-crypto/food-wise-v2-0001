@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { areas, getArea, getIngredient, getRecipe, getStore, ingredients } from "@/lib/catalog";
 import { useApp } from "@/components/app-state";
 import { BootScreen, PriceSticker, SectionTitle, SignalMark, Yen } from "@/components/bits";
+import { HandoffSheet } from "@/components/handoff-sheet";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -24,6 +25,7 @@ import { cn } from "@/lib/utils";
 export function HomeScreen() {
   const app = useApp();
   const [settings, setSettings] = useState(false);
+  const [handoff, setHandoff] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   if (!app.ready || !app.book || !app.today) return <BootScreen />;
 
@@ -190,13 +192,23 @@ export function HomeScreen() {
         )}
       </section>
 
-      <Link href="/about" className="mt-6 block rounded-3xl bg-white px-4 py-4">
+      <button type="button" onClick={() => setHandoff(true)} className="mt-6 block w-full rounded-3xl bg-[#143026] px-4 py-4 text-left text-[#f6f3ea]">
+        <p className="text-[11px] font-bold tracking-[0.14em] text-[#ffe14a]">渡す</p>
+        <p className="mt-1 font-black">記録をファイルにする</p>
+        <p className="mt-1 text-sm leading-6 text-[#d7e4db]">
+          献立と値札を書き出して、相手の底値ごはんへ渡せます。送信はしません。
+        </p>
+      </button>
+
+      <Link href="/about" className="mt-3 block rounded-3xl bg-white px-4 py-4">
         <p className="text-[11px] font-bold tracking-[0.14em] text-[#1b6b43]">公開用の試作</p>
         <p className="mt-1 font-black">作品ノート</p>
         <p className="mt-1 text-sm leading-6 text-[#5e574c]">
           相場は見本です。記録は端末の中だけで、決済も在庫もつながっていません。
         </p>
       </Link>
+
+      <HandoffSheet open={handoff} onOpenChange={setHandoff} />
 
       <Sheet open={settings} onOpenChange={setSettings}>
         <SheetContent side="bottom" className="max-h-[80dvh] rounded-t-3xl">
