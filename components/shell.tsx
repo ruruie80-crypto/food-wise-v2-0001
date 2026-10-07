@@ -23,8 +23,6 @@ function isActive(pathname: string, href: string): boolean {
 }
 
 export function Shell({ children }: { children: React.ReactNode }) {
-  const { ready, state } = useApp();
-
   return (
     <div className="mx-auto min-h-dvh w-full max-w-[480px] bg-background lg:grid lg:h-dvh lg:max-w-none lg:grid-cols-[92px_minmax(320px,460px)_minmax(280px,1fr)] lg:overflow-hidden lg:bg-[#e6dece]">
       <Suspense fallback={<div className="hidden lg:block" />}>
@@ -35,11 +33,20 @@ export function Shell({ children }: { children: React.ReactNode }) {
         <Suspense fallback={null}>
           <BottomNav />
         </Suspense>
-        {ready && !state.onboarded ? <Onboarding /> : null}
+        <Suspense fallback={null}>
+          <OnboardingGate />
+        </Suspense>
       </div>
       <InsightRail />
     </div>
   );
+}
+
+function OnboardingGate() {
+  const pathname = usePathname();
+  const { ready, state } = useApp();
+  if (!ready || state.onboarded || pathname === "/about") return null;
+  return <Onboarding />;
 }
 
 function SideNav() {

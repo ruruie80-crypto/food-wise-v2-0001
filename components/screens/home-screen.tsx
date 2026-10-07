@@ -190,6 +190,14 @@ export function HomeScreen() {
         )}
       </section>
 
+      <Link href="/about" className="mt-6 block rounded-3xl bg-white px-4 py-4">
+        <p className="text-[11px] font-bold tracking-[0.14em] text-[#1b6b43]">公開用の試作</p>
+        <p className="mt-1 font-black">作品ノート</p>
+        <p className="mt-1 text-sm leading-6 text-[#5e574c]">
+          相場は見本です。記録は端末の中だけで、決済も在庫もつながっていません。
+        </p>
+      </Link>
+
       <Sheet open={settings} onOpenChange={setSettings}>
         <SheetContent side="bottom" className="max-h-[80dvh] rounded-t-3xl">
           <SheetHeader>
@@ -210,10 +218,17 @@ export function HomeScreen() {
                 <span className="text-xs text-[#5e574c]">{item.note}</span>
               </button>
             ))}
+            <Link
+              href="/about"
+              onClick={() => setSettings(false)}
+              className="mt-2 block rounded-2xl bg-[#f4efe4] px-3 py-3 text-sm font-bold"
+            >
+              作品ノートを読む
+            </Link>
             <Button
               type="button"
               variant="outline"
-              className="mt-2 h-11 w-full"
+              className="h-11 w-full"
               onClick={() => {
                 setSettings(false);
                 setConfirmReset(true);

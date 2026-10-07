@@ -27,7 +27,7 @@ export function Onboarding() {
         <p className="text-[11px] font-bold tracking-[0.16em] text-[#1b6b43]">底値ごはん</p>
         <h1 className="mt-1 text-2xl font-black tracking-tight">値札が、献立になる。</h1>
         <p className="mt-2 text-sm leading-6 text-[#5e574c]">
-          生活圏の底値を覚えて、今週の食費のなかで栄養が偏らない献立を作ります。
+          生活圏の底値を覚えて、今週の食費のなかで栄養が偏らない献立を作ります。公開用の試作で、相場は見本、記録はこの端末の外には出ません。
         </p>
 
         {step === 0 ? (

@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "底値ごはん",
     short_name: "底値ごはん",
-    description: "値札から生活圏の底値を学び、予算内の献立と買い物リストを作る。",
+    description: "公開用の試作。見本の相場と端末内の値札から、予算内の献立と買い物リストを作る。",
     start_url: "/",
     display: "standalone",
     background_color: "#f4efe4",

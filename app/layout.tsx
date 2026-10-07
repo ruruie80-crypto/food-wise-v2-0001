@@ -25,7 +25,15 @@ export const metadata: Metadata = {
     template: "%s · 底値ごはん",
   },
   description:
-    "値札やレシートから生活圏の底値を覚え、今週の食費のなかで栄養が偏らない献立と買い物リストを作る。",
+    "公開用の試作。見本の相場と、端末の中だけに残る値札から、今週の食費で献立と買い物リストを作る。",
+  openGraph: {
+    title: "底値ごはん",
+    description:
+      "公開用の試作。相場は見本で、記録はこのブラウザの中だけに残ります。決済も在庫もつながっていません。",
+    locale: "ja_JP",
+    type: "website",
+  },
+  robots: { index: true, follow: true },
   applicationName: "底値ごはん",
   icons: { icon: "/icon.svg" },
   appleWebApp: {
