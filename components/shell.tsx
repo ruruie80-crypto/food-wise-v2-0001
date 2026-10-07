@@ -47,7 +47,10 @@ function SideNav() {
   const { unreadCount } = useApp();
   return (
     <nav className="hidden flex-col gap-1 border-r border-[#e3d8c6] bg-[#f7f3ea] px-2 py-4 lg:flex" aria-label="主要">
-      <p className="px-2 pb-3 text-sm font-black tracking-tight">底値ごはん</p>
+      <p className="px-1 pb-3 text-center text-[11px] leading-tight font-black tracking-tight">
+        底値
+        <span className="block">ごはん</span>
+      </p>
       {NAV.map((item) => {
         const Icon = item.icon;
         const active = isActive(pathname, item.href);
