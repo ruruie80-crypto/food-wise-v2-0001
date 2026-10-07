@@ -1,3 +1,4 @@
+import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import { getArea, getIngredient, getRecipe, getStore } from "./catalog";
 import { addDays, formatWithWeekday, weekRangeLabel } from "./dates";
 import { formatUnits, mealLabel, yen } from "./format";
@@ -7,6 +8,17 @@ import type { MealMode, Observation, Plan, PlanFocus, Prefs } from "./types";
 
 export const HANDOFF_KIND = "sokone-gohan-handoff";
 const MAX_BYTES = 200_000;
+const MAX_ZIP_BYTES = 500_000;
+const MAX_ZIP_FILES = 20;
+
+const HOW_TO = [
+  "底値ごはんの記録です。",
+  "メモ.txt は献立と買い物です。このまま読めます。",
+  "記録.json は底値ごはんが開くデータです。",
+  "相手の画面で「受け取ったファイルを開く」を押し、この Zip を選んでください。",
+  "アプリがこのファイルを相手へ送ることはありません。",
+  "相場は見本と、書き出した端末で読んだ値札です。実在の店の本日の売価ではありません。",
+].join("\n");
 
 export type HandoffRecord = {
   v: 1;
@@ -48,6 +60,46 @@ export function buildHandoff(record: HandoffRecord, today: string, stale: boolea
     json: JSON.stringify(file, null, 2),
     text,
   };
+}
+
+export function buildHandoffZip(record: HandoffRecord, today: string, stale: boolean): { filename: string; bytes: Uint8Array; text: string } {
+  const handoff = buildHandoff(record, today, stale);
+  const bytes = zipSync(
+    {
+      "よみかた.txt": strToU8(HOW_TO),
+      "メモ.txt": strToU8(handoff.text),
+      "記録.json": strToU8(handoff.json),
+    },
+    { level: 6 },
+  );
+  return { filename: `sokone-gohan-${today}.zip`, bytes, text: handoff.text };
+}
+
+export function readHandoffZip(bytes: Uint8Array): { ok: true; record: unknown; exportedOn: string; text: string } | { ok: false; error: string } {
+  if (bytes.byteLength > MAX_ZIP_BYTES) return { ok: false, error: "ファイルが大きすぎます。" };
+  let entries: Record<string, Uint8Array>;
+  let tooBig = false;
+  try {
+    entries = unzipSync(bytes, {
+      filter(file) {
+        if (file.originalSize > MAX_ZIP_BYTES) {
+          tooBig = true;
+          return false;
+        }
+        return file.name.endsWith(".json") || file.name.endsWith(".txt");
+      },
+    });
+  } catch {
+    return { ok: false, error: "Zipとして読めません。" };
+  }
+  if (tooBig) return { ok: false, error: "ファイルが大きすぎます。" };
+  const names = Object.keys(entries);
+  if (names.length === 0 || names.length > MAX_ZIP_FILES) return { ok: false, error: "底値ごはんの記録ファイルではありません。" };
+  const total = names.reduce((sum, name) => sum + entries[name].byteLength, 0);
+  if (total > MAX_ZIP_BYTES) return { ok: false, error: "ファイルが大きすぎます。" };
+  const jsonName = names.find((name) => name === "記録.json" || name.endsWith("/記録.json")) ?? names.find((name) => name.endsWith(".json"));
+  if (!jsonName) return { ok: false, error: "記録.json が Zip の中にありません。" };
+  return parseHandoff(strFromU8(entries[jsonName]));
 }
 
 export function parseHandoff(raw: string): { ok: true; record: unknown; exportedOn: string; text: string } | { ok: false; error: string } {

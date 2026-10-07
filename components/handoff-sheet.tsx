@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { useApp } from "@/components/app-state";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { buildHandoff, parseHandoff } from "@/lib/handoff";
+import { buildHandoffZip, parseHandoff, readHandoffZip } from "@/lib/handoff";
 
 type Preview = { exportedOn: string; record: unknown };
 
@@ -21,20 +21,21 @@ export function HandoffSheet({ open, onOpenChange }: { open: boolean; onOpenChan
 
   const pack = () => {
     if (!app.today) return null;
-    return buildHandoff(app.state, app.today, app.stale);
+    return buildHandoffZip(app.state, app.today, app.stale);
   };
 
   const download = () => {
     const file = pack();
     if (!file) return;
-    const blob = new Blob([file.json], { type: "application/json" });
+    const bytes = file.bytes.slice();
+    const blob = new Blob([bytes.buffer], { type: "application/zip" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
     link.download = file.filename;
     link.click();
     URL.revokeObjectURL(url);
-    toast.success("記録ファイルを書き出しました");
+    toast.success("Zipを書き出しました");
   };
 
   const copy = async () => {
@@ -50,8 +51,8 @@ export function HandoffSheet({ open, onOpenChange }: { open: boolean; onOpenChan
 
   const onFile = async (file: File | undefined) => {
     if (!file) return;
-    const raw = await file.text();
-    const parsed = parseHandoff(raw);
+    const zipped = file.name.toLowerCase().endsWith(".zip") || file.type === "application/zip";
+    const parsed = zipped ? readHandoffZip(new Uint8Array(await file.arrayBuffer())) : parseHandoff(await file.text());
     if (!parsed.ok) {
       toast.error(parsed.error);
       return;
@@ -75,7 +76,7 @@ export function HandoffSheet({ open, onOpenChange }: { open: boolean; onOpenChan
         </SheetHeader>
         <div className="space-y-3 overflow-y-auto px-4 pb-6 text-sm leading-6">
           <p className="text-[#5e574c]">
-            献立、買い物、読んだ値札を1つのファイルにします。相手は底値ごはんでそのファイルを開くと、同じ週を続けられます。アプリから送信はしません。
+            献立、買い物、読んだ値札を1つの Zip にします。メモ.txt はそのまま読めます。相手は底値ごはんでこの Zip を開くと、同じ週を続けられます。アプリから送信はしません。
           </p>
           {preview ? (
             <div className="rounded-2xl bg-[#fff4c2] px-3 py-3">
@@ -93,7 +94,7 @@ export function HandoffSheet({ open, onOpenChange }: { open: boolean; onOpenChan
           ) : (
             <>
               <Button type="button" className="h-11 w-full" onClick={download}>
-                ファイルを書き出す
+                Zipを書き出す
               </Button>
               <Button type="button" variant="outline" className="h-11 w-full" onClick={copy}>
                 読めるメモをコピー
@@ -104,7 +105,7 @@ export function HandoffSheet({ open, onOpenChange }: { open: boolean; onOpenChan
               <input
                 ref={fileRef}
                 type="file"
-                accept="application/json,.json"
+                accept="application/zip,.zip,application/json,.json"
                 className="hidden"
                 onChange={(event) => {
                   void onFile(event.target.files?.[0]);

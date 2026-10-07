@@ -194,9 +194,9 @@ export function HomeScreen() {
 
       <button type="button" onClick={() => setHandoff(true)} className="mt-6 block w-full rounded-3xl bg-[#143026] px-4 py-4 text-left text-[#f6f3ea]">
         <p className="text-[11px] font-bold tracking-[0.14em] text-[#ffe14a]">渡す</p>
-        <p className="mt-1 font-black">記録をファイルにする</p>
+        <p className="mt-1 font-black">記録を Zip にする</p>
         <p className="mt-1 text-sm leading-6 text-[#d7e4db]">
-          献立と値札を書き出して、相手の底値ごはんへ渡せます。送信はしません。
+          献立と値札を1つの Zip にして渡せます。送信はしません。
         </p>
       </button>
 

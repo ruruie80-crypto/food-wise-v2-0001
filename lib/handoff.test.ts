@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildHandoff, parseHandoff } from "./handoff";
+import { unzipSync, strFromU8 } from "fflate";
+import { buildHandoff, buildHandoffZip, parseHandoff, readHandoffZip } from "./handoff";
 import type { HandoffRecord } from "./handoff";
 import type { Nutrition, Plan } from "./types";
 
@@ -60,6 +61,20 @@ test("handoff text names the meal, the shop, and the scanned price", () => {
   const saved = parsed.record as HandoffRecord;
   assert.equal(saved.observations[0]?.price, 21);
   assert.equal(saved.balanced?.slots[0]?.recipeId, "curry");
+});
+
+test("zip holds the note, the memo, and a record the app can open", () => {
+  const zip = buildHandoffZip(record(), TODAY, false);
+  assert.match(zip.filename, /\.zip$/);
+  assert.equal(zip.bytes[0], 0x50);
+  assert.equal(zip.bytes[1], 0x4b);
+  const entries = unzipSync(zip.bytes);
+  assert.match(strFromU8(entries["メモ.txt"]), /豚カレー/);
+  assert.match(strFromU8(entries["よみかた.txt"]), /Zip/);
+  const parsed = readHandoffZip(zip.bytes);
+  assert.equal(parsed.ok, true);
+  if (!parsed.ok) return;
+  assert.equal((parsed.record as HandoffRecord).observations[0]?.price, 21);
 });
 
 test("other json is refused", () => {
