@@ -9,6 +9,18 @@ import { buildHandoffZip, parseHandoff, readHandoffZip } from "@/lib/handoff";
 
 type Preview = { exportedOn: string; record: unknown };
 
+export function saveHandoffZip(record: Parameters<typeof buildHandoffZip>[0], today: string, stale: boolean) {
+  const file = buildHandoffZip(record, today, stale);
+  const bytes = file.bytes.slice();
+  const blob = new Blob([bytes.buffer], { type: "application/zip" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = file.filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 export function HandoffSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const app = useApp();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -25,17 +37,9 @@ export function HandoffSheet({ open, onOpenChange }: { open: boolean; onOpenChan
   };
 
   const download = () => {
-    const file = pack();
-    if (!file) return;
-    const bytes = file.bytes.slice();
-    const blob = new Blob([bytes.buffer], { type: "application/zip" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = file.filename;
-    link.click();
-    URL.revokeObjectURL(url);
-    toast.success("Zipを書き出しました");
+    if (!app.today) return;
+    saveHandoffZip(app.state, app.today, app.stale);
+    toast.success("Zipをダウンロードしました");
   };
 
   const copy = async () => {
@@ -94,7 +98,7 @@ export function HandoffSheet({ open, onOpenChange }: { open: boolean; onOpenChan
           ) : (
             <>
               <Button type="button" className="h-11 w-full" onClick={download}>
-                Zipを書き出す
+                Zipをダウンロード
               </Button>
               <Button type="button" variant="outline" className="h-11 w-full" onClick={copy}>
                 読めるメモをコピー

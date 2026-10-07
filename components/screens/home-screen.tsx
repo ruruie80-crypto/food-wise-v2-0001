@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { areas, getArea, getIngredient, getRecipe, getStore, ingredients } from "@/lib/catalog";
 import { useApp } from "@/components/app-state";
 import { BootScreen, PriceSticker, SectionTitle, SignalMark, Yen } from "@/components/bits";
-import { HandoffSheet } from "@/components/handoff-sheet";
+import { HandoffSheet, saveHandoffZip } from "@/components/handoff-sheet";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -96,6 +96,18 @@ export function HomeScreen() {
           }}
         >
           {plan ? "この予算で作り直す" : "今週の献立を作る"}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          className="mt-2 h-11 w-full text-base"
+          onClick={() => {
+            if (!app.today) return;
+            saveHandoffZip(app.state, app.today, app.stale);
+            toast.success("Zipをダウンロードしました");
+          }}
+        >
+          Zipをダウンロード
         </Button>
       </section>
 
