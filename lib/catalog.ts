@@ -25,22 +25,59 @@ export const areas: Area[] = [
   {
     id: "nakano",
     name: "中野坂上",
+    prefecture: "東京",
     multiplier: 1,
     note: "駅前のスーパーと、通りの青果店が歩ける距離です。",
   },
   {
     id: "shimokita",
     name: "下北沢",
+    prefecture: "東京",
     multiplier: 1.06,
     note: "小さなお店が多く、同じ品でも一段高くなりやすいです。",
   },
   {
     id: "kasai",
     name: "西葛西",
+    prefecture: "東京",
     multiplier: 0.94,
     note: "大型店が近く、底値が少し下がりやすい地域です。",
   },
+  {
+    id: "sendai",
+    name: "仙台",
+    prefecture: "宮城県",
+    multiplier: 0.97,
+    categoryBias: { fish: 0.94 },
+    note: "県庁所在地の見本です。中野坂上より少し安く、魚は港に近いぶん下がります。",
+  },
+  {
+    id: "ishinomaki",
+    name: "石巻",
+    prefecture: "宮城県",
+    multiplier: 0.93,
+    categoryBias: { fish: 0.82, vegetable: 0.98, meat: 1.02 },
+    note: "港町の見本です。魚の底値が下がりやすく、野菜は大崎より高いです。",
+  },
+  {
+    id: "osaki",
+    name: "大崎",
+    prefecture: "宮城県",
+    multiplier: 0.91,
+    categoryBias: { vegetable: 0.88, staple: 0.92, fish: 1.08 },
+    note: "内陸の見本です。野菜と米が少し安く、魚は石巻より高いです。",
+  },
 ];
+
+export function areasByPrefecture(): { prefecture: string; areas: Area[] }[] {
+  const groups: { prefecture: string; areas: Area[] }[] = [];
+  for (const area of areas) {
+    const group = groups.find((item) => item.prefecture === area.prefecture);
+    if (group) group.areas.push(area);
+    else groups.push({ prefecture: area.prefecture, areas: [area] });
+  }
+  return groups;
+}
 
 export const stores: Store[] = [
   {
@@ -59,6 +96,9 @@ export const stores: Store[] = [
       nakano: "中野坂上店",
       shimokita: "東北沢店",
       kasai: "西葛西店",
+      sendai: "仙台駅前店",
+      ishinomaki: "石巻駅前店",
+      osaki: "古川店",
     },
   },
   {
@@ -77,6 +117,9 @@ export const stores: Store[] = [
       nakano: "沼袋店",
       shimokita: "代沢店",
       kasai: "清新町店",
+      sendai: "泉中央店",
+      ishinomaki: "蛇田店",
+      osaki: "古川駅北店",
     },
   },
   {
@@ -97,6 +140,9 @@ export const stores: Store[] = [
       nakano: "中野通り",
       shimokita: "茶沢通り",
       kasai: "環状七号",
+      sendai: "一番町",
+      ishinomaki: "立町",
+      osaki: "七日町",
     },
   },
   {
@@ -112,6 +158,9 @@ export const stores: Store[] = [
       nakano: "野方店",
       shimokita: "池ノ上店",
       kasai: "臨海町店",
+      sendai: "利府店",
+      ishinomaki: "湊店",
+      osaki: "三本木店",
     },
   },
 ];

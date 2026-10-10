@@ -47,11 +47,12 @@ export function seedUnitPrice(
   areaMultiplier: number,
   week: number,
   asOfWeek: number,
+  categoryFactor = 1,
 ): number | null {
   const store = ingredient.stores.find((item) => item.storeId === storeId);
   if (!store) return null;
   const noise = hash01(`${ingredient.id}:${storeId}:${week}`) * 2 - 1;
-  let price = ingredient.basePrice * store.multiplier * areaMultiplier * 1.72;
+  let price = ingredient.basePrice * store.multiplier * areaMultiplier * categoryFactor * 1.72;
   price *= 1 + noise * ingredient.volatility;
   price *= 1 - (asOfWeek - week) * ingredient.inflation;
   if (isOnSale(ingredient.id, storeId, week)) price *= 0.74;
@@ -90,7 +91,8 @@ export function createPriceBook(
   const cache = new Map<string, Quote | null>();
 
   function seeded(ingredient: Ingredient, storeId: string, week: number): number | null {
-    return seedUnitPrice(ingredient, storeId, area.multiplier, week, asOfWeek);
+    const categoryFactor = area.categoryBias?.[ingredient.category] ?? 1;
+    return seedUnitPrice(ingredient, storeId, area.multiplier, week, asOfWeek, categoryFactor);
   }
 
   function recentUserPrice(ingredientId: string, storeId: string): number | null {

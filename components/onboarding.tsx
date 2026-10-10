@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { areas } from "@/lib/catalog";
 import { useApp } from "@/components/app-state";
+import { AreaPicker } from "@/components/area-picker";
 import { Button } from "@/components/ui/button";
 import { budgetHint, MODE_LABEL, modeHint, yen } from "@/lib/format";
 import type { MealMode } from "@/lib/types";
@@ -23,7 +23,7 @@ export function Onboarding() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-[#143026]/80 p-3 sm:items-center">
-      <div className="w-full max-w-md rounded-3xl bg-[#f4efe4] p-5 shadow-2xl">
+      <div className="flex max-h-[min(42rem,92dvh)] w-full max-w-md flex-col overflow-hidden rounded-3xl bg-[#f4efe4] p-5 shadow-2xl">
         <p className="text-[11px] font-bold tracking-[0.16em] text-[#1b6b43]">底値ごはん</p>
         <h1 className="mt-1 text-2xl font-black tracking-tight">値札が、献立になる。</h1>
         <p className="mt-2 text-sm leading-6 text-[#5e574c]">
@@ -31,22 +31,11 @@ export function Onboarding() {
         </p>
 
         {step === 0 ? (
-          <div className="mt-5 space-y-2">
+          <div className="mt-5 min-h-0 flex-1 overflow-y-auto pr-1">
             <p className="text-sm font-bold">ふだん買う地域</p>
-            {areas.map((area) => (
-              <button
-                key={area.id}
-                type="button"
-                onClick={() => setArea(area.id)}
-                className={cn(
-                  "w-full rounded-2xl border px-3 py-3 text-left",
-                  state.areaId === area.id ? "border-[#1b6b43] bg-white" : "border-transparent bg-[#efe6d2]",
-                )}
-              >
-                <span className="block font-bold">{area.name}</span>
-                <span className="text-xs leading-5 text-[#5e574c]">{area.note}</span>
-              </button>
-            ))}
+            <div className="mt-3">
+              <AreaPicker selectedId={state.areaId} onSelect={setArea} />
+            </div>
           </div>
         ) : null}
 

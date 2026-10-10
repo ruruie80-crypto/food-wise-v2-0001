@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { Bell } from "lucide-react";
 import { toast } from "sonner";
-import { areas, getArea, getIngredient, getRecipe, getStore, ingredients } from "@/lib/catalog";
+import { getArea, getIngredient, getRecipe, getStore, ingredients } from "@/lib/catalog";
+import { AreaPicker } from "@/components/area-picker";
 import { useApp } from "@/components/app-state";
 import { BootScreen, PriceSticker, SectionTitle, SignalMark, Yen } from "@/components/bits";
 import { HandoffSheet, saveHandoffZip } from "@/components/handoff-sheet";
@@ -20,7 +21,6 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { formatWithWeekday, weekRangeLabel } from "@/lib/dates";
 import { mealLabel, modeHint, yen } from "@/lib/format";
-import { cn } from "@/lib/utils";
 
 export function HomeScreen() {
   const app = useApp();
@@ -49,7 +49,7 @@ export function HomeScreen() {
           <p className="text-[11px] font-bold tracking-[0.16em] text-[#1b6b43]">生活圏の底値</p>
           <h1 className="text-[1.7rem] leading-none font-black tracking-tight">底値ごはん</h1>
           <button type="button" onClick={() => setSettings(true)} className="mt-2 text-left text-sm text-[#5e574c]">
-            {greeting}。{area.name} · {formatWithWeekday(app.today)}
+            {greeting}。{area.prefecture} {area.name} · {formatWithWeekday(app.today)}
           </button>
         </div>
         <Link
@@ -227,21 +227,8 @@ export function HomeScreen() {
           <SheetHeader>
             <SheetTitle>生活圏</SheetTitle>
           </SheetHeader>
-          <div className="space-y-2 overflow-y-auto px-4 pb-6">
-            {areas.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => app.setArea(item.id)}
-                className={cn(
-                  "w-full rounded-2xl px-3 py-3 text-left",
-                  app.state.areaId === item.id ? "bg-[#e5f2ea]" : "bg-[#f4efe4]",
-                )}
-              >
-                <span className="block font-bold">{item.name}</span>
-                <span className="text-xs text-[#5e574c]">{item.note}</span>
-              </button>
-            ))}
+          <div className="max-h-[calc(80dvh-5rem)] overflow-y-auto px-4 pb-6">
+            <AreaPicker selectedId={app.state.areaId} onSelect={app.setArea} />
             <Link
               href="/about"
               onClick={() => setSettings(false)}

@@ -132,7 +132,7 @@ function renderText(record: HandoffRecord, today: string, stale: boolean): strin
     "このファイルは人が渡すためのものです。アプリがサーバへ送ることはありません。",
     "入っている相場は見本と、書き出した端末で読んだ値札です。実在の店の本日の売価ではありません。",
     "",
-    `生活圏: ${area.name}`,
+    `生活圏: ${area.prefecture} ${area.name}`,
     `人数: ${record.people}人`,
     `今週の食費: ${yen(record.budget)}`,
     weekRangeLabel(today),

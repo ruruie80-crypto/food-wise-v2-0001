@@ -75,8 +75,11 @@ export type Store = {
 export type Area = {
   id: string;
   name: string;
+  prefecture: string;
   multiplier: number;
   note: string;
+  /** 1 を基準に、品目の分類だけ見本の傾きを足す。 */
+  categoryBias?: Partial<Record<Category, number>>;
 };
 
 export type Observation = {

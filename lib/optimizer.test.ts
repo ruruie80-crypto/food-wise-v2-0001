@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getIngredient, getRecipe, ingredients, recipes } from "./catalog";
+import { areas, getIngredient, getRecipe, ingredients, recipes, stores } from "./catalog";
 import { buildPlan, dinnerRepeats, recipeNutrition } from "./optimizer";
 import { createPriceBook, isOnSale } from "./prices";
 import { buildShoppingList } from "./shopping";
@@ -109,6 +109,33 @@ test("same input builds the same plan", () => {
     a.balanced.slots.map((slot) => slot.recipeId),
     b.balanced.slots.map((slot) => slot.recipeId),
   );
+});
+
+test("every store names a branch in every living area", () => {
+  for (const store of stores) {
+    for (const area of areas) {
+      const branch = store.branches[area.id];
+      assert.equal(typeof branch, "string", `${store.name} ${area.name}`);
+      assert.ok(branch && branch.length > 0);
+    }
+  }
+});
+
+test("Miyagi samples price fish cheaper on the coast and vegetables inland", () => {
+  const tokyo = createPriceBook("nakano", TODAY, []);
+  const sendai = createPriceBook("sendai", TODAY, []);
+  const ishinomaki = createPriceBook("ishinomaki", TODAY, []);
+  const osaki = createPriceBook("osaki", TODAY, []);
+  const price = (book: ReturnType<typeof createPriceBook>, id: string) => {
+    const quote = book.quote(id);
+    assert.ok(quote, id);
+    return quote.unitPrice;
+  };
+  assert.ok(price(sendai, "cabbage") < price(tokyo, "cabbage"));
+  assert.ok(price(ishinomaki, "aji") < price(osaki, "aji"));
+  assert.ok(price(ishinomaki, "aji") < price(tokyo, "aji"));
+  assert.ok(price(osaki, "cabbage") < price(ishinomaki, "cabbage"));
+  assert.ok(price(osaki, "rice") < price(sendai, "rice"));
 });
 
 test("shopping total matches the priced ingredients", () => {
