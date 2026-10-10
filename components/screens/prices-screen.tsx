@@ -6,6 +6,7 @@ import { categoryLabel, categoryOrder, getArea, getStore, ingredients } from "@/
 import { useApp } from "@/components/app-state";
 import { BootScreen, CategoryDot, SignalMark, Sparkline, Yen } from "@/components/bits";
 import { signedPercent } from "@/lib/format";
+import { inSeason, monthOf } from "@/lib/season";
 import { Input } from "@/components/ui/input";
 import type { Category } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -38,6 +39,20 @@ export function PricesScreen() {
           ? getArea(app.state.areaId).priceNote
           : "各店の今週の値段のうち、いちばん安いものを底値にしています。自分の値札は21日で上書きします。"}
       </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {inSeason(monthOf(app.today)).map((item) =>
+          item.ingredientId ? (
+            <button
+              key={item.name}
+              type="button"
+              onClick={() => setQuery(item.name)}
+              className="rounded-full bg-[#e5f2ea] px-3 py-1 text-xs font-bold"
+            >
+              旬 · {item.name}
+            </button>
+          ) : null,
+        )}
+      </div>
       <Input
         value={query}
         onChange={(event) => setQuery(event.target.value)}

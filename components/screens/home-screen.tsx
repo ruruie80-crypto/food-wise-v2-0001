@@ -19,6 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { MarketCard, SeasonCard } from "@/components/today-panel";
 import { formatWithWeekday, weekRangeLabel } from "@/lib/dates";
 import { mealLabel, modeHint, yen } from "@/lib/format";
 
@@ -110,6 +111,9 @@ export function HomeScreen() {
           Zipをダウンロード
         </Button>
       </section>
+
+      <SeasonCard today={app.today} />
+      <MarketCard areaId={app.state.areaId} />
 
       <section className="mt-6">
         <SectionTitle

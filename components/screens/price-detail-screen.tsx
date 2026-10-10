@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 import { getArea, getIngredient, getStore, ingredients, storesIn } from "@/lib/catalog";
+import { MarketHint } from "@/components/today-panel";
 import { surveyCaption } from "@/lib/survey";
 import { useApp } from "@/components/app-state";
 import { BootScreen, CategoryDot, PriceSticker, SignalMark, Yen } from "@/components/bits";
@@ -102,6 +103,8 @@ export function PriceDetailScreen({ id }: { id: string }) {
         </p>
         {caption ? <p className="mt-2 text-xs leading-5 text-[#5e574c]">{caption}</p> : null}
       </section>
+
+      <MarketHint ingredientId={id} />
 
       <section className="mt-4 rounded-3xl bg-white p-4">
         <p className="text-sm font-bold">{area.priceBasis === "survey" ? "この生活圏の店" : "店ごとの今週"}</p>
