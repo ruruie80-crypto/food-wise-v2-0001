@@ -66,10 +66,15 @@ export type Store = {
   hours: string;
   saleNote: string;
   blurb: string;
-  walkMinutes: number;
+  /** 架空の店だけの目安。実在店は住所を使う。 */
+  walkMinutes?: number;
   closedWeekday?: number;
   weekdaySales: { dow: number; categories: Category[] }[];
   branches: Record<string, string>;
+  areas: string[];
+  address?: string;
+  phone?: string;
+  sourceUrl?: string;
 };
 
 export type Area = {
@@ -78,7 +83,9 @@ export type Area = {
   prefecture: string;
   multiplier: number;
   note: string;
-  /** 1 を基準に、品目の分類だけ見本の傾きを足す。 */
+  priceBasis: "sample" | "survey";
+  priceNote: string;
+  /** 1 を基準に、品目の分類だけ見本の傾きを足す。統計の地域では使わない。 */
   categoryBias?: Partial<Record<Category, number>>;
 };
 

@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
-import { getIngredient, getStore, ingredients, stores } from "@/lib/catalog";
+import { getArea, getIngredient, getStore, ingredients, storesIn } from "@/lib/catalog";
+import { surveyCaption } from "@/lib/survey";
 import { useApp } from "@/components/app-state";
 import { BootScreen, CategoryDot, PriceSticker, SignalMark, Yen } from "@/components/bits";
 import { Button } from "@/components/ui/button";
@@ -18,7 +19,7 @@ export function PriceDetailScreen({ id }: { id: string }) {
   const app = useApp();
   const [recordOpen, setRecordOpen] = useState(false);
   const [premiumOpen, setPremiumOpen] = useState(false);
-  const [storeId, setStoreId] = useState(stores[0]?.id ?? "aoba");
+  const [storeId, setStoreId] = useState("");
   const [priceText, setPriceText] = useState("");
   if (!app.ready || !app.book || !app.today) return <BootScreen />;
 
@@ -34,7 +35,11 @@ export function PriceDetailScreen({ id }: { id: string }) {
       </div>
     );
   }
+  const area = getArea(app.state.areaId);
+  const localStores = storesIn(area.id);
+  const recordStoreId = localStores.some((item) => item.id === storeId) ? storeId : localStores[0]?.id ?? "";
   const store = getStore(quote.storeId);
+  const caption = area.priceBasis === "survey" ? surveyCaption(id) : null;
   const forecast = app.book.forecast(id);
   const mine = app.state.observations.filter((row) => row.ingredientId === id);
   const alternatives = ingredients
@@ -50,11 +55,11 @@ export function PriceDetailScreen({ id }: { id: string }) {
 
   const save = () => {
     const price = Number(priceText);
-    if (!Number.isFinite(price) || price <= 0 || price > 99999) {
+    if (!recordStoreId || !Number.isFinite(price) || price <= 0 || price > 99999) {
       toast.error("税込の値段を入れてください。");
       return;
     }
-    const lows = app.addObservations([{ ingredientId: id, storeId, price, source: "manual" }]);
+    const lows = app.addObservations([{ ingredientId: id, storeId: recordStoreId, price, source: "manual" }]);
     setRecordOpen(false);
     setPriceText("");
     if (lows.length > 0) toast.success(`${ingredient.name}の底値を ${yen(lows[0].price)} に更新しました`);
@@ -88,13 +93,21 @@ export function PriceDetailScreen({ id }: { id: string }) {
       </div>
 
       <section className="mt-5 rounded-3xl bg-white p-4">
-        <p className="text-sm font-bold">8週の底値</p>
+        <p className="text-sm font-bold">{area.priceBasis === "survey" ? "統計の平均" : "8週の底値"}</p>
         <HistoryChart series={quote.series} median={quote.median} />
-        <p className="text-xs text-[#5e574c]">点線は直近の中央値 {yen(Math.round(quote.median))} です。</p>
+        <p className="text-xs leading-5 text-[#5e574c]">
+          {area.priceBasis === "survey"
+            ? "線は2026年8月の仙台市平均です。8週間の店頭履歴ではありません。"
+            : `点線は直近の中央値 ${yen(Math.round(quote.median))} です。`}
+        </p>
+        {caption ? <p className="mt-2 text-xs leading-5 text-[#5e574c]">{caption}</p> : null}
       </section>
 
       <section className="mt-4 rounded-3xl bg-white p-4">
-        <p className="text-sm font-bold">店ごとの今週</p>
+        <p className="text-sm font-bold">{area.priceBasis === "survey" ? "この生活圏の店" : "店ごとの今週"}</p>
+        {area.priceBasis === "survey" ? (
+          <p className="mt-1 text-xs leading-5 text-[#5e574c]">統計は市内平均なので、店ごとの売価の差は入っていません。</p>
+        ) : null}
         <ul className="mt-3 space-y-3">
           {quote.byStore.map((row) => {
             const shop = getStore(row.storeId);
@@ -193,17 +206,17 @@ export function PriceDetailScreen({ id }: { id: string }) {
           </SheetHeader>
           <div className="space-y-3 px-4 pb-6">
             <div className="flex flex-wrap gap-2">
-              {ingredient.stores.map((row) => (
+              {localStores.map((item) => (
                 <button
-                  key={row.storeId}
+                  key={item.id}
                   type="button"
-                  onClick={() => setStoreId(row.storeId)}
+                  onClick={() => setStoreId(item.id)}
                   className={cn(
                     "rounded-full px-3 py-1.5 text-sm font-bold",
-                    storeId === row.storeId ? "bg-[#1b6b43] text-[#f6f3ea]" : "bg-[#f4efe4]",
+                    recordStoreId === item.id ? "bg-[#1b6b43] text-[#f6f3ea]" : "bg-[#f4efe4]",
                   )}
                 >
-                  {getStore(row.storeId)?.name}
+                  {item.name}
                 </button>
               ))}
             </div>

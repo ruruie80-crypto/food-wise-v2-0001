@@ -241,8 +241,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const activePlan = state.focus === "cheap" ? state.cheap : state.balanced;
   const stale = Boolean(activePlan && activePlan.sourceKey !== sourceKey(state));
   const alerts = useMemo(
-    () => (book && today ? buildAlerts(today, book, activePlan, state.observations) : []),
-    [book, today, activePlan, state.observations],
+    () => (book && today ? buildAlerts(today, book, activePlan, state.observations, state.areaId) : []),
+    [book, today, activePlan, state.observations, state.areaId],
   );
   const unreadCount = alerts.filter((alert) => !state.readAlertIds.includes(alert.id)).length;
 

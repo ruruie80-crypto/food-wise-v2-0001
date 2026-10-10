@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { getArea, getIngredient, getStore, stores } from "@/lib/catalog";
+import { getArea, getIngredient, getStore, storesIn } from "@/lib/catalog";
 import { useApp } from "@/components/app-state";
 import { BootScreen, Yen } from "@/components/bits";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { formatUnits, yen } from "@/lib/format";
 import { buildShoppingList } from "@/lib/shopping";
+import type { Store } from "@/lib/types";
 
 export function ShopScreen() {
   const app = useApp();
@@ -29,7 +30,8 @@ export function ShopScreen() {
 
   const list = buildShoppingList(plan, app.book);
   const area = getArea(app.state.areaId);
-  const openStore = stores.find((store) => store.id === storeId);
+  const openStore = storeId ? getStore(storeId) : undefined;
+  const localStores = storesIn(app.state.areaId);
   const checkedCount = list.groups
     .flatMap((group) => group.lines)
     .filter((line) => app.state.checks[line.ingredientId]).length;
@@ -65,6 +67,9 @@ export function ShopScreen() {
       <p className="mt-1 text-sm leading-6 text-[#5e574c]">
         {checkedCount}/{totalLines} をカゴに入れました。合計 <Yen value={list.multiTotal} className="text-base" />。
       </p>
+      {area.priceBasis === "survey" ? (
+        <p className="mt-2 text-sm leading-6 text-[#5e574c]">{area.priceNote}</p>
+      ) : null}
 
       {list.single && list.savings >= 120 ? (
         <div className="mt-4 rounded-3xl bg-[#fff4c2] p-4 text-sm leading-6">
@@ -90,9 +95,7 @@ export function ShopScreen() {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-lg font-black">{store?.name}</p>
-                  <p className="text-xs text-[#5e574c]">
-                    {store?.branches[app.state.areaId]} · 徒歩約{store?.walkMinutes}分 · {store?.kind}
-                  </p>
+                  <p className="text-xs text-[#5e574c]">{store ? storePlace(store, app.state.areaId) : ""}</p>
                 </div>
                 <Yen value={group.total} className="text-2xl" />
               </div>
@@ -134,20 +137,38 @@ export function ShopScreen() {
         </p>
       ) : null}
 
-      <section className="mt-4 rounded-3xl bg-[#143026] p-4 text-[#f6f3ea]">
-        <p className="text-[11px] font-bold tracking-[0.14em] text-[#ffe14a]">業務用への送客 · 見本</p>
-        <p className="mt-2 text-lg font-black">卵と豆腐はビッグストックが底</p>
-        <p className="mt-1 text-sm leading-6 text-[#d7e4db]">
-          プライベートブランドや業務用のまとめ買いは、ここから店の棚へ渡す想定です。在庫も決済も、まだつながっていません。
-        </p>
-        <Button
-          type="button"
-          className="mt-3 h-11 bg-[#ffe14a] text-[#1c1915] hover:bg-[#ffe14a]/80"
-          onClick={() => setStoreId("big")}
-        >
-          ビッグストックを見る
-        </Button>
-      </section>
+      {area.priceBasis === "survey" ? (
+        <section className="mt-4 rounded-3xl bg-white p-4">
+          <p className="text-sm font-bold">この生活圏の店</p>
+          <ul className="mt-2 divide-y divide-[#e3d8c6]">
+            {localStores.map((store) => (
+              <li key={store.id}>
+                <button type="button" className="w-full py-3 text-left" onClick={() => setStoreId(store.id)}>
+                  <span className="block font-bold">{store.name}</span>
+                  <span className="text-xs leading-5 text-[#5e574c]">
+                    {store.branches[app.state.areaId]} · {store.hours}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : (
+        <section className="mt-4 rounded-3xl bg-[#143026] p-4 text-[#f6f3ea]">
+          <p className="text-[11px] font-bold tracking-[0.14em] text-[#ffe14a]">業務用への送客 · 見本</p>
+          <p className="mt-2 text-lg font-black">卵と豆腐はビッグストックが底</p>
+          <p className="mt-1 text-sm leading-6 text-[#d7e4db]">
+            プライベートブランドや業務用のまとめ買いは、ここから店の棚へ渡す想定です。在庫も決済も、まだつながっていません。
+          </p>
+          <Button
+            type="button"
+            className="mt-3 h-11 bg-[#ffe14a] text-[#1c1915] hover:bg-[#ffe14a]/80"
+            onClick={() => setStoreId("big")}
+          >
+            ビッグストックを見る
+          </Button>
+        </section>
+      )}
 
       <Button type="button" variant="outline" className="mt-4 h-11 w-full" onClick={copy}>
         リストをコピー
@@ -163,15 +184,28 @@ export function ShopScreen() {
               <p>
                 {openStore.branches[app.state.areaId]} · {openStore.kind}
               </p>
+              {openStore.address ? <p>{openStore.address}</p> : null}
+              {openStore.phone ? <p>電話 {openStore.phone}</p> : null}
               <p>営業 {openStore.hours}</p>
-              <p>徒歩の目安 {openStore.walkMinutes}分</p>
+              {openStore.walkMinutes != null ? <p>徒歩の目安 {openStore.walkMinutes}分</p> : null}
               <p>{openStore.blurb}</p>
               <p className="rounded-2xl bg-[#fff4c2] px-3 py-2">{openStore.saleNote}</p>
               {openStore.closedWeekday != null ? <p>定休日は週の途中に1日あります。通知で前日に出します。</p> : null}
+              {openStore.sourceUrl ? (
+                <a href={openStore.sourceUrl} target="_blank" rel="noreferrer" className="inline-block font-bold text-[#1b6b43]">
+                  店舗の案内を開く
+                </a>
+              ) : null}
             </div>
           ) : null}
         </SheetContent>
       </Sheet>
     </div>
   );
+}
+
+function storePlace(store: Store, areaId: string): string {
+  const place = store.branches[areaId];
+  const walk = store.walkMinutes != null ? `徒歩約${store.walkMinutes}分` : null;
+  return [place, walk, store.kind].filter(Boolean).join(" · ");
 }

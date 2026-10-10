@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { areas, getIngredient, getRecipe, ingredients, recipes, stores } from "./catalog";
+import { areas, getIngredient, getRecipe, ingredients, recipes, stores, storesIn } from "./catalog";
+import { surveyUnitYen } from "./survey";
 import { buildPlan, dinnerRepeats, recipeNutrition } from "./optimizer";
 import { createPriceBook, isOnSale } from "./prices";
 import { buildShoppingList } from "./shopping";
@@ -111,31 +112,42 @@ test("same input builds the same plan", () => {
   );
 });
 
-test("every store names a branch in every living area", () => {
+test("each store only covers its own living areas", () => {
   for (const store of stores) {
-    for (const area of areas) {
-      const branch = store.branches[area.id];
-      assert.equal(typeof branch, "string", `${store.name} ${area.name}`);
-      assert.ok(branch && branch.length > 0);
+    assert.ok(store.areas.length > 0, store.id);
+    for (const areaId of store.areas) {
+      assert.equal(typeof store.branches[areaId], "string", `${store.name} ${areaId}`);
+      assert.ok(areas.some((area) => area.id === areaId));
     }
   }
+  assert.deepEqual(
+    storesIn("sendai").map((store) => store.id),
+    ["york-uesugi", "aeon-ichibancho"],
+  );
+  assert.ok(storesIn("ishinomaki").some((store) => store.id === "coop-ohashi"));
+  assert.ok(storesIn("osaki").some((store) => store.id === "aeon-furukawa"));
+  assert.equal(storesIn("nakano").some((store) => store.id === "york-uesugi"), false);
+  assert.equal(storesIn("sendai").some((store) => store.id === "aoba"), false);
 });
 
-test("Miyagi samples price fish cheaper on the coast and vegetables inland", () => {
-  const tokyo = createPriceBook("nakano", TODAY, []);
+test("Miyagi prices use the Sendai survey and do not vary by store", () => {
+  for (const item of ingredients) {
+    assert.equal(typeof surveyUnitYen(item.id), "number", item.id);
+  }
   const sendai = createPriceBook("sendai", TODAY, []);
   const ishinomaki = createPriceBook("ishinomaki", TODAY, []);
   const osaki = createPriceBook("osaki", TODAY, []);
-  const price = (book: ReturnType<typeof createPriceBook>, id: string) => {
-    const quote = book.quote(id);
-    assert.ok(quote, id);
-    return quote.unitPrice;
-  };
-  assert.ok(price(sendai, "cabbage") < price(tokyo, "cabbage"));
-  assert.ok(price(ishinomaki, "aji") < price(osaki, "aji"));
-  assert.ok(price(ishinomaki, "aji") < price(tokyo, "aji"));
-  assert.ok(price(osaki, "cabbage") < price(ishinomaki, "cabbage"));
-  assert.ok(price(osaki, "rice") < price(sendai, "rice"));
+  const cabbage = sendai.quote("cabbage");
+  const aji = sendai.quote("aji");
+  assert.equal(cabbage?.unitPrice, 22);
+  assert.equal(aji?.unitPrice, 189);
+  assert.equal(ishinomaki.quote("aji")?.unitPrice, aji?.unitPrice);
+  assert.equal(osaki.quote("cabbage")?.unitPrice, cabbage?.unitPrice);
+  assert.ok(cabbage && cabbage.byStore.length === 2);
+  assert.ok(cabbage?.byStore.every((row) => row.price === 22));
+  assert.ok(cabbage?.byStore.every((row) => row.storeId !== "aoba"));
+  const tokyo = createPriceBook("nakano", TODAY, []);
+  assert.ok(tokyo.quote("cabbage")?.byStore.every((row) => ["aoba", "value", "sato", "big"].includes(row.storeId)));
 });
 
 test("shopping total matches the priced ingredients", () => {

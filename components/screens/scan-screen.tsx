@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { getIngredient, getStore, ingredients, sampleReceipts, sampleTags, stores } from "@/lib/catalog";
+import { getArea, getIngredient, getStore, ingredients, sampleReceipts, sampleTags, storesIn } from "@/lib/catalog";
+import { surveyReceipt } from "@/lib/survey";
 import { useApp, type ObservationDraft } from "@/components/app-state";
 import { BootScreen, Yen } from "@/components/bits";
 import { Button } from "@/components/ui/button";
@@ -71,6 +72,13 @@ export function ScanScreen() {
 
   if (!app.ready || !app.book) return <BootScreen />;
 
+  const area = getArea(app.state.areaId);
+  const localStores = storesIn(area.id);
+  const activeStoreId = localStores.some((store) => store.id === storeId) ? storeId : localStores[0]?.id ?? storeId;
+  const receipts =
+    area.priceBasis === "survey" ? [surveyReceipt(area.id)].filter((item) => item != null) : sampleReceipts;
+  const tags = area.priceBasis === "survey" ? [] : sampleTags;
+
   const beginReview = (nextStore: string, nextLines: Line[], image: string | null) => {
     setStoreId(nextStore);
     setLines(nextLines);
@@ -113,7 +121,7 @@ export function ScanScreen() {
         toast.error("品目と値段を確認してください。");
         return;
       }
-      drafts.push({ ingredientId: line.ingredientId, storeId, price, source: lines.length > 1 ? "receipt" : "tag" });
+      drafts.push({ ingredientId: line.ingredientId, storeId: activeStoreId, price, source: lines.length > 1 ? "receipt" : "tag" });
     }
     if (drafts.length === 0) {
       toast.error("記録する行がありません。");
@@ -178,13 +186,14 @@ export function ScanScreen() {
           <p className="text-sm leading-6 text-[#5e574c]">
             まずサンプルで試し読みできます。実物のレシートは、読み取った行を自分で直せます。写真は保存しません。
           </p>
-          {sampleReceipts.map((receipt) => {
+          {receipts.map((receipt) => {
             const store = getStore(receipt.storeId);
             const total = receipt.lines.reduce((sum, line) => sum + line.price, 0);
             return (
               <article key={receipt.id} className="receipt rounded-b-3xl px-4 pt-4 pb-4">
                 <p className="text-xs text-[#5e574c]">{store?.name}</p>
                 <h2 className="font-black">{receipt.title}</h2>
+                {receipt.note ? <p className="mt-1 text-xs leading-5 text-[#5e574c]">{receipt.note}</p> : null}
                 <ul className="mt-2 space-y-1 text-sm">
                   {receipt.lines.map((line) => (
                     <li key={line.label} className="flex justify-between">
@@ -245,7 +254,7 @@ export function ScanScreen() {
           />
           <p className="mt-4 text-sm font-bold">サンプルの値札</p>
           <div className="mt-2 grid grid-cols-1 gap-2">
-            {sampleTags.map((tag) => (
+            {tags.map((tag) => (
               <button
                 key={tag.id}
                 type="button"
@@ -283,14 +292,14 @@ export function ScanScreen() {
             <img src={preview} alt="撮った値札" className="mt-3 max-h-48 w-full rounded-2xl object-cover" />
           ) : null}
           <div className="mt-3 flex flex-wrap gap-2">
-            {stores.map((store) => (
+            {localStores.map((store) => (
               <button
                 key={store.id}
                 type="button"
                 onClick={() => setStoreId(store.id)}
                 className={cn(
                   "rounded-full px-3 py-1.5 text-sm font-bold",
-                  storeId === store.id ? "bg-[#1b6b43] text-[#f6f3ea]" : "bg-[#f4efe4]",
+                  activeStoreId === store.id ? "bg-[#1b6b43] text-[#f6f3ea]" : "bg-[#f4efe4]",
                 )}
               >
                 {store.name}

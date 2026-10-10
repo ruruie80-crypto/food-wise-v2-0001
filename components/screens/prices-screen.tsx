@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { categoryLabel, categoryOrder, getStore, ingredients } from "@/lib/catalog";
+import { categoryLabel, categoryOrder, getArea, getStore, ingredients } from "@/lib/catalog";
 import { useApp } from "@/components/app-state";
 import { BootScreen, CategoryDot, SignalMark, Sparkline, Yen } from "@/components/bits";
 import { signedPercent } from "@/lib/format";
@@ -34,7 +34,9 @@ export function PricesScreen() {
       <p className="text-[11px] font-bold tracking-[0.16em] text-[#1b6b43]">底値帳</p>
       <h1 className="text-[1.7rem] font-black tracking-tight">生活圏のいま</h1>
       <p className="mt-1 text-sm leading-6 text-[#5e574c]">
-        各店の今週の値段のうち、いちばん安いものを底値にしています。自分の値札は21日で上書きします。
+        {getArea(app.state.areaId).priceBasis === "survey"
+          ? getArea(app.state.areaId).priceNote
+          : "各店の今週の値段のうち、いちばん安いものを底値にしています。自分の値札は21日で上書きします。"}
       </p>
       <Input
         value={query}

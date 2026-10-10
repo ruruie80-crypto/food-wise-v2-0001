@@ -1,4 +1,4 @@
-import { categoryLabel, getIngredient, getRecipe, getStore, stores } from "./catalog";
+import { categoryLabel, getIngredient, getRecipe, getStore, storesIn } from "./catalog";
 import { addDays, formatWithWeekday, weekdayIndex, weekdayName } from "./dates";
 import { yen } from "./format";
 import type { PriceBook } from "./prices";
@@ -9,6 +9,7 @@ export function buildAlerts(
   book: PriceBook,
   plan: Plan | null,
   observations: Observation[],
+  areaId: string,
 ): AlertItem[] {
   const alerts: AlertItem[] = [];
   const ranked = ["chicken_b", "pork", "egg", "cabbage", "mackerel", "tofu", "salmon", "komatsuna", "sprouts"]
@@ -31,7 +32,7 @@ export function buildAlerts(
 
   const tomorrow = addDays(today, 1);
   const dow = weekdayIndex(tomorrow);
-  for (const store of stores) {
+  for (const store of storesIn(areaId)) {
     if (store.closedWeekday === dow) {
       alerts.push({
         id: `closed-${store.id}`,

@@ -1,5 +1,6 @@
-import { getArea, getIngredient, ingredients } from "./catalog";
+import { getArea, getIngredient, ingredients, storesIn } from "./catalog";
 import { addDays, daysBetween, weekId } from "./dates";
+import { surveyUnitYen } from "./survey";
 import type { Forecast, Ingredient, Observation, Quote, Signal } from "./types";
 
 const SALE_CYCLE: { ingredientId: string; storeId: string }[][] = [
@@ -89,8 +90,11 @@ export function createPriceBook(
   const area = getArea(areaId);
   const asOfWeek = weekId(today);
   const cache = new Map<string, Quote | null>();
+  const localStoreIds = storesIn(area.id).map((store) => store.id);
 
   function seeded(ingredient: Ingredient, storeId: string, week: number): number | null {
+    if (!localStoreIds.includes(storeId)) return null;
+    if (area.priceBasis === "survey") return surveyUnitYen(ingredient.id);
     const categoryFactor = area.categoryBias?.[ingredient.category] ?? 1;
     return seedUnitPrice(ingredient, storeId, area.multiplier, week, asOfWeek, categoryFactor);
   }
@@ -116,11 +120,15 @@ export function createPriceBook(
       return null;
     }
 
-    const byStore = ingredient.stores
-      .map((store) => {
-        const user = recentUserPrice(ingredient.id, store.storeId);
-        const price = user ?? seeded(ingredient, store.storeId, asOfWeek);
-        return price == null ? null : { storeId: store.storeId, price };
+    const sellers =
+      area.priceBasis === "survey"
+        ? localStoreIds
+        : ingredient.stores.map((store) => store.storeId).filter((storeId) => localStoreIds.includes(storeId));
+    const byStore = sellers
+      .map((storeId) => {
+        const user = recentUserPrice(ingredient.id, storeId);
+        const price = user ?? seeded(ingredient, storeId, asOfWeek);
+        return price == null ? null : { storeId, price };
       })
       .filter((row): row is { storeId: string; price: number } => row != null)
       .sort((a, b) => a.price - b.price || a.storeId.localeCompare(b.storeId));
@@ -133,16 +141,16 @@ export function createPriceBook(
     const series = [];
     for (let week = asOfWeek - 9; week <= asOfWeek; week += 1) {
       let lowest = Number.POSITIVE_INFINITY;
-      for (const store of ingredient.stores) {
+      for (const storeId of sellers) {
         const user = observations
           .filter(
             (item) =>
               item.ingredientId === ingredient.id &&
-              item.storeId === store.storeId &&
+              item.storeId === storeId &&
               weekId(item.date) === week,
           )
           .sort((a, b) => b.date.localeCompare(a.date))[0];
-        const price = user?.price ?? seeded(ingredient, store.storeId, week);
+        const price = user?.price ?? seeded(ingredient, storeId, week);
         if (price != null) lowest = Math.min(lowest, price);
       }
       if (Number.isFinite(lowest)) {
@@ -181,6 +189,14 @@ export function createPriceBook(
     const current = quote(ingredientId);
     const ingredient = getIngredient(ingredientId);
     if (!current || !ingredient) return null;
+    if (area.priceBasis === "survey") {
+      return {
+        low: current.unitPrice,
+        high: current.unitPrice,
+        headline: "統計の月なので、来週の幅はありません",
+        detail: "2026年8月の仙台市平均を、このアプリの単位に換算した値です。店頭の来週は予測していません。",
+      };
+    }
     const nextWeek = asOfWeek + 1;
     const saleStore = ingredient.stores.find((store) =>
       isOnSale(ingredient.id, store.storeId, nextWeek),

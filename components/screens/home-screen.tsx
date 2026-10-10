@@ -145,7 +145,11 @@ export function HomeScreen() {
         </div>
         <div className="-mx-4 mt-3 flex gap-3 overflow-x-auto px-4 pb-1">
           {buys.length === 0 ? (
-            <p className="px-1 text-sm text-[#5e574c]">特売の番が空いている日です。</p>
+            <p className="px-1 text-sm text-[#5e574c]">
+              {area.priceBasis === "survey"
+                ? "宮城の初期値は市内平均です。特売の番は入っていません。"
+                : "特売の番が空いている日です。"}
+            </p>
           ) : (
             buys.map((quote) => {
               if (!quote) return null;
