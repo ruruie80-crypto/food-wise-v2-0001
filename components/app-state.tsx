@@ -1,11 +1,12 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useSyncExternalStore } from "react";
+import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useSyncExternalStore } from "react";
 import { areas } from "@/lib/catalog";
 import { tokyoHour, tokyoToday } from "@/lib/dates";
 import { buildAlerts } from "@/lib/alerts";
 import { buildPlan, replacePlanSlot, type PlanResult } from "@/lib/optimizer";
 import { createPriceBook, type PriceBook } from "@/lib/prices";
+import { isSkin, skinThemeColor, type SkinId } from "@/lib/skins";
 import type {
   AlertItem,
   MealMode,
@@ -50,16 +51,6 @@ function writeStorage(next: Persisted) {
   window.dispatchEvent(new Event(STORAGE_EVENT));
 }
 
-function clearStorage() {
-  memorySnapshot = "";
-  try {
-    localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // 消せなくても、空のスナップショットに戻す。
-  }
-  window.dispatchEvent(new Event(STORAGE_EVENT));
-}
-
 function subscribeClock(callback: () => void) {
   const timer = window.setInterval(callback, 60_000);
   return () => window.clearInterval(timer);
@@ -85,6 +76,7 @@ export type Persisted = {
   onboarded: boolean;
   readAlertIds: string[];
   premiumPreview: boolean;
+  skin: SkinId;
 };
 
 export type ObservationDraft = {
@@ -118,6 +110,7 @@ type AppContextValue = {
   replaceSlot: (dayIndex: number, meal: MealType, recipeId: string) => void;
   markAlertsRead: () => void;
   setPremiumPreview: (on: boolean) => void;
+  setSkin: (skin: SkinId) => void;
   reset: () => void;
   acceptHandoff: (record: unknown) => string;
 };
@@ -141,6 +134,7 @@ function defaultState(): Persisted {
     onboarded: false,
     readAlertIds: [],
     premiumPreview: false,
+    skin: "kami",
   };
 }
 
@@ -178,6 +172,7 @@ function sanitize(raw: unknown): Persisted {
     onboarded: Boolean(data.onboarded),
     readAlertIds: Array.isArray(data.readAlertIds) ? data.readAlertIds.filter((id) => typeof id === "string") : [],
     premiumPreview: Boolean(data.premiumPreview),
+    skin: isSkin(data.skin) ? data.skin : base.skin,
   };
 }
 
@@ -351,11 +346,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       });
     }, [alerts, update]),
     setPremiumPreview: (on) => patch({ premiumPreview: on }),
+    setSkin: (skin) => update((current) => (current.skin === skin ? current : { ...current, skin })),
     reset: () => {
-      clearStorage();
+      writeStorage({ ...defaultState(), skin: state.skin });
     },
     acceptHandoff: (record: unknown) => {
       const next = sanitize(record);
+      const incoming = record && typeof record === "object" ? (record as { skin?: unknown }).skin : undefined;
+      if (!isSkin(incoming)) next.skin = state.skin;
       next.onboarded = true;
       writeStorage(next);
       const area = areas.find((item) => item.id === next.areaId);
@@ -365,7 +363,20 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     },
   };
 
-  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+  return (
+    <AppContext.Provider value={value}>
+      <SkinSync skin={state.skin} />
+      {children}
+    </AppContext.Provider>
+  );
+}
+
+function SkinSync({ skin }: { skin: SkinId }) {
+  useLayoutEffect(() => {
+    document.documentElement.dataset.skin = skin;
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", skinThemeColor(skin));
+  }, [skin]);
+  return null;
 }
 
 export function useApp(): AppContextValue {

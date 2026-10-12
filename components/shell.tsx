@@ -24,11 +24,11 @@ function isActive(pathname: string, href: string): boolean {
 
 export function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mx-auto min-h-dvh w-full max-w-[480px] bg-background lg:grid lg:h-dvh lg:max-w-none lg:grid-cols-[92px_minmax(320px,460px)_minmax(280px,1fr)] lg:overflow-hidden lg:bg-[#e6dece]">
+    <div className="mx-auto min-h-dvh w-full max-w-[480px] bg-background lg:grid lg:h-dvh lg:max-w-none lg:grid-cols-[92px_minmax(320px,460px)_minmax(280px,1fr)] lg:overflow-hidden lg:bg-canvas">
       <Suspense fallback={<div className="hidden lg:block" />}>
         <SideNav />
       </Suspense>
-      <div className="relative bg-background lg:min-h-0 lg:overflow-y-auto lg:border-x lg:border-[#e3d8c6]">
+      <div className="skin-stage relative bg-background lg:min-h-0 lg:overflow-y-auto lg:border-x lg:border-border">
         <div className="pb-28 lg:pb-8">{children}</div>
         <Suspense fallback={null}>
           <BottomNav />
@@ -53,7 +53,7 @@ function SideNav() {
   const pathname = usePathname();
   const { unreadCount } = useApp();
   return (
-    <nav className="hidden flex-col gap-1 border-r border-[#e3d8c6] bg-[#f7f3ea] px-2 py-4 lg:flex" aria-label="主要">
+    <nav className="hidden flex-col gap-1 border-r border-border bg-nav px-2 py-4 lg:flex" aria-label="主要">
       <p className="px-1 pb-3 text-center text-[11px] leading-tight font-black tracking-tight">
         底値
         <span className="block">ごはん</span>
@@ -68,7 +68,7 @@ function SideNav() {
             aria-current={active ? "page" : undefined}
             className={cn(
               "flex flex-col items-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-medium",
-              active ? "bg-[#1b6b43] text-[#f6f3ea]" : "text-[#3d3830] hover:bg-[#efe6d2]",
+              active ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-secondary",
             )}
           >
             <Icon className="size-5" />
@@ -78,12 +78,12 @@ function SideNav() {
       })}
       <Link
         href="/alerts"
-        className="mt-auto flex items-center justify-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-medium text-[#3d3830] hover:bg-[#efe6d2]"
+        className="mt-auto flex items-center justify-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-medium text-foreground hover:bg-secondary"
       >
         <Bell className="size-4" />
         通知
         {unreadCount > 0 ? (
-          <span className="rounded-full bg-[#c5362c] px-1.5 text-[10px] text-white">{unreadCount}</span>
+          <span className="rounded-full bg-destructive px-1.5 text-[10px] text-destructive-foreground">{unreadCount}</span>
         ) : null}
       </Link>
     </nav>
@@ -94,7 +94,7 @@ function BottomNav() {
   const pathname = usePathname();
   return (
     <nav
-      className="fixed bottom-0 left-1/2 z-30 grid w-full max-w-[480px] -translate-x-1/2 grid-cols-5 border-t border-[#e3d8c6] bg-[#fffdf8]/95 px-1 pt-1 pb-[max(0.4rem,env(safe-area-inset-bottom))] backdrop-blur lg:hidden"
+      className="fixed bottom-0 left-1/2 z-30 grid w-full max-w-[480px] -translate-x-1/2 grid-cols-5 border-t border-border bg-card/95 px-1 pt-1 pb-[max(0.4rem,env(safe-area-inset-bottom))] backdrop-blur lg:hidden"
       aria-label="主要"
     >
       {NAV.map((item) => {
@@ -108,15 +108,15 @@ function BottomNav() {
             aria-current={active ? "page" : undefined}
             className={cn(
               "flex flex-col items-center gap-0.5 rounded-xl py-1 text-[10px] font-medium",
-              active ? "text-[#1b6b43]" : "text-[#5e574c]",
+              active ? "text-primary" : "text-muted-foreground",
             )}
           >
             <span
               className={cn(
                 "flex size-8 items-center justify-center rounded-full",
                 scan &&
-                  "-mt-4 size-12 border-4 border-[#fffdf8] bg-[#1b6b43] text-[#ffe14a] shadow-[0_8px_16px_rgba(27,107,67,0.28)]",
-                !scan && active && "bg-[#e5f2ea]",
+                  "-mt-4 size-12 border-4 border-card bg-primary text-panel-accent shadow-[0_8px_16px_var(--primary-shadow)]",
+                !scan && active && "bg-chip",
               )}
             >
               <Icon className={scan ? "size-5" : "size-4"} />

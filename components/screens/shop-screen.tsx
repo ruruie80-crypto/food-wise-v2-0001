@@ -22,7 +22,7 @@ export function ShopScreen() {
     return (
       <div className="px-4 pt-[max(1.25rem,env(safe-area-inset-top))]">
         <h1 className="text-[1.7rem] font-black">買い物</h1>
-        <p className="mt-3 rounded-3xl bg-white p-4 text-sm leading-6">
+        <p className="mt-3 rounded-3xl bg-card p-4 text-sm leading-6">
           献立ができると、品目をいちばん安い店に振り分けます。
         </p>
         <AreaStores areaId={app.state.areaId} />
@@ -64,24 +64,24 @@ export function ShopScreen() {
 
   return (
     <div className="px-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-10">
-      <p className="text-[11px] font-bold tracking-[0.16em] text-[#1b6b43]">{area.name}</p>
+      <p className="text-[11px] font-bold tracking-[0.16em] text-primary">{area.name}</p>
       <h1 className="text-[1.7rem] font-black tracking-tight">買う店が分かれる</h1>
-      <p className="mt-1 text-sm leading-6 text-[#5e574c]">
+      <p className="mt-1 text-sm leading-6 text-muted-foreground">
         {checkedCount}/{totalLines} をカゴに入れました。合計 <Yen value={list.multiTotal} className="text-base" />。
       </p>
       {area.priceBasis === "survey" ? (
-        <p className="mt-2 text-sm leading-6 text-[#5e574c]">{area.priceNote}</p>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">{area.priceNote}</p>
       ) : null}
 
       {list.single && list.savings >= 120 ? (
-        <div className="mt-4 rounded-3xl bg-[#fff4c2] p-4 text-sm leading-6">
+        <div className="mt-4 rounded-3xl bg-notice text-notice-foreground p-4 text-sm leading-6">
           <p className="font-bold">2店以上はしごすると {yen(list.savings)} 安い</p>
           <p className="mt-1">
             {getStore(list.single.storeId)?.name} 1店にまとめると {yen(list.single.total)}。差額が小さい日は、1店で済ませてください。
           </p>
         </div>
       ) : list.single ? (
-        <div className="mt-4 rounded-3xl bg-white p-4 text-sm leading-6">
+        <div className="mt-4 rounded-3xl bg-card p-4 text-sm leading-6">
           <p className="font-bold">今日は1店で足りる</p>
           <p className="mt-1">
             分ける差額は {yen(list.savings)}。{getStore(list.single.storeId)?.name} にまとめても {yen(list.single.total)} です。
@@ -93,11 +93,11 @@ export function ShopScreen() {
         {list.groups.map((group) => {
           const store = getStore(group.storeId);
           return (
-            <section key={group.storeId} className="rounded-3xl bg-white p-4">
+            <section key={group.storeId} className="rounded-3xl bg-card p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-lg font-black">{store?.name}</p>
-                  <p className="text-xs text-[#5e574c]">{store ? storePlace(store, app.state.areaId) : ""}</p>
+                  <p className="text-xs text-muted-foreground">{store ? storePlace(store, app.state.areaId) : ""}</p>
                 </div>
                 <Yen value={group.total} className="text-2xl" />
               </div>
@@ -113,9 +113,9 @@ export function ShopScreen() {
                           onCheckedChange={(value) => app.toggleCheck(line.ingredientId, Boolean(value))}
                           aria-label={ingredient?.name}
                         />
-                        <span className={checked ? "flex-1 text-[#8a8175] line-through" : "flex-1"}>
+                        <span className={checked ? "flex-1 text-muted-foreground line-through" : "flex-1"}>
                           <span className="font-bold">{ingredient?.name}</span>
-                          <span className="ml-2 text-xs text-[#5e574c]">
+                          <span className="ml-2 text-xs text-muted-foreground">
                             {ingredient ? formatUnits(line.units, ingredient) : ""}
                           </span>
                         </span>
@@ -125,7 +125,7 @@ export function ShopScreen() {
                   );
                 })}
               </ul>
-              <button type="button" className="mt-3 text-sm font-bold text-[#1b6b43]" onClick={() => setStoreId(group.storeId)}>
+              <button type="button" className="mt-3 text-sm font-bold text-primary" onClick={() => setStoreId(group.storeId)}>
                 この店の情報
               </button>
             </section>
@@ -134,20 +134,20 @@ export function ShopScreen() {
       </div>
 
       {list.seasoningYen > 0 ? (
-        <p className="mt-4 text-sm leading-6 text-[#5e574c]">
+        <p className="mt-4 text-sm leading-6 text-muted-foreground">
           醤油や油など、家にある前提の調味料を {yen(list.seasoningYen)} 見込んでいます。リストの品目には入っていません。
         </p>
       ) : null}
 
       {area.priceBasis === "survey" ? (
-        <section className="mt-4 rounded-3xl bg-white p-4">
+        <section className="mt-4 rounded-3xl bg-card p-4">
           <p className="text-sm font-bold">この生活圏の店</p>
-          <ul className="mt-2 divide-y divide-[#e3d8c6]">
+          <ul className="mt-2 divide-y divide-border">
             {localStores.map((store) => (
               <li key={store.id}>
                 <button type="button" className="w-full py-3 text-left" onClick={() => setStoreId(store.id)}>
                   <span className="block font-bold">{store.name}</span>
-                  <span className="text-xs leading-5 text-[#5e574c]">
+                  <span className="text-xs leading-5 text-muted-foreground">
                     {store.branches[app.state.areaId]} · {store.hours}
                   </span>
                 </button>
@@ -156,15 +156,15 @@ export function ShopScreen() {
           </ul>
         </section>
       ) : (
-        <section className="mt-4 rounded-3xl bg-[#143026] p-4 text-[#f6f3ea]">
-          <p className="text-[11px] font-bold tracking-[0.14em] text-[#ffe14a]">業務用への送客 · 見本</p>
+        <section className="mt-4 rounded-3xl bg-panel p-4 text-panel-foreground">
+          <p className="text-[11px] font-bold tracking-[0.14em] text-panel-accent">業務用への送客 · 見本</p>
           <p className="mt-2 text-lg font-black">卵と豆腐はビッグストックが底</p>
-          <p className="mt-1 text-sm leading-6 text-[#d7e4db]">
+          <p className="mt-1 text-sm leading-6 text-panel-muted">
             プライベートブランドや業務用のまとめ買いは、ここから店の棚へ渡す想定です。在庫も決済も、まだつながっていません。
           </p>
           <Button
             type="button"
-            className="mt-3 h-11 bg-[#ffe14a] text-[#1c1915] hover:bg-[#ffe14a]/80"
+            className="mt-3 h-11 bg-accent text-accent-foreground hover:bg-accent/80"
             onClick={() => setStoreId("big")}
           >
             ビッグストックを見る
@@ -190,7 +190,7 @@ export function ShopScreen() {
               {openStore.phone ? (
                 <p>
                   電話{" "}
-                  <a href={`tel:${openStore.phone}`} className="font-bold text-[#1b6b43]">
+                  <a href={`tel:${openStore.phone}`} className="font-bold text-primary">
                     {openStore.phone}
                   </a>
                 </p>
@@ -198,10 +198,10 @@ export function ShopScreen() {
               <p>営業 {openStore.hours}</p>
               {openStore.walkMinutes != null ? <p>徒歩の目安 {openStore.walkMinutes}分</p> : null}
               <p>{openStore.blurb}</p>
-              <p className="rounded-2xl bg-[#fff4c2] px-3 py-2">{openStore.saleNote}</p>
+              <p className="rounded-2xl bg-notice text-notice-foreground px-3 py-2">{openStore.saleNote}</p>
               {openStore.closedWeekday != null ? <p>定休日は週の途中に1日あります。通知で前日に出します。</p> : null}
               {openStore.sourceUrl ? (
-                <a href={openStore.sourceUrl} target="_blank" rel="noreferrer" className="inline-block font-bold text-[#1b6b43]">
+                <a href={openStore.sourceUrl} target="_blank" rel="noreferrer" className="inline-block font-bold text-primary">
                   店舗の案内を開く
                 </a>
               ) : null}

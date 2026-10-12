@@ -1,9 +1,11 @@
 import type { Metadata, Viewport } from "next";
 import { Barlow_Condensed, Zen_Kaku_Gothic_New } from "next/font/google";
+import { headers } from "next/headers";
 import { connection } from "next/server";
 import { AppStateProvider } from "@/components/app-state";
 import { Shell } from "@/components/shell";
 import { Toaster } from "@/components/ui/sonner";
+import { SKIN_BOOT } from "@/lib/skins";
 import "./globals.css";
 
 const zen = Zen_Kaku_Gothic_New({
@@ -52,9 +54,11 @@ export const viewport: Viewport = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   await connection();
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
-    <html lang="ja" className={`${zen.variable} ${barlow.variable} h-full antialiased`}>
-      <body className="min-h-dvh bg-[#e7dfd0] text-[#1c1915]">
+    <html lang="ja" className={`${zen.variable} ${barlow.variable} h-full antialiased`} suppressHydrationWarning>
+      <body className="min-h-dvh bg-canvas text-foreground">
+        {nonce ? <script nonce={nonce} dangerouslySetInnerHTML={{ __html: SKIN_BOOT }} /> : null}
         <AppStateProvider>
           <Shell>{children}</Shell>
           <Toaster position="top-center" />

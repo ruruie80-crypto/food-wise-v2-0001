@@ -58,13 +58,13 @@ export function MealsScreen() {
 
   return (
     <div className="px-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-10">
-      <p className="text-[11px] font-bold tracking-[0.16em] text-[#1b6b43]">予算献立</p>
+      <p className="text-[11px] font-bold tracking-[0.16em] text-primary">予算献立</p>
       <h1 className="text-[1.7rem] font-black tracking-tight">今週の食費で組む</h1>
-      <p className="mt-1 text-sm leading-6 text-[#5e574c]">
+      <p className="mt-1 text-sm leading-6 text-muted-foreground">
         予算を入れると、買う食材、調理法、7日の献立が出ます。
       </p>
 
-      <section className="mt-4 rounded-3xl bg-white p-4">
+      <section className="mt-4 rounded-3xl bg-card p-4">
         <label htmlFor="budget" className="text-sm font-bold">
           今週の食費
         </label>
@@ -100,14 +100,14 @@ export function MealsScreen() {
               onClick={() => app.setBudget(preset)}
               className={cn(
                 "rounded-xl py-2 text-sm font-bold",
-                app.state.budget === preset ? "bg-[#ffe14a]" : "bg-[#f4efe4]",
+                app.state.budget === preset ? "bg-accent" : "bg-muted",
               )}
             >
               {yen(preset)}
             </button>
           ))}
         </div>
-        <p className="mt-2 text-xs leading-5 text-[#5e574c]">
+        <p className="mt-2 text-xs leading-5 text-muted-foreground">
           {app.state.people}人・{MODE_LABEL[app.state.mode]}の目安は {yen(hint)}。{modeHint(app.state.mode)}
         </p>
 
@@ -131,7 +131,7 @@ export function MealsScreen() {
               onClick={() => app.setMode(mode)}
               className={cn(
                 "rounded-2xl px-2 py-2 text-sm font-bold",
-                app.state.mode === mode ? "bg-[#1b6b43] text-[#f6f3ea]" : "bg-[#f4efe4]",
+                app.state.mode === mode ? "bg-primary text-primary-foreground" : "bg-muted",
               )}
             >
               {MODE_LABEL[mode]}
@@ -146,7 +146,7 @@ export function MealsScreen() {
               onClick={() => app.togglePref(pref.key)}
               className={cn(
                 "rounded-full px-3 py-1.5 text-sm font-bold",
-                app.state.prefs[pref.key] ? "bg-[#1b6b43] text-[#f6f3ea]" : "bg-[#f4efe4]",
+                app.state.prefs[pref.key] ? "bg-primary text-primary-foreground" : "bg-muted",
               )}
             >
               {pref.label}
@@ -163,7 +163,7 @@ export function MealsScreen() {
                 onClick={() => app.toggleExclusion(group.ids)}
                 className={cn(
                   "rounded-full px-3 py-1.5 text-sm font-bold",
-                  on ? "bg-[#f3d2c8] text-[#7a2e24]" : "bg-[#f4efe4]",
+                  on ? "bg-wait text-wait-foreground" : "bg-muted",
                 )}
               >
                 {on ? `${group.label}なし` : `${group.label}を除く`}
@@ -177,13 +177,13 @@ export function MealsScreen() {
       </section>
 
       {app.stale && plan ? (
-        <p className="mt-3 rounded-2xl bg-[#fff4c2] px-3 py-3 text-sm leading-6">
+        <p className="mt-3 rounded-2xl bg-notice text-notice-foreground px-3 py-3 text-sm leading-6">
           条件が変わっています。上のボタンで組み直すと、買い物リストも追いつきます。
         </p>
       ) : null}
 
       {!plan ? (
-        <p className="mt-6 rounded-3xl border border-dashed border-[#cbbfaa] p-4 text-sm leading-6">
+        <p className="mt-6 rounded-3xl border border-dashed border-line p-4 text-sm leading-6">
           上の食費で作ると、おすすめの食材、調理法、7日の献立がここに出ます。
         </p>
       ) : (
@@ -203,13 +203,13 @@ export function MealsScreen() {
             />
           </div>
           {other ? (
-            <p className="mt-2 text-xs leading-5 text-[#5e574c]">
+            <p className="mt-2 text-xs leading-5 text-muted-foreground">
               いま見ているのは{app.state.focus === "balanced" ? "バランス" : "最安"}の献立です。買い物リストもこちらに従います。
             </p>
           ) : null}
           <ul className="mt-3 space-y-2">
             {plan.notes.map((note) => (
-              <li key={note} className="rounded-2xl bg-white px-3 py-2 text-sm leading-6">
+              <li key={note} className="rounded-2xl bg-card px-3 py-2 text-sm leading-6">
                 {note}
               </li>
             ))}
@@ -219,7 +219,7 @@ export function MealsScreen() {
             <Stat label="野菜" value={percent(plan.nutrition.veg, plan.targets.veg)} />
             <Stat label="食物繊維" value={percent(plan.nutrition.fiber, plan.targets.fiber)} />
           </div>
-          <p className="mt-2 text-xs leading-5 text-[#5e574c]">
+          <p className="mt-2 text-xs leading-5 text-muted-foreground">
             1日あたり約 {Math.round(plan.nutrition.kcal / plan.days)}kcal、たんぱく質{" "}
             {Math.round(plan.nutrition.protein / plan.days)}g。
             {plan.nutrition.salt > plan.targets.salt
@@ -236,7 +236,7 @@ export function MealsScreen() {
               const date = addDays(app.today, day);
               const slots = plan.slots.filter((slot) => slot.dayIndex === day);
               return (
-                <li key={date} className="rounded-3xl bg-white p-4">
+                <li key={date} className="rounded-3xl bg-card p-4">
                   <p className="text-sm font-black">{day === 0 ? "今日" : day === 1 ? "明日" : formatWithWeekday(date)}</p>
                   <ul className="mt-2 space-y-3">
                     {slots.map((slot) => {
@@ -244,22 +244,22 @@ export function MealsScreen() {
                       if (!recipe) return null;
                       const nutrition = recipeNutrition(recipe, plan.people, plan.portion);
                       return (
-                        <li key={`${slot.meal}-${slot.recipeId}`} className="border-t border-[#efe6d4] pt-3 first:border-0 first:pt-0">
+                        <li key={`${slot.meal}-${slot.recipeId}`} className="border-t border-track pt-3 first:border-0 first:pt-0">
                           <div className="flex items-start justify-between gap-3">
                             <div>
-                              <p className="text-[11px] font-bold text-[#1b6b43]">{mealLabel(slot.meal)}</p>
+                              <p className="text-[11px] font-bold text-primary">{mealLabel(slot.meal)}</p>
                               <p className="font-bold">{recipe.name}</p>
-                              <p className="text-xs text-[#5e574c]">
+                              <p className="text-xs text-muted-foreground">
                                 {cookingMethod(recipe.id)} · {recipe.minutes}分 · たんぱく質 {Math.round(nutrition.protein)}g · 野菜 {Math.round(nutrition.veg)}g
                               </p>
                             </div>
                             <Yen value={slot.cost} className="text-2xl" />
                           </div>
-                          <p className="mt-1 text-sm leading-6 text-[#3d3830]">{recipe.summary}</p>
+                          <p className="mt-1 text-sm leading-6 text-foreground">{recipe.summary}</p>
                           <RecipeVideoButton recipeId={recipe.id} />
                           <button
                             type="button"
-                            className="mt-1 text-sm font-bold text-[#1b6b43]"
+                            className="mt-1 text-sm font-bold text-primary"
                             onClick={() => setSwap(slot)}
                           >
                             別の皿に変える
@@ -290,14 +290,14 @@ export function MealsScreen() {
                         app.replaceSlot(swap.dayIndex, swap.meal, option.recipe.id);
                         setSwap(null);
                       }}
-                      className="flex w-full items-center justify-between rounded-2xl bg-[#f4efe4] px-3 py-3 text-left"
+                      className="flex w-full items-center justify-between rounded-2xl bg-muted px-3 py-3 text-left"
                     >
                       <span>
                         <span className="block font-bold">
                           {option.recipe.name}
                           {option.recipe.id === swap.recipeId ? " · 今" : ""}
                         </span>
-                        <span className="text-xs text-[#5e574c]">
+                        <span className="text-xs text-muted-foreground">
                           {option.recipe.minutes}分 · たんぱく質 {Math.round(option.protein)}g
                         </span>
                       </span>
@@ -348,11 +348,11 @@ function FocusCard({
     <button
       type="button"
       onClick={onClick}
-      className={cn("rounded-3xl px-3 py-3 text-left", active ? "bg-[#1b6b43] text-[#f6f3ea]" : "bg-white")}
+      className={cn("rounded-3xl px-3 py-3 text-left", active ? "bg-primary text-primary-foreground" : "bg-card")}
     >
       <p className="text-xs font-bold">{title}</p>
       <Yen value={plan.cost} className="mt-1 block text-3xl" />
-      <p className={cn("mt-1 text-[11px]", active ? "text-[#d7e4db]" : "text-[#5e574c]")}>
+      <p className={cn("mt-1 text-[11px]", active ? "text-panel-muted" : "text-muted-foreground")}>
         野菜 {percent(plan.nutrition.veg, plan.targets.veg)}% · たんぱく質 {percent(plan.nutrition.protein, plan.targets.protein)}%
       </p>
     </button>
@@ -361,11 +361,11 @@ function FocusCard({
 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-2xl bg-white px-3 py-2">
-      <p className="text-[11px] text-[#5e574c]">{label}</p>
+    <div className="rounded-2xl bg-card px-3 py-2">
+      <p className="text-[11px] text-muted-foreground">{label}</p>
       <p className="font-price text-2xl font-semibold leading-none">{value}%</p>
-      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#efe6d4]">
-        <div className="h-full bg-[#1b6b43]" style={{ width: `${Math.min(100, value)}%` }} />
+      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-track">
+        <div className="h-full bg-primary" style={{ width: `${Math.min(100, value)}%` }} />
       </div>
     </div>
   );

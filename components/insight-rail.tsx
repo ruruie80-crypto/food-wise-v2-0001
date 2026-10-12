@@ -23,10 +23,10 @@ export function InsightRail() {
   const dinnerRecipe = dinner ? getRecipe(dinner.recipeId) : undefined;
 
   return (
-    <aside className="hidden min-h-0 overflow-y-auto bg-[#f7f3ea] px-8 py-8 lg:block">
-      <p className="text-[11px] font-bold tracking-[0.16em] text-[#1b6b43]">今週の見取り図</p>
+    <aside className="hidden min-h-0 overflow-y-auto bg-nav px-8 py-8 lg:block">
+      <p className="text-[11px] font-bold tracking-[0.16em] text-primary">今週の見取り図</p>
       <h2 className="mt-1 text-2xl font-black tracking-tight">生活圏の底値で、食費と栄養を同時に見る</h2>
-      <p className="mt-2 max-w-md text-sm leading-6 text-[#5e574c]">
+      <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
         オンラインの最安値ではなく、歩ける店の値札です。献立は金額だけの最安と、栄養を戻した案を並べます。
       </p>
 
@@ -41,20 +41,20 @@ export function InsightRail() {
           <Metric label="野菜" value={`${percent(plan.nutrition.veg, plan.targets.veg)}%`} note="目標比" />
         </div>
       ) : (
-        <Link href="/meals" className="mt-6 inline-flex rounded-full bg-[#1b6b43] px-4 py-2 text-sm font-bold text-[#f6f3ea]">
+        <Link href="/meals" className="mt-6 inline-flex rounded-full bg-primary px-4 py-2 text-sm font-bold text-panel-foreground">
           今週の食費から献立を作る
         </Link>
       )}
 
       {dinner && dinnerRecipe ? (
-        <div className="mt-6 max-w-lg rounded-3xl bg-white p-4">
-          <p className="text-xs text-[#5e574c]">今日の{mealLabel(dinner.meal)}</p>
+        <div className="mt-6 max-w-lg rounded-3xl bg-card p-4">
+          <p className="text-xs text-muted-foreground">今日の{mealLabel(dinner.meal)}</p>
           <p className="mt-1 text-lg font-black">{dinnerRecipe.name}</p>
-          <p className="mt-1 text-sm text-[#5e574c]">
+          <p className="mt-1 text-sm text-muted-foreground">
             <Yen value={dinner.cost} /> · {dinnerRecipe.minutes}分 · バランス{" "}
             {balanceScore(plan!.nutrition, plan!.targets)}
           </p>
-          <p className="mt-2 text-xs leading-5 text-[#5e574c]">{modeHint(plan!.mode)}</p>
+          <p className="mt-2 text-xs leading-5 text-muted-foreground">{modeHint(plan!.mode)}</p>
         </div>
       ) : null}
 
@@ -68,10 +68,10 @@ export function InsightRail() {
             if (!ingredient || !store) return null;
             return (
               <li key={ingredient.id}>
-                <Link href={`/prices/${ingredient.id}`} className="flex items-center justify-between rounded-2xl bg-white px-3 py-2">
+                <Link href={`/prices/${ingredient.id}`} className="flex items-center justify-between rounded-2xl bg-card px-3 py-2">
                   <span>
                     <span className="block text-sm font-bold">{ingredient.name}</span>
-                    <span className="text-xs text-[#5e574c]">{store.name}</span>
+                    <span className="text-xs text-muted-foreground">{store.name}</span>
                   </span>
                   <span className="text-right">
                     <Yen value={quote.unitPrice} className="text-xl" />
@@ -95,10 +95,10 @@ export function InsightRail() {
 
 function Metric({ label, value, note }: { label: string; value: string; note: React.ReactNode }) {
   return (
-    <div className="rounded-2xl bg-white px-3 py-3">
-      <p className="text-[11px] text-[#5e574c]">{label}</p>
+    <div className="rounded-2xl bg-card px-3 py-3">
+      <p className="text-[11px] text-muted-foreground">{label}</p>
       <p className="font-price text-3xl font-semibold leading-none">{value}</p>
-      <p className="mt-1 text-xs text-[#5e574c]">{note}</p>
+      <p className="mt-1 text-xs text-muted-foreground">{note}</p>
     </div>
   );
 }

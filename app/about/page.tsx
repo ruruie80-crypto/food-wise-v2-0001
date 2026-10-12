@@ -37,13 +37,13 @@ const BOUNDS = [
 export default function AboutPage() {
   return (
     <div className="px-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-10">
-      <p className="text-[11px] font-bold tracking-[0.16em] text-[#1b6b43]">公開用の試作</p>
+      <p className="text-[11px] font-bold tracking-[0.16em] text-primary">公開用の試作</p>
       <h1 className="text-[1.7rem] font-black tracking-tight">作品ノート</h1>
-      <p className="mt-2 text-sm leading-6 text-[#5e574c]">
-        底値ごはんは、物価高の食卓を題材にしたポートフォリオ向けの試作です。値札から生活圏の底値を覚え、入れた食費のなかで献立と買い物リストを比べます。
+      <p className="mt-2 text-sm leading-6 text-muted-foreground">
+        底値ごはんは、物価高の食卓を題材にしたポートフォリオ向けの試作です。値札から生活圏の底値を覚え、入れた食費のなかで献立と買い物リストを比べます。ホームの着せ替えで、帳面、夜の店、提灯、八百屋に見た目を変えられます。
       </p>
 
-      <section className="mt-5 rounded-3xl bg-white p-4">
+      <section className="mt-5 rounded-3xl bg-card p-4">
         <h2 className="font-black">解いていること</h2>
         <p className="mt-2 text-sm leading-6">
           献立は栄養、家計は金額に寄りがちです。この試作は、同じ週の食費に対して、金額だけの最安案と、野菜とたんぱく質を戻した案を並べます。
@@ -56,15 +56,15 @@ export default function AboutPage() {
       <h2 className="mt-6 text-sm font-black">公開してよい境界</h2>
       <ul className="mt-3 space-y-3">
         {BOUNDS.map((item) => (
-          <li key={item.title} className="rounded-3xl bg-white p-4">
+          <li key={item.title} className="rounded-3xl bg-card p-4">
             <p className="font-black">{item.title}</p>
-            <p className="mt-1 text-sm leading-6 text-[#5e574c]">{item.body}</p>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">{item.body}</p>
           </li>
         ))}
       </ul>
 
-      <section className="mt-6 rounded-3xl bg-[#143026] p-4 text-[#f6f3ea]">
-        <p className="text-[11px] font-bold tracking-[0.14em] text-[#ffe14a]">試し方</p>
+      <section className="mt-6 rounded-3xl bg-panel p-4 text-panel-foreground">
+        <p className="text-[11px] font-bold tracking-[0.14em] text-panel-accent">試し方</p>
         <ol className="mt-2 list-decimal space-y-2 pl-5 text-sm leading-6">
           <li>5,000円ではじめて、朝と夜の献立を出す。</li>
           <li>スキャンでサンプルのレシートを記録する。</li>
@@ -73,7 +73,7 @@ export default function AboutPage() {
         </ol>
       </section>
 
-      <Link href="/" className="mt-6 inline-block text-sm font-bold text-[#1b6b43]">
+      <Link href="/" className="mt-6 inline-block text-sm font-bold text-primary">
         ホームへ戻る
       </Link>
     </div>

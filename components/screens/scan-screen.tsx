@@ -147,9 +147,9 @@ export function ScanScreen() {
 
   return (
     <div className="px-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-8">
-      <p className="text-[11px] font-bold tracking-[0.16em] text-[#1b6b43]">スキャン</p>
+      <p className="text-[11px] font-bold tracking-[0.16em] text-primary">スキャン</p>
       <h1 className="text-[1.7rem] font-black tracking-tight">値札を底値にする</h1>
-      <div className="mt-3 grid grid-cols-2 rounded-full bg-white p-1">
+      <div className="mt-3 grid grid-cols-2 rounded-full bg-card p-1">
         {(
           [
             ["receipt", "レシート"],
@@ -165,7 +165,7 @@ export function ScanScreen() {
             }}
             className={cn(
               "rounded-full py-2 text-sm font-bold",
-              mode === value ? "bg-[#1b6b43] text-[#f6f3ea]" : "text-[#5e574c]",
+              mode === value ? "bg-primary text-primary-foreground" : "text-muted-foreground",
             )}
           >
             {label}
@@ -174,16 +174,16 @@ export function ScanScreen() {
       </div>
 
       {phase === "reading" ? (
-        <div className="relative mt-4 overflow-hidden rounded-3xl bg-[#143026] px-4 py-16 text-center text-[#f6f3ea]">
-          <div className="scanline absolute right-6 left-6 h-0.5 bg-[#ffe14a]" />
+        <div className="relative mt-4 overflow-hidden rounded-3xl bg-panel px-4 py-16 text-center text-panel-foreground">
+          <div className="scanline absolute right-6 left-6 h-0.5 bg-accent" />
           <p className="text-lg font-black">値段を拾っています</p>
-          <p className="mt-2 text-sm text-[#d7e4db]">店と品目を、次の画面で確認できます。</p>
+          <p className="mt-2 text-sm text-panel-muted">店と品目を、次の画面で確認できます。</p>
         </div>
       ) : null}
 
       {phase === "capture" && mode === "receipt" ? (
         <div className="mt-4 space-y-3">
-          <p className="text-sm leading-6 text-[#5e574c]">
+          <p className="text-sm leading-6 text-muted-foreground">
             まずサンプルで試し読みできます。実物のレシートは、読み取った行を自分で直せます。写真は保存しません。
           </p>
           {receipts.map((receipt) => {
@@ -191,9 +191,9 @@ export function ScanScreen() {
             const total = receipt.lines.reduce((sum, line) => sum + line.price, 0);
             return (
               <article key={receipt.id} className="receipt rounded-b-3xl px-4 pt-4 pb-4">
-                <p className="text-xs text-[#5e574c]">{store?.name}</p>
+                <p className="text-xs text-muted-foreground">{store?.name}</p>
                 <h2 className="font-black">{receipt.title}</h2>
-                {receipt.note ? <p className="mt-1 text-xs leading-5 text-[#5e574c]">{receipt.note}</p> : null}
+                {receipt.note ? <p className="mt-1 text-xs leading-5 text-muted-foreground">{receipt.note}</p> : null}
                 <ul className="mt-2 space-y-1 text-sm">
                   {receipt.lines.map((line) => (
                     <li key={line.label} className="flex justify-between">
@@ -228,11 +228,11 @@ export function ScanScreen() {
 
       {phase === "capture" && mode === "tag" ? (
         <div className="mt-4">
-          <div className="relative aspect-[4/5] overflow-hidden rounded-3xl bg-[#143026]">
+          <div className="relative aspect-[4/5] overflow-hidden rounded-3xl bg-panel">
             <video ref={videoRef} playsInline muted className="h-full w-full object-cover" />
-            <div className="pointer-events-none absolute inset-4 rounded-2xl border-2 border-[#ffe14a]/80" />
+            <div className="pointer-events-none absolute inset-4 rounded-2xl border-2 border-accent/80" />
             {cameraError ? (
-              <p className="absolute inset-x-6 bottom-6 text-center text-sm leading-6 text-[#f6f3ea]">
+              <p className="absolute inset-x-6 bottom-6 text-center text-sm leading-6 text-panel-foreground">
                 カメラを使えないときは、下のサンプル値札かアルバムから選べます。
               </p>
             ) : null}
@@ -265,13 +265,13 @@ export function ScanScreen() {
                     null,
                   )
                 }
-                className="flex items-center justify-between rounded-2xl bg-white px-3 py-3 text-left"
+                className="flex items-center justify-between rounded-2xl bg-card px-3 py-3 text-left"
               >
                 <span>
-                  <span className="block text-xs text-[#5e574c]">{getStore(tag.storeId)?.name}</span>
+                  <span className="block text-xs text-muted-foreground">{getStore(tag.storeId)?.name}</span>
                   <span className="font-bold">{tag.label}</span>
                 </span>
-                <span className="rounded-[4px] bg-[#ffe14a] px-2 py-1 font-price text-2xl font-semibold shadow-[2px_2px_0_#1c1915]">
+                <span className="rounded-[4px] bg-accent px-2 py-1 font-price text-2xl font-semibold shadow-[2px_2px_0_var(--foreground)]">
                   {yen(tag.price)}
                 </span>
               </button>
@@ -281,9 +281,9 @@ export function ScanScreen() {
       ) : null}
 
       {phase === "review" ? (
-        <div className="mt-4 rounded-3xl bg-white p-4">
+        <div className="mt-4 rounded-3xl bg-card p-4">
           <p className="text-sm font-bold">読み取りの確認</p>
-          <p className="mt-1 text-xs leading-5 text-[#5e574c]">
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
             値札の文字は、この端末では自動では確定しません。店・品目・税込価格を直してから記録してください。
           </p>
           {preview ? (
@@ -299,7 +299,7 @@ export function ScanScreen() {
                 onClick={() => setStoreId(store.id)}
                 className={cn(
                   "rounded-full px-3 py-1.5 text-sm font-bold",
-                  activeStoreId === store.id ? "bg-[#1b6b43] text-[#f6f3ea]" : "bg-[#f4efe4]",
+                  activeStoreId === store.id ? "bg-primary text-primary-foreground" : "bg-muted",
                 )}
               >
                 {store.name}
@@ -308,12 +308,12 @@ export function ScanScreen() {
           </div>
           <ul className="mt-3 space-y-3">
             {lines.map((line, index) => (
-              <li key={`${line.ingredientId}-${index}`} className="rounded-2xl bg-[#f4efe4] p-3">
+              <li key={`${line.ingredientId}-${index}`} className="rounded-2xl bg-muted p-3">
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-bold">{getIngredient(line.ingredientId)?.name ?? "品目を選ぶ"}</span>
                   <button
                     type="button"
-                    className="text-xs font-bold text-[#c5362c]"
+                    className="text-xs font-bold text-destructive"
                     onClick={() => setLines(lines.filter((_, lineIndex) => lineIndex !== index))}
                   >
                     削除
@@ -331,7 +331,7 @@ export function ScanScreen() {
                     next[index] = { ...line, price: event.target.value.replace(/[^\d]/g, "") };
                     setLines(next);
                   }}
-                  className="mt-1 h-11 bg-white font-price text-2xl"
+                  className="mt-1 h-11 bg-card font-price text-2xl"
                 />
               </li>
             ))}
@@ -364,13 +364,13 @@ export function ScanScreen() {
             <SheetTitle>品目を選ぶ</SheetTitle>
           </SheetHeader>
           <div className="space-y-3 overflow-y-auto px-4 pb-6">
-            <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="品目名" className="h-11 bg-white" aria-label="品目を探す" />
+            <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="品目名" className="h-11 bg-card" aria-label="品目を探す" />
             <ul className="space-y-1">
               {filtered.slice(0, 30).map((item) => (
                 <li key={item.id}>
                   <button
                     type="button"
-                    className="flex w-full items-center justify-between rounded-xl px-2 py-2 text-left hover:bg-[#f4efe4]"
+                    className="flex w-full items-center justify-between rounded-xl px-2 py-2 text-left hover:bg-muted"
                     onClick={() => {
                       const quote = app.book?.quote(item.id);
                       setLines((current) => [
@@ -386,7 +386,7 @@ export function ScanScreen() {
                     }}
                   >
                     <span className="font-bold">{item.name}</span>
-                    <span className="text-xs text-[#5e574c]">{item.unitLabel}</span>
+                    <span className="text-xs text-muted-foreground">{item.unitLabel}</span>
                   </button>
                 </li>
               ))}

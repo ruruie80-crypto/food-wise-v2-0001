@@ -21,6 +21,7 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { AreaStores } from "@/components/area-stores";
 import { BudgetAdvice } from "@/components/budget-advice";
+import { SkinPicker } from "@/components/skin-picker";
 import { StoreCheapest } from "@/components/store-cheapest";
 import { MarketCard, SeasonCard } from "@/components/today-panel";
 import { formatWithWeekday, weekRangeLabel } from "@/lib/dates";
@@ -50,44 +51,46 @@ export function HomeScreen() {
     <div className="px-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-8">
       <header className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-[11px] font-bold tracking-[0.16em] text-[#1b6b43]">生活圏の底値</p>
+          <p className="text-[11px] font-bold tracking-[0.16em] text-primary">生活圏の底値</p>
           <h1 className="text-[1.7rem] leading-none font-black tracking-tight">底値ごはん</h1>
-          <button type="button" onClick={() => setSettings(true)} className="mt-2 text-left text-sm text-[#5e574c]">
+          <button type="button" onClick={() => setSettings(true)} className="mt-2 text-left text-sm text-muted-foreground">
             {greeting}。{area.prefecture} {area.name} · {formatWithWeekday(app.today)}
           </button>
         </div>
         <Link
           href="/alerts"
           aria-label="通知"
-          className="relative flex size-11 items-center justify-center rounded-full bg-white"
+          className="relative flex size-11 items-center justify-center rounded-full bg-card"
         >
           <Bell className="size-5" />
           {app.unreadCount > 0 ? (
-            <span className="absolute top-1 right-1 size-2.5 rounded-full bg-[#c5362c]" />
+            <span className="absolute top-1 right-1 size-2.5 rounded-full bg-destructive" />
           ) : null}
         </Link>
       </header>
 
+      <SkinPicker />
+
       <section className="receipt mt-5 rounded-b-3xl px-4 pt-5 pb-4 shadow-[0_10px_30px_rgba(28,25,21,0.05)]">
-        <p className="text-xs text-[#5e574c]">{weekRangeLabel(app.today)} の食費</p>
+        <p className="text-xs text-muted-foreground">{weekRangeLabel(app.today)} の食費</p>
         <div className="mt-2 flex items-end justify-between gap-3">
           <p className="font-price text-5xl leading-none font-semibold">{yen(app.state.budget)}</p>
           <div className="text-right text-sm leading-6">
             <p>献立 {plan ? yen(plan.cost) : "まだない"}</p>
-            <p className={remaining < 0 ? "font-bold text-[#c5362c]" : ""}>残り {yen(Math.max(0, remaining))}</p>
+            <p className={remaining < 0 ? "font-bold text-destructive" : ""}>残り {yen(Math.max(0, remaining))}</p>
           </div>
         </div>
-        <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#efe6d4]">
+        <div className="mt-3 h-2 overflow-hidden rounded-full bg-track">
           <div
-            className="h-full rounded-full bg-[#1b6b43]"
+            className="h-full rounded-full bg-primary"
             style={{
               width: `${plan && plan.budget > 0 ? Math.min(100, (plan.cost / plan.budget) * 100) : 0}%`,
             }}
           />
         </div>
-        <p className="mt-3 text-xs leading-5 text-[#5e574c]">{modeHint(app.state.mode)}</p>
+        <p className="mt-3 text-xs leading-5 text-muted-foreground">{modeHint(app.state.mode)}</p>
         {app.stale ? (
-          <p className="mt-2 rounded-xl bg-[#fff4c2] px-3 py-2 text-xs leading-5">
+          <p className="mt-2 rounded-xl bg-notice text-notice-foreground px-3 py-2 text-xs leading-5">
             予算か値札が変わりました。献立を組み直すと、底値の計算が追いつきます。
           </p>
         ) : null}
@@ -127,20 +130,20 @@ export function HomeScreen() {
           title={spotlight && recipe ? `${mealLabel(spotlight.meal)}は${recipe.name}` : "献立はまだありません"}
         />
         {spotlight && recipe ? (
-          <Link href="/meals" className="mt-3 block rounded-3xl bg-white p-4">
+          <Link href="/meals" className="mt-3 block rounded-3xl bg-card p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs text-[#5e574c]">
+                <p className="text-xs text-muted-foreground">
                   {spotlight.dayIndex === 0 ? "今日" : "明日"}の{mealLabel(spotlight.meal)} · {recipe.minutes}分
                 </p>
                 <p className="mt-1 text-xl font-black">{recipe.name}</p>
-                <p className="mt-1 text-sm text-[#5e574c]">{recipe.summary}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{recipe.summary}</p>
               </div>
               <PriceSticker value={spotlight.cost} />
             </div>
           </Link>
         ) : (
-          <p className="mt-3 rounded-3xl bg-white p-4 text-sm leading-6 text-[#5e574c]">
+          <p className="mt-3 rounded-3xl bg-card p-4 text-sm leading-6 text-muted-foreground">
             「今週の食費 5,000円」のように予算を入れると、朝と夜の献立と買い物リストが出ます。
           </p>
         )}
@@ -149,13 +152,13 @@ export function HomeScreen() {
       <section className="mt-6">
         <div className="flex items-end justify-between">
           <SectionTitle eyebrow="値札" title="今日の買い時" />
-          <Link href="/prices" className="text-sm font-bold text-[#1b6b43]">
+          <Link href="/prices" className="text-sm font-bold text-primary">
             底値帳
           </Link>
         </div>
         <div className="-mx-4 mt-3 flex gap-3 overflow-x-auto px-4 pb-1">
           {buys.length === 0 ? (
-            <p className="px-1 text-sm text-[#5e574c]">
+            <p className="px-1 text-sm text-muted-foreground">
               {area.priceBasis === "survey"
                 ? "宮城の初期値は市内平均です。特売の番は入っていません。"
                 : "特売の番が空いている日です。"}
@@ -170,12 +173,12 @@ export function HomeScreen() {
                 <Link
                   key={ingredient.id}
                   href={`/prices/${ingredient.id}`}
-                  className="w-40 shrink-0 rounded-2xl bg-white p-3"
+                  className="w-40 shrink-0 rounded-2xl bg-card p-3"
                 >
                   <SignalMark signal="buy" delta={quote.delta} />
                   <p className="mt-2 font-bold">{ingredient.name}</p>
                   <Yen value={quote.unitPrice} className="mt-1 block text-2xl" />
-                  <p className="text-xs text-[#5e574c]">
+                  <p className="text-xs text-muted-foreground">
                     {store.name} · {ingredient.unitLabel}
                   </p>
                 </Link>
@@ -186,21 +189,21 @@ export function HomeScreen() {
       </section>
 
       {sale ? (
-        <Link href={sale.href} className="mt-6 block rounded-3xl bg-[#143026] px-4 py-4 text-[#f6f3ea]">
-          <p className="text-[11px] font-bold tracking-[0.14em] text-[#ffe14a]">特売日</p>
+        <Link href={sale.href} className="mt-6 block rounded-3xl bg-panel px-4 py-4 text-panel-foreground">
+          <p className="text-[11px] font-bold tracking-[0.14em] text-panel-accent">特売日</p>
           <p className="mt-1 text-lg font-black">{sale.title}</p>
-          <p className="mt-1 text-sm leading-6 text-[#d7e4db]">{sale.body}</p>
+          <p className="mt-1 text-sm leading-6 text-panel-muted">{sale.body}</p>
         </Link>
       ) : null}
 
       <section className="mt-6">
         <SectionTitle eyebrow="記録" title={app.state.observations.length ? "最近の値札" : "値札はまだありません"} />
         {app.state.observations.length === 0 ? (
-          <Link href="/scan" className="mt-3 block rounded-3xl border border-dashed border-[#cbbfaa] p-4 text-sm leading-6">
+          <Link href="/scan" className="mt-3 block rounded-3xl border border-dashed border-line p-4 text-sm leading-6">
             サンプルのレシートを読み取ると、底値がどう動くか分かります。写真は端末の外に出ません。
           </Link>
         ) : (
-          <ul className="mt-3 divide-y divide-[#e3d8c6] rounded-3xl bg-white px-4">
+          <ul className="mt-3 divide-y divide-border rounded-3xl bg-card px-4">
             {app.state.observations.slice(0, 4).map((row) => {
               const ingredient = getIngredient(row.ingredientId);
               const store = getStore(row.storeId);
@@ -208,7 +211,7 @@ export function HomeScreen() {
                 <li key={row.id} className="flex items-center justify-between py-3 text-sm">
                   <span>
                     <span className="block font-bold">{ingredient?.name}</span>
-                    <span className="text-xs text-[#5e574c]">{store?.name}</span>
+                    <span className="text-xs text-muted-foreground">{store?.name}</span>
                   </span>
                   <Yen value={row.price} className="text-xl" />
                 </li>
@@ -218,18 +221,18 @@ export function HomeScreen() {
         )}
       </section>
 
-      <button type="button" onClick={() => setHandoff(true)} className="mt-6 block w-full rounded-3xl bg-[#143026] px-4 py-4 text-left text-[#f6f3ea]">
-        <p className="text-[11px] font-bold tracking-[0.14em] text-[#ffe14a]">渡す</p>
+      <button type="button" onClick={() => setHandoff(true)} className="mt-6 block w-full rounded-3xl bg-panel px-4 py-4 text-left text-panel-foreground">
+        <p className="text-[11px] font-bold tracking-[0.14em] text-panel-accent">渡す</p>
         <p className="mt-1 font-black">記録を Zip にする</p>
-        <p className="mt-1 text-sm leading-6 text-[#d7e4db]">
+        <p className="mt-1 text-sm leading-6 text-panel-muted">
           献立と値札を1つの Zip にして渡せます。送信はしません。
         </p>
       </button>
 
-      <Link href="/about" className="mt-3 block rounded-3xl bg-white px-4 py-4">
-        <p className="text-[11px] font-bold tracking-[0.14em] text-[#1b6b43]">公開用の試作</p>
+      <Link href="/about" className="mt-3 block rounded-3xl bg-card px-4 py-4">
+        <p className="text-[11px] font-bold tracking-[0.14em] text-primary">公開用の試作</p>
         <p className="mt-1 font-black">作品ノート</p>
-        <p className="mt-1 text-sm leading-6 text-[#5e574c]">
+        <p className="mt-1 text-sm leading-6 text-muted-foreground">
           相場は見本です。記録は端末の中だけで、決済も在庫もつながっていません。
         </p>
       </Link>
@@ -242,11 +245,14 @@ export function HomeScreen() {
             <SheetTitle>生活圏</SheetTitle>
           </SheetHeader>
           <div className="max-h-[calc(80dvh-5rem)] overflow-y-auto px-4 pb-6">
-            <AreaPicker selectedId={app.state.areaId} onSelect={app.setArea} />
+            <SkinPicker className="mt-0" />
+            <div className="mt-4">
+              <AreaPicker selectedId={app.state.areaId} onSelect={app.setArea} />
+            </div>
             <Link
               href="/about"
               onClick={() => setSettings(false)}
-              className="mt-2 block rounded-2xl bg-[#f4efe4] px-3 py-3 text-sm font-bold"
+              className="mt-2 block rounded-2xl bg-muted px-3 py-3 text-sm font-bold"
             >
               作品ノートを読む
             </Link>

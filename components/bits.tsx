@@ -26,7 +26,7 @@ export function PriceSticker({
   unit?: string;
 }) {
   return (
-    <span className="inline-flex items-end gap-1 rounded-[4px] bg-[#ffe14a] px-2 py-1 text-[#1c1915] shadow-[3px_3px_0_#1c1915]">
+    <span className="inline-flex items-end gap-1 rounded-[4px] bg-accent px-2 py-1 text-accent-foreground shadow-[3px_3px_0_var(--foreground)]">
       <Yen value={value} className="text-[1.7rem] leading-none" />
       {unit ? <span className="mb-0.5 text-[10px] font-medium">{unit}</span> : null}
     </span>
@@ -37,20 +37,20 @@ export function SignalMark({ signal, delta }: { signal: Signal; delta?: number }
   if (signal === "normal" && delta == null) return null;
   if (signal === "buy") {
     return (
-      <span className="inline-flex items-center rounded-full bg-[#ffe14a] px-2 py-0.5 text-[11px] font-bold text-[#1c1915]">
+      <span className="inline-flex items-center rounded-full bg-accent px-2 py-0.5 text-[11px] font-bold text-accent-foreground">
         買い時{delta != null ? ` ${signedPercent(delta)}` : ""}
       </span>
     );
   }
   if (signal === "wait") {
     return (
-      <span className="inline-flex items-center rounded-full bg-[#f3d2c8] px-2 py-0.5 text-[11px] font-bold text-[#7a2e24]">
+      <span className="inline-flex items-center rounded-full bg-wait px-2 py-0.5 text-[11px] font-bold text-wait-foreground">
         見送り{delta != null ? ` ${signedPercent(delta)}` : ""}
       </span>
     );
   }
   return (
-    <span className="text-[11px] font-medium text-[#5e574c]">
+    <span className="text-[11px] font-medium text-muted-foreground">
       {delta != null ? `相場比 ${signedPercent(delta)}` : "ふつう"}
     </span>
   );
@@ -67,7 +67,7 @@ const DOT: Record<Category, string> = {
 
 export function CategoryDot({ category }: { category: Category }) {
   return (
-    <span className="inline-flex items-center gap-1 text-[11px] text-[#5e574c]">
+    <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
       <span className="size-1.5 rounded-full" style={{ background: DOT[category] }} />
       {categoryLabel[category]}
     </span>
@@ -89,9 +89,9 @@ export function Sparkline({ values, className }: { values: number[]; className?:
     .join(" ");
   const last = points.split(" ").at(-1)?.split(",") ?? ["0", "0"];
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className={cn("h-7 w-16 text-[#1b6b43]", className)} aria-hidden>
+    <svg viewBox={`0 0 ${width} ${height}`} className={cn("h-7 w-16 text-primary", className)} aria-hidden>
       <polyline fill="none" stroke="currentColor" strokeWidth="1.7" points={points} />
-      <circle cx={last[0]} cy={last[1]} r="2.2" fill="#ffe14a" stroke="#1c1915" strokeWidth="1" />
+      <circle cx={last[0]} cy={last[1]} r="2.2" fill="var(--accent)" stroke="var(--foreground)" strokeWidth="1" />
     </svg>
   );
 }
@@ -99,10 +99,10 @@ export function Sparkline({ values, className }: { values: number[]; className?:
 export function BootScreen() {
   return (
     <div className="space-y-4 px-4 pt-8" aria-busy="true" aria-live="polite">
-      <p className="text-sm text-[#5e574c]">底値を開いています</p>
-      <div className="h-8 w-40 animate-pulse rounded-lg bg-[#e7dfd0]" />
-      <div className="h-44 animate-pulse rounded-3xl bg-[#e7dfd0]" />
-      <div className="h-28 animate-pulse rounded-3xl bg-[#e7dfd0]" />
+      <p className="text-sm text-muted-foreground">底値を開いています</p>
+      <div className="h-8 w-40 animate-pulse rounded-lg bg-muted" />
+      <div className="h-44 animate-pulse rounded-3xl bg-muted" />
+      <div className="h-28 animate-pulse rounded-3xl bg-muted" />
     </div>
   );
 }
@@ -110,7 +110,7 @@ export function BootScreen() {
 export function SectionTitle({ eyebrow, title }: { eyebrow?: string; title: string }) {
   return (
     <div>
-      {eyebrow ? <p className="text-[11px] font-bold tracking-[0.16em] text-[#1b6b43]">{eyebrow}</p> : null}
+      {eyebrow ? <p className="text-[11px] font-bold tracking-[0.16em] text-primary">{eyebrow}</p> : null}
       <h2 className="text-lg font-black tracking-tight">{title}</h2>
     </div>
   );

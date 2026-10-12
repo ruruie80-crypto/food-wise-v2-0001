@@ -79,11 +79,11 @@ export function HandoffSheet({ open, onOpenChange }: { open: boolean; onOpenChan
           <SheetTitle>記録を渡す</SheetTitle>
         </SheetHeader>
         <div className="space-y-3 overflow-y-auto px-4 pb-6 text-sm leading-6">
-          <p className="text-[#5e574c]">
+          <p className="text-muted-foreground">
             献立、買い物、読んだ値札を1つの Zip にします。メモ.txt はそのまま読めます。相手は底値ごはんでこの Zip を開くと、同じ週を続けられます。アプリから送信はしません。
           </p>
           {preview ? (
-            <div className="rounded-2xl bg-[#fff4c2] px-3 py-3">
+            <div className="rounded-2xl bg-notice text-notice-foreground px-3 py-3">
               <p className="font-bold">{preview.exportedOn || "日付なし"} の記録です</p>
               <p className="mt-1">この端末の献立と値札を、ファイルの内容に入れ替えます。</p>
               <div className="mt-3 grid grid-cols-2 gap-2">

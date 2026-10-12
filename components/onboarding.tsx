@@ -22,11 +22,11 @@ export function Onboarding() {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-[#143026]/80 p-3 sm:items-center">
-      <div className="flex max-h-[min(42rem,92dvh)] w-full max-w-md flex-col overflow-hidden rounded-3xl bg-[#f4efe4] p-5 shadow-2xl">
-        <p className="text-[11px] font-bold tracking-[0.16em] text-[#1b6b43]">底値ごはん</p>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-panel/80 p-3 sm:items-center">
+      <div className="flex max-h-[min(42rem,92dvh)] w-full max-w-md flex-col overflow-hidden rounded-3xl bg-card p-5 shadow-2xl">
+        <p className="text-[11px] font-bold tracking-[0.16em] text-primary">底値ごはん</p>
         <h1 className="mt-1 text-2xl font-black tracking-tight">値札が、献立になる。</h1>
-        <p className="mt-2 text-sm leading-6 text-[#5e574c]">
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
           生活圏の底値を覚えて、今週の食費のなかで栄養が偏らない献立を作ります。公開用の試作で、相場は見本、記録はこの端末の外には出ません。
         </p>
 
@@ -59,14 +59,14 @@ export function Onboarding() {
                   onClick={() => setMode(mode)}
                   className={cn(
                     "rounded-2xl px-2 py-3 text-sm font-bold",
-                    state.mode === mode ? "bg-[#1b6b43] text-[#f6f3ea]" : "bg-[#efe6d2]",
+                    state.mode === mode ? "bg-primary text-primary-foreground" : "bg-secondary",
                   )}
                 >
                   {MODE_LABEL[mode]}
                 </button>
               ))}
             </div>
-            <p className="mt-2 text-xs leading-5 text-[#5e574c]">{modeHint(state.mode)}</p>
+            <p className="mt-2 text-xs leading-5 text-muted-foreground">{modeHint(state.mode)}</p>
           </div>
         ) : null}
 
@@ -74,7 +74,7 @@ export function Onboarding() {
           <div className="mt-5">
             <p className="text-sm font-bold">今週の食費</p>
             <p className="font-price text-5xl font-semibold leading-none">{yen(state.budget)}</p>
-            <p className="mt-2 text-xs text-[#5e574c]">この人数と範囲なら、目安は {yen(hint)} です。</p>
+            <p className="mt-2 text-xs text-muted-foreground">この人数と範囲なら、目安は {yen(hint)} です。</p>
             <div className="mt-3 grid grid-cols-4 gap-2">
               {[3000, 5000, 7000, 10000].map((preset) => (
                 <button
@@ -83,7 +83,7 @@ export function Onboarding() {
                   onClick={() => setBudget(preset * state.people)}
                   className={cn(
                     "rounded-xl py-2 text-sm font-bold",
-                    state.budget === preset * state.people ? "bg-[#ffe14a]" : "bg-white",
+                    state.budget === preset * state.people ? "bg-accent" : "bg-card",
                   )}
                 >
                   {preset / 1000}千

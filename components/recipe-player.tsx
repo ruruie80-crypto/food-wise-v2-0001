@@ -12,7 +12,7 @@ export function RecipeVideoButton({ recipeId }: { recipeId: string }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button type="button" className="text-sm font-bold text-[#1b6b43]" onClick={() => setOpen(true)}>
+      <button type="button" className="text-sm font-bold text-primary" onClick={() => setOpen(true)}>
         動画で見る
       </button>
       {open ? <RecipePlayer recipeId={recipeId} onOpenChange={setOpen} /> : null}
@@ -53,12 +53,12 @@ function RecipePlayer({
 
   return (
     <Sheet open onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="max-h-[92dvh] rounded-t-3xl bg-[#1c1915] text-[#f6f3ea]">
+      <SheetContent side="bottom" className="max-h-[92dvh] rounded-t-3xl bg-panel text-panel-foreground">
         <SheetHeader>
-          <SheetTitle className="pr-10 text-[#f6f3ea]">{recipe.name}</SheetTitle>
+          <SheetTitle className="pr-10 text-panel-foreground">{recipe.name}</SheetTitle>
         </SheetHeader>
         <div className="space-y-4 px-4 pb-6">
-          <p className="text-xs text-[#d7e4db]">
+          <p className="text-xs text-panel-muted">
             {method} · 調理の目安 {recipe.minutes}分 · 手順 {step + 1}/{steps.length}
           </p>
           <MethodStage method={method} playing={playing} />
@@ -71,7 +71,7 @@ function RecipePlayer({
             value={elapsed}
             aria-label="手順の位置"
             onChange={(event) => setElapsed(Number(event.target.value))}
-            className="w-full accent-[#ffe14a]"
+            className="w-full accent-accent"
           />
           <div className="flex flex-wrap gap-2">
             {steps.map((text, index) => (
@@ -80,7 +80,7 @@ function RecipePlayer({
                 type="button"
                 aria-label={`手順 ${index + 1}`}
                 onClick={() => setElapsed(index * STEP_MS)}
-                className={index === step ? "rounded-full bg-[#ffe14a] px-3 py-1 text-xs font-bold text-[#1c1915]" : "rounded-full bg-[#143026] px-3 py-1 text-xs font-bold"}
+                className={index === step ? "rounded-full bg-accent px-3 py-1 text-xs font-bold text-accent-foreground" : "rounded-full bg-secondary px-3 py-1 text-xs font-bold text-secondary-foreground"}
               >
                 {index + 1}
               </button>
@@ -88,7 +88,7 @@ function RecipePlayer({
           </div>
           <button
             type="button"
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[#ffe14a] text-base font-bold text-[#1c1915]"
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-accent text-base font-bold text-accent-foreground"
             onClick={() => {
               if (done) {
                 setElapsed(0);
@@ -112,19 +112,19 @@ function MethodStage({ method, playing }: { method: string; playing: boolean }) 
   const boil = method === "煮る" || method === "煮込む" || method === "ゆでる" || method === "煮て絡める" || method === "炒り煮";
   const fry = method === "炒める" || method === "焼く";
   return (
-    <div className="flex h-28 items-end justify-center rounded-3xl bg-[#143026]" aria-hidden="true">
+    <div className="flex h-28 items-end justify-center rounded-3xl bg-secondary" aria-hidden="true">
       <svg viewBox="0 0 160 90" className={`h-24 w-40 ${fry && playing ? "cook-pan" : ""}`}>
-        <ellipse cx="80" cy="62" rx="46" ry="14" fill="#efe6d4" />
-        <path d="M34 58h92" stroke="#cbbfaa" strokeWidth="6" strokeLinecap="round" />
+        <ellipse cx="80" cy="62" rx="46" ry="14" fill="var(--track)" />
+        <path d="M34 58h92" stroke="var(--line)" strokeWidth="6" strokeLinecap="round" />
         {boil ? (
           <>
-            <circle className={playing ? "cook-bubble" : ""} cx="62" cy="48" r="4" fill="#ffe14a" />
-            <circle className={playing ? "cook-bubble" : ""} cx="80" cy="44" r="5" fill="#fff4c2" style={{ animationDelay: "0.3s" }} />
-            <circle className={playing ? "cook-bubble" : ""} cx="98" cy="50" r="3" fill="#ffe14a" style={{ animationDelay: "0.6s" }} />
+            <circle className={playing ? "cook-bubble" : ""} cx="62" cy="48" r="4" fill="var(--accent)" />
+            <circle className={playing ? "cook-bubble" : ""} cx="80" cy="44" r="5" fill="var(--notice)" style={{ animationDelay: "0.3s" }} />
+            <circle className={playing ? "cook-bubble" : ""} cx="98" cy="50" r="3" fill="var(--accent)" style={{ animationDelay: "0.6s" }} />
           </>
         ) : null}
-        {fry ? <path d="M48 50c10-8 18-8 28 0s18 8 28 0" fill="none" stroke="#ffe14a" strokeWidth="3" /> : null}
-        {!boil && !fry ? <rect x="58" y="36" width="44" height="22" rx="6" fill="#efe6d4" /> : null}
+        {fry ? <path d="M48 50c10-8 18-8 28 0s18 8 28 0" fill="none" stroke="var(--accent)" strokeWidth="3" /> : null}
+        {!boil && !fry ? <rect x="58" y="36" width="44" height="22" rx="6" fill="var(--track)" /> : null}
       </svg>
     </div>
   );

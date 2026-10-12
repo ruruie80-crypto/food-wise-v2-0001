@@ -32,7 +32,7 @@ export function PriceDetailScreen({ id }: { id: string }) {
     return (
       <div className="px-4 pt-8">
         <p>その品目は帳面にありません。</p>
-        <Link href="/prices" className="mt-3 inline-block font-bold text-[#1b6b43]">
+        <Link href="/prices" className="mt-3 inline-block font-bold text-primary">
           底値帳へ
         </Link>
       </div>
@@ -71,14 +71,14 @@ export function PriceDetailScreen({ id }: { id: string }) {
 
   return (
     <div className="px-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-10">
-      <Link href="/prices" className="text-sm font-bold text-[#1b6b43]">
+      <Link href="/prices" className="text-sm font-bold text-primary">
         底値帳へ戻る
       </Link>
       <div className="mt-3 flex items-start justify-between gap-3">
         <div>
           <CategoryDot category={ingredient.category} />
           <h1 className="mt-1 text-[1.7rem] font-black tracking-tight">{ingredient.name}</h1>
-          <p className="text-sm text-[#5e574c]">
+          <p className="text-sm text-muted-foreground">
             {store?.name} · {ingredient.unitLabel}
           </p>
         </div>
@@ -95,9 +95,9 @@ export function PriceDetailScreen({ id }: { id: string }) {
         </p>
       </div>
 
-      <section className="mt-5 rounded-3xl bg-white p-4">
+      <section className="mt-5 rounded-3xl bg-card p-4">
         <p className="text-sm font-bold">栄養素の割合</p>
-        <p className="mt-1 text-xs leading-5 text-[#5e574c]">
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">
           {ingredient.unitLabel}あたり、{MODE_LABEL[app.state.mode]}の1人1日の目安に対する割合です。
         </p>
         <ul className="mt-3 space-y-2">
@@ -107,31 +107,31 @@ export function PriceDetailScreen({ id }: { id: string }) {
                 <span className="font-bold">{row.label}</span>
                 <span className="font-price text-xl font-semibold">{row.percent}%</span>
               </div>
-              <div className="mt-1 h-2 overflow-hidden rounded-full bg-[#efe6d4]">
-                <div className="h-full rounded-full bg-[#1b6b43]" style={{ width: `${Math.min(100, row.percent)}%` }} />
+              <div className="mt-1 h-2 overflow-hidden rounded-full bg-track">
+                <div className="h-full rounded-full bg-primary" style={{ width: `${Math.min(100, row.percent)}%` }} />
               </div>
             </li>
           ))}
         </ul>
       </section>
 
-      <section className="mt-4 rounded-3xl bg-white p-4">
+      <section className="mt-4 rounded-3xl bg-card p-4">
         <p className="text-sm font-bold">{area.priceBasis === "survey" ? "統計の平均" : "8週の底値"}</p>
         <HistoryChart series={quote.series} median={quote.median} />
-        <p className="text-xs leading-5 text-[#5e574c]">
+        <p className="text-xs leading-5 text-muted-foreground">
           {area.priceBasis === "survey"
             ? "線は2026年8月の仙台市平均です。8週間の店頭履歴ではありません。"
             : `点線は直近の中央値 ${yen(Math.round(quote.median))} です。`}
         </p>
-        {caption ? <p className="mt-2 text-xs leading-5 text-[#5e574c]">{caption}</p> : null}
+        {caption ? <p className="mt-2 text-xs leading-5 text-muted-foreground">{caption}</p> : null}
       </section>
 
       <MarketHint ingredientId={id} />
 
-      <section className="mt-4 rounded-3xl bg-white p-4">
+      <section className="mt-4 rounded-3xl bg-card p-4">
         <p className="text-sm font-bold">{area.priceBasis === "survey" ? "この生活圏の店" : "店ごとの今週"}</p>
         {area.priceBasis === "survey" ? (
-          <p className="mt-1 text-xs leading-5 text-[#5e574c]">
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
             {quote.byStore.every((row) => row.price === quote.byStore[0]?.price)
               ? "統計は市内平均なので、店ごとの売価の差は入っていません。"
               : "仙台市の平均に、このブラウザで読んだ値札を重ねています。"}
@@ -150,13 +150,13 @@ export function PriceDetailScreen({ id }: { id: string }) {
                   <span className="font-bold">
                     {shop?.name}
                     {markWinner ? (
-                      <span className="ml-2 rounded-full bg-[#ffe14a] px-2 py-0.5 text-[11px] font-bold">最安</span>
+                      <span className="ml-2 rounded-full bg-accent px-2 py-0.5 text-[11px] font-bold">最安</span>
                     ) : null}
                   </span>
                   <Yen value={row.price} className="text-xl" />
                 </div>
-                <div className="mt-1 h-2 rounded-full bg-[#efe6d4]">
-                  <div className="h-full rounded-full bg-[#1b6b43]" style={{ width: `${width}%` }} />
+                <div className="mt-1 h-2 rounded-full bg-track">
+                  <div className="h-full rounded-full bg-primary" style={{ width: `${width}%` }} />
                 </div>
               </li>
             );
@@ -165,20 +165,20 @@ export function PriceDetailScreen({ id }: { id: string }) {
       </section>
 
       {alternatives.length > 0 ? (
-        <section className="mt-4 rounded-3xl bg-white p-4">
+        <section className="mt-4 rounded-3xl bg-card p-4">
           <p className="text-sm font-bold">たんぱく質20gあたり</p>
-          <p className="mt-1 text-xs leading-5 text-[#5e574c]">
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
             同じ役割の品を、値段ではなくたんぱく質の単価で並べています。
             {ownProtein != null ? ` この品は ${yen(Math.round(ownProtein))} です。` : ""}
           </p>
-          <ul className="mt-3 divide-y divide-[#e3d8c6]">
+          <ul className="mt-3 divide-y divide-border">
             {alternatives.slice(0, 5).map((row) => (
               <li key={row.item.id}>
                 <Link href={`/prices/${row.item.id}`} className="flex items-center justify-between py-2 text-sm">
                   <span className="font-bold">{row.item.name}</span>
                   <span className="text-right">
                     <Yen value={row.per ?? 0} className="text-lg" />
-                    <span className="block text-[11px] text-[#5e574c]">/20g</span>
+                    <span className="block text-[11px] text-muted-foreground">/20g</span>
                   </span>
                 </Link>
               </li>
@@ -187,23 +187,23 @@ export function PriceDetailScreen({ id }: { id: string }) {
         </section>
       ) : null}
 
-      <section className="mt-4 rounded-3xl bg-[#143026] p-4 text-[#f6f3ea]">
-        <p className="text-[11px] font-bold tracking-[0.14em] text-[#ffe14a]">プレミアム · 価格予測</p>
+      <section className="mt-4 rounded-3xl bg-panel p-4 text-panel-foreground">
+        <p className="text-[11px] font-bold tracking-[0.14em] text-panel-accent">プレミアム · 価格予測</p>
         {app.state.premiumPreview && forecast ? (
           <>
             <p className="mt-2 text-lg font-black">{forecast.headline}</p>
             <p className="font-price mt-1 text-3xl font-semibold">
               {yen(forecast.low)}–{yen(forecast.high)}
             </p>
-            <p className="mt-2 text-sm leading-6 text-[#d7e4db]">{forecast.detail}</p>
+            <p className="mt-2 text-sm leading-6 text-panel-muted">{forecast.detail}</p>
           </>
         ) : (
           <>
             <p className="mt-2 text-lg font-black">来週の幅は、見本として開けます</p>
-            <p className="mt-1 text-sm leading-6 text-[#d7e4db]">
+            <p className="mt-1 text-sm leading-6 text-panel-muted">
               無料では今週の底値まで。予測は過去8週と特売の回り番からの見立てで、的中は保証しません。
             </p>
-            <Button type="button" className="mt-3 h-11 bg-[#ffe14a] text-[#1c1915] hover:bg-[#ffe14a]/80" onClick={() => setPremiumOpen(true)}>
+            <Button type="button" className="mt-3 h-11 bg-accent text-accent-foreground hover:bg-accent/80" onClick={() => setPremiumOpen(true)}>
               予測の見本を見る
             </Button>
           </>
@@ -217,16 +217,16 @@ export function PriceDetailScreen({ id }: { id: string }) {
       {mine.length > 0 ? (
         <section className="mt-4">
           <p className="text-sm font-bold">あなたの記録</p>
-          <ul className="mt-2 divide-y divide-[#e3d8c6] rounded-3xl bg-white px-4">
+          <ul className="mt-2 divide-y divide-border rounded-3xl bg-card px-4">
             {mine.map((row) => (
               <li key={row.id} className="flex items-center justify-between gap-3 py-3 text-sm">
                 <span>
                   <span className="block font-bold">{getStore(row.storeId)?.name}</span>
-                  <span className="text-xs text-[#5e574c]">{row.date}</span>
+                  <span className="text-xs text-muted-foreground">{row.date}</span>
                 </span>
                 <span className="flex items-center gap-3">
                   <Yen value={row.price} className="text-xl" />
-                  <button type="button" className="text-xs font-bold text-[#c5362c]" onClick={() => app.removeObservation(row.id)}>
+                  <button type="button" className="text-xs font-bold text-destructive" onClick={() => app.removeObservation(row.id)}>
                     消す
                   </button>
                 </span>
@@ -250,7 +250,7 @@ export function PriceDetailScreen({ id }: { id: string }) {
                   onClick={() => setStoreId(item.id)}
                   className={cn(
                     "rounded-full px-3 py-1.5 text-sm font-bold",
-                    recordStoreId === item.id ? "bg-[#1b6b43] text-[#f6f3ea]" : "bg-[#f4efe4]",
+                    recordStoreId === item.id ? "bg-primary text-primary-foreground" : "bg-muted",
                   )}
                 >
                   {item.name}
@@ -266,7 +266,7 @@ export function PriceDetailScreen({ id }: { id: string }) {
               value={priceText}
               onChange={(event) => setPriceText(event.target.value.replace(/[^\d]/g, ""))}
               placeholder={String(quote.unitPrice)}
-              className="h-12 bg-white font-price text-2xl"
+              className="h-12 bg-card font-price text-2xl"
             />
             <Button type="button" className="h-12 w-full text-base" onClick={save}>
               記録する
@@ -285,11 +285,11 @@ export function PriceDetailScreen({ id }: { id: string }) {
               想定は月額480円です。中身は、過去8週の底値の中央値と、4週ごとの特売ローテーションを重ねた幅だけです。
             </p>
             {forecast ? (
-              <p className="rounded-2xl bg-[#fff4c2] px-3 py-3">
+              <p className="rounded-2xl bg-notice text-notice-foreground px-3 py-3">
                 {ingredient.name}の来週は {yen(forecast.low)} から {yen(forecast.high)}。{forecast.headline}。
               </p>
             ) : null}
-            <p className="text-xs text-[#5e574c]">課金はつながっていません。この端末で見本を開くだけです。</p>
+            <p className="text-xs text-muted-foreground">課金はつながっていません。この端末で見本を開くだけです。</p>
             <Button
               type="button"
               className="h-12 w-full text-base"
@@ -325,13 +325,13 @@ function HistoryChart({
   const medianY = y(median);
   return (
     <svg viewBox={`0 0 ${width} ${height}`} className="mt-2 w-full" role="img" aria-label="底値の推移">
-      <line x1="8" x2={width - 8} y1={medianY} y2={medianY} stroke="#cbbfaa" strokeDasharray="4 4" />
-      <path d={path} fill="none" stroke="#1b6b43" strokeWidth="2.4" />
+      <line x1="8" x2={width - 8} y1={medianY} y2={medianY} stroke="var(--line)" strokeDasharray="4 4" />
+      <path d={path} fill="none" stroke="var(--primary)" strokeWidth="2.4" />
       {series.map((point, index) => (
         <g key={point.date}>
-          <circle cx={x(index)} cy={y(point.price)} r={index === series.length - 1 ? 4 : 2.4} fill={index === series.length - 1 ? "#ffe14a" : "#1b6b43"} stroke="#1c1915" strokeWidth="1" />
+          <circle cx={x(index)} cy={y(point.price)} r={index === series.length - 1 ? 4 : 2.4} fill={index === series.length - 1 ? "var(--accent)" : "var(--primary)"} stroke="var(--foreground)" strokeWidth="1" />
           {index % 3 === 0 || index === series.length - 1 ? (
-            <text x={x(index)} y={height - 4} textAnchor="middle" fontSize="10" fill="#5e574c">
+            <text x={x(index)} y={height - 4} textAnchor="middle" fontSize="10" fill="var(--muted-foreground)">
               {formatShort(point.date)}
             </text>
           ) : null}

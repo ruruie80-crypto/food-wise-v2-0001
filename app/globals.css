@@ -40,6 +40,20 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-panel: var(--panel);
+  --color-panel-foreground: var(--panel-foreground);
+  --color-panel-muted: var(--panel-muted);
+  --color-panel-accent: var(--panel-accent);
+  --color-chip: var(--chip);
+  --color-notice: var(--notice);
+  --color-notice-foreground: var(--notice-foreground);
+  --color-track: var(--track);
+  --color-wait: var(--wait);
+  --color-wait-foreground: var(--wait-foreground);
+  --color-canvas: var(--canvas);
+  --color-line: var(--line);
+  --color-nav: var(--nav);
+  --color-destructive-foreground: var(--destructive-foreground);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -68,6 +82,24 @@
   --border: #e3d8c6;
   --input: #e3d8c6;
   --ring: #1b6b43;
+  --panel: #143026;
+  --panel-foreground: #f6f3ea;
+  --panel-muted: #d7e4db;
+  --panel-accent: #ffe14a;
+  --chip: #e5f2ea;
+  --notice: #fff4c2;
+  --notice-foreground: #1c1915;
+  --track: #efe6d4;
+  --wait: #f3d2c8;
+  --wait-foreground: #7a2e24;
+  --canvas: #e6dece;
+  --line: #cbbfaa;
+  --nav: #f7f3ea;
+  --destructive-foreground: #fffdf8;
+  --primary-shadow: rgba(27, 107, 67, 0.28);
+  --skin-card-radius: 1.5rem;
+  --skin-pattern: none;
+  --skin-pattern-size: auto;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -128,6 +160,18 @@
   html {
     @apply font-sans;
   }
+  .bg-panel {
+    color: var(--panel-foreground);
+  }
+  .bg-notice {
+    color: var(--notice-foreground);
+  }
+  .bg-wait {
+    color: var(--wait-foreground);
+  }
+  .bg-accent {
+    color: var(--accent-foreground);
+  }
 }
 
 .font-price {
@@ -136,10 +180,167 @@
 }
 
 .receipt {
-  background-color: #fffdf8;
-  background-image: radial-gradient(circle at 12px 0, transparent 9px, #fffdf8 9.5px);
+  background-color: var(--card);
+  background-image: radial-gradient(circle at 12px 0, transparent 9px, var(--card) 9.5px);
   background-size: 24px 14px;
   background-repeat: repeat-x;
+}
+
+.skin-stage {
+  background-color: var(--background);
+  background-image: var(--skin-pattern);
+  background-size: var(--skin-pattern-size);
+}
+
+[data-skin="yoru"] {
+  color-scheme: dark;
+  --background: #10141c;
+  --foreground: #f3f6f4;
+  --card: #1a2130;
+  --card-foreground: #f3f6f4;
+  --popover: #1a2130;
+  --popover-foreground: #f3f6f4;
+  --primary: #3dff9a;
+  --primary-foreground: #042014;
+  --secondary: #2a3344;
+  --secondary-foreground: #f3f6f4;
+  --muted: #232b3b;
+  --muted-foreground: #b7c2cf;
+  --accent: #ffe34a;
+  --accent-foreground: #1a1404;
+  --destructive: #ff6d5e;
+  --destructive-foreground: #fff8f6;
+  --border: #334058;
+  --input: #334058;
+  --ring: #3dff9a;
+  --panel: #070a10;
+  --panel-foreground: #f3f6f4;
+  --panel-muted: #9ddec0;
+  --panel-accent: #ffe34a;
+  --chip: #143528;
+  --notice: #3d3414;
+  --notice-foreground: #ffe9a3;
+  --track: #2a3344;
+  --wait: #3d2422;
+  --wait-foreground: #ffc2b8;
+  --canvas: #07090e;
+  --line: #4a5870;
+  --nav: #141a26;
+  --primary-shadow: rgba(61, 255, 154, 0.35);
+  --radius: 0.35rem;
+  --skin-card-radius: 0.55rem;
+  --skin-pattern: repeating-linear-gradient(
+    180deg,
+    transparent 0 42px,
+    color-mix(in srgb, var(--primary) 16%, transparent) 42px 43px
+  );
+  --skin-pattern-size: auto;
+}
+
+[data-skin="akari"] {
+  color-scheme: dark;
+  --background: #2a1210;
+  --foreground: #f8efe4;
+  --card: #3d1c18;
+  --card-foreground: #f8efe4;
+  --popover: #3d1c18;
+  --popover-foreground: #f8efe4;
+  --primary: #ff4d3a;
+  --primary-foreground: #fff6ef;
+  --secondary: #5a2a22;
+  --secondary-foreground: #f8efe4;
+  --muted: #4a221c;
+  --muted-foreground: #e4c3ae;
+  --accent: #f2c14e;
+  --accent-foreground: #2a1208;
+  --destructive: #ffb4a2;
+  --destructive-foreground: #2a1208;
+  --border: #6e3a30;
+  --input: #6e3a30;
+  --ring: #f2c14e;
+  --panel: #140807;
+  --panel-foreground: #f8efe4;
+  --panel-muted: #f0c8a8;
+  --panel-accent: #f2c14e;
+  --chip: #5c2a22;
+  --notice: #5a3a12;
+  --notice-foreground: #ffe7b0;
+  --track: #5a2a22;
+  --wait: #5a3030;
+  --wait-foreground: #ffd0c4;
+  --canvas: #140807;
+  --line: #8a5044;
+  --nav: #341612;
+  --primary-shadow: rgba(255, 77, 58, 0.35);
+  --radius: 1.05rem;
+  --skin-card-radius: 1.85rem;
+  --skin-pattern: radial-gradient(circle at 50% -20%, color-mix(in srgb, var(--accent) 32%, transparent), transparent 46%);
+  --skin-pattern-size: auto;
+}
+
+[data-skin="yaoya"] {
+  color-scheme: light;
+  --background: #fff3c4;
+  --foreground: #1c2a12;
+  --card: #fffdf3;
+  --card-foreground: #1c2a12;
+  --popover: #fffdf3;
+  --popover-foreground: #1c2a12;
+  --primary: #e23d2b;
+  --primary-foreground: #fff7f2;
+  --secondary: #ffe08a;
+  --secondary-foreground: #1c2a12;
+  --muted: #ffe9a8;
+  --muted-foreground: #5d6a38;
+  --accent: #2f9e44;
+  --accent-foreground: #f3fff5;
+  --destructive: #b42318;
+  --destructive-foreground: #fff7f2;
+  --border: #e6c56a;
+  --input: #e6c56a;
+  --ring: #e23d2b;
+  --panel: #1d4d28;
+  --panel-foreground: #f4fff4;
+  --panel-muted: #c8ecc8;
+  --panel-accent: #ffe14a;
+  --chip: #ffd0c4;
+  --notice: #fffdf3;
+  --notice-foreground: #1c2a12;
+  --track: #ffe08a;
+  --wait: #ffd0c4;
+  --wait-foreground: #7a2418;
+  --canvas: #f3d98a;
+  --line: #d7b15a;
+  --nav: #fff8dc;
+  --primary-shadow: rgba(226, 61, 43, 0.28);
+  --radius: 0.4rem;
+  --skin-card-radius: 0.7rem;
+  --skin-pattern: radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--primary) 28%, transparent) 1.1px, transparent 1.5px);
+  --skin-pattern-size: 16px 16px;
+}
+
+[data-skin="yaoya"] .bg-notice {
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+[data-skin] .rounded-3xl {
+  border-radius: var(--skin-card-radius);
+}
+
+[data-skin] .rounded-t-3xl {
+  border-radius: var(--skin-card-radius) var(--skin-card-radius) 0 0;
+}
+
+[data-skin] .rounded-b-3xl {
+  border-radius: 0 0 var(--skin-card-radius) var(--skin-card-radius);
+}
+
+[data-skin] .rounded-2xl {
+  border-radius: calc(var(--skin-card-radius) * 0.72);
+}
+
+[data-skin] .rounded-xl {
+  border-radius: calc(var(--skin-card-radius) * 0.5);
 }
 
 @keyframes rise {
