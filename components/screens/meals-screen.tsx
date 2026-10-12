@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
+import { BudgetAdvice } from "@/components/budget-advice";
 import { getRecipe, recipes } from "@/lib/catalog";
 import { useApp } from "@/components/app-state";
 import { BootScreen, SectionTitle, Yen } from "@/components/bits";
@@ -18,6 +19,7 @@ import {
   percent,
   yen,
 } from "@/lib/format";
+import { cookingMethod } from "@/lib/advice";
 import { recipeCost, recipeNutrition } from "@/lib/optimizer";
 import type { MealMode, MealType, Plan, PlanSlot, Prefs } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -58,7 +60,7 @@ export function MealsScreen() {
       <p className="text-[11px] font-bold tracking-[0.16em] text-[#1b6b43]">予算献立</p>
       <h1 className="text-[1.7rem] font-black tracking-tight">今週の食費で組む</h1>
       <p className="mt-1 text-sm leading-6 text-[#5e574c]">
-        栄養だけの献立でも、金額だけの献立でもなく、底値のまま両方を比べます。
+        予算を入れると、買う食材、調理法、7日の献立が出ます。
       </p>
 
       <section className="mt-4 rounded-3xl bg-white p-4">
@@ -181,7 +183,7 @@ export function MealsScreen() {
 
       {!plan ? (
         <p className="mt-6 rounded-3xl border border-dashed border-[#cbbfaa] p-4 text-sm leading-6">
-          5,000円のように予算を入れて作ると、7日分がここに並びます。昼を含めると、目安は上がります。
+          上の食費で作ると、おすすめの食材、調理法、7日の献立がここに出ます。
         </p>
       ) : (
         <>
@@ -224,8 +226,9 @@ export function MealsScreen() {
               : " 食塩は目標の範囲です。"}
           </p>
 
-          <div className="mt-5">
-            <SectionTitle title="今日から7日" />
+          <BudgetAdvice variant="full" />
+          <div className="mt-6">
+            <SectionTitle eyebrow="献立" title="今日から7日" />
           </div>
           <ol className="mt-3 space-y-3">
             {Array.from({ length: plan.days }, (_, day) => {
@@ -246,20 +249,17 @@ export function MealsScreen() {
                               <p className="text-[11px] font-bold text-[#1b6b43]">{mealLabel(slot.meal)}</p>
                               <p className="font-bold">{recipe.name}</p>
                               <p className="text-xs text-[#5e574c]">
-                                {recipe.minutes}分 · たんぱく質 {Math.round(nutrition.protein)}g · 野菜 {Math.round(nutrition.veg)}g
+                                {cookingMethod(recipe.id)} · {recipe.minutes}分 · たんぱく質 {Math.round(nutrition.protein)}g · 野菜 {Math.round(nutrition.veg)}g
                               </p>
                             </div>
                             <Yen value={slot.cost} className="text-2xl" />
                           </div>
                           <p className="mt-1 text-sm leading-6 text-[#3d3830]">{recipe.summary}</p>
-                          <details className="mt-1 text-sm leading-6">
-                            <summary className="cursor-pointer font-bold text-[#1b6b43]">作り方</summary>
-                            <ol className="mt-1 list-decimal space-y-1 pl-5">
-                              {recipe.steps.map((step) => (
-                                <li key={step}>{step}</li>
-                              ))}
-                            </ol>
-                          </details>
+                          <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm leading-6">
+                            {recipe.steps.map((step) => (
+                              <li key={step}>{step}</li>
+                            ))}
+                          </ol>
                           <button
                             type="button"
                             className="mt-1 text-sm font-bold text-[#1b6b43]"
