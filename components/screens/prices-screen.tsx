@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { categoryLabel, categoryOrder, getArea, getStore, ingredients } from "@/lib/catalog";
+import { cheapestStoreLabel } from "@/lib/deals";
 import { useApp } from "@/components/app-state";
 import { BootScreen, CategoryDot, SignalMark, Sparkline, Yen } from "@/components/bits";
+import { StoreCheapest } from "@/components/store-cheapest";
 import { signedPercent } from "@/lib/format";
 import { inSeason, monthOf } from "@/lib/season";
 import { Input } from "@/components/ui/input";
@@ -39,6 +41,7 @@ export function PricesScreen() {
           ? getArea(app.state.areaId).priceNote
           : "各店の今週の値段のうち、いちばん安いものを底値にしています。自分の値札は21日で上書きします。"}
       </p>
+      <StoreCheapest />
       <div className="mt-3 flex flex-wrap gap-2">
         {inSeason(monthOf(app.today)).map((item) =>
           item.ingredientId ? (
@@ -76,7 +79,6 @@ export function PricesScreen() {
         <ul className="mt-4 divide-y divide-[#e3d8c6] rounded-3xl bg-white px-3">
           {rows.map(({ item, quote }) => {
             if (!quote) return null;
-            const store = getStore(quote.storeId);
             return (
               <li key={item.id}>
                 <Link href={`/prices/${item.id}`} className="flex items-center gap-3 py-3">
@@ -87,7 +89,7 @@ export function PricesScreen() {
                     </div>
                     <CategoryDot category={item.category} />
                     <p className="text-xs text-[#5e574c]">
-                      {store?.name} · {item.unitLabel}
+                      {cheapestStoreLabel(quote.byStore, (id) => getStore(id)?.name ?? id)} · {item.unitLabel}
                     </p>
                   </div>
                   <Sparkline values={quote.series.map((point) => point.price)} />
@@ -104,7 +106,9 @@ export function PricesScreen() {
         </ul>
       )}
       <p className="mt-4 text-xs leading-5 text-[#5e574c]">
-        相場は周辺店の見本です。スキャンした値段だけが、あなたの記録です。
+        {getArea(app.state.areaId).priceBasis === "survey"
+          ? "スキャンした値段だけが、このブラウザの記録です。"
+          : "相場は周辺店の見本です。スキャンした値段だけが、あなたの記録です。"}
       </p>
     </div>
   );

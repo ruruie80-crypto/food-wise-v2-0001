@@ -114,11 +114,19 @@ export function PriceDetailScreen({ id }: { id: string }) {
         <ul className="mt-3 space-y-3">
           {quote.byStore.map((row) => {
             const shop = getStore(row.storeId);
-            const width = Math.max(8, Math.round((quote.byStore[0].price / row.price) * 100));
+            const lowest = quote.byStore[0].price;
+            const winnerCount = quote.byStore.filter((item) => item.price === lowest).length;
+            const markWinner = winnerCount < quote.byStore.length && row.price === lowest;
+            const width = Math.max(8, Math.round((lowest / row.price) * 100));
             return (
               <li key={row.storeId}>
                 <div className="flex items-baseline justify-between text-sm">
-                  <span className="font-bold">{shop?.name}</span>
+                  <span className="font-bold">
+                    {shop?.name}
+                    {markWinner ? (
+                      <span className="ml-2 rounded-full bg-[#ffe14a] px-2 py-0.5 text-[11px] font-bold">最安</span>
+                    ) : null}
+                  </span>
                   <Yen value={row.price} className="text-xl" />
                 </div>
                 <div className="mt-1 h-2 rounded-full bg-[#efe6d4]">

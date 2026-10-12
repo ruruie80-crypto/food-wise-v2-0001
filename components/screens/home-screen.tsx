@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { AreaStores } from "@/components/area-stores";
+import { StoreCheapest } from "@/components/store-cheapest";
 import { MarketCard, SeasonCard } from "@/components/today-panel";
 import { formatWithWeekday, weekRangeLabel } from "@/lib/dates";
 import { mealLabel, modeHint, yen } from "@/lib/format";
@@ -113,6 +114,7 @@ export function HomeScreen() {
         </Button>
       </section>
 
+      <StoreCheapest />
       <SeasonCard today={app.today} />
       <MarketCard areaId={app.state.areaId} />
       <AreaStores areaId={app.state.areaId} />
