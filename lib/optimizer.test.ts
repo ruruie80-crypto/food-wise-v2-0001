@@ -126,6 +126,10 @@ test("each store only covers its own living areas", () => {
   );
   assert.ok(storesIn("ishinomaki").some((store) => store.id === "coop-ohashi"));
   assert.ok(storesIn("osaki").some((store) => store.id === "aeon-furukawa"));
+  assert.deepEqual(
+    storesIn("iwanuma").map((store) => store.id),
+    ["york-iwanuma", "york-iwanuma-nishi", "coop-iwanuma"],
+  );
   assert.equal(storesIn("nakano").some((store) => store.id === "york-uesugi"), false);
   assert.equal(storesIn("sendai").some((store) => store.id === "aoba"), false);
 });
@@ -137,12 +141,15 @@ test("Miyagi prices use the Sendai survey and do not vary by store", () => {
   const sendai = createPriceBook("sendai", TODAY, []);
   const ishinomaki = createPriceBook("ishinomaki", TODAY, []);
   const osaki = createPriceBook("osaki", TODAY, []);
+  const iwanuma = createPriceBook("iwanuma", TODAY, []);
   const cabbage = sendai.quote("cabbage");
   const aji = sendai.quote("aji");
   assert.equal(cabbage?.unitPrice, 22);
   assert.equal(aji?.unitPrice, 189);
   assert.equal(ishinomaki.quote("aji")?.unitPrice, aji?.unitPrice);
   assert.equal(osaki.quote("cabbage")?.unitPrice, cabbage?.unitPrice);
+  assert.equal(iwanuma.quote("cabbage")?.unitPrice, cabbage?.unitPrice);
+  assert.equal(iwanuma.quote("cabbage")?.byStore.length, 3);
   assert.ok(cabbage && cabbage.byStore.length === 2);
   assert.ok(cabbage?.byStore.every((row) => row.price === 22));
   assert.ok(cabbage?.byStore.every((row) => row.storeId !== "aoba"));
