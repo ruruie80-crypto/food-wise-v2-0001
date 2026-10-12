@@ -40,7 +40,7 @@ export default function AboutPage() {
       <p className="text-[11px] font-bold tracking-[0.16em] text-primary">公開用の試作</p>
       <h1 className="text-[1.7rem] font-black tracking-tight">作品ノート</h1>
       <p className="mt-2 text-sm leading-6 text-muted-foreground">
-        底値ごはんは、物価高の食卓を題材にしたポートフォリオ向けの試作です。値札から生活圏の底値を覚え、入れた食費のなかで献立と買い物リストを比べます。ホームの着せ替えで、帳面、夜の店、提灯、八百屋に見た目を変えられます。
+        底値ごはんは、物価高の食卓を題材にしたポートフォリオ向けの試作です。値札から生活圏の底値を覚え、入れた食費のなかで献立と買い物リストを比べます。ホームの着せ替えで、帳面、金魚の夜店、提灯の並ぶ店、野菜の八百屋に見た目を変えられます。
       </p>
 
       <section className="mt-5 rounded-3xl bg-card p-4">

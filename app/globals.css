@@ -98,8 +98,8 @@
   --destructive-foreground: #fffdf8;
   --primary-shadow: rgba(27, 107, 67, 0.28);
   --skin-card-radius: 1.5rem;
-  --skin-pattern: none;
-  --skin-pattern-size: auto;
+  --skin-motif: none;
+  --skin-motif-size: auto;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -187,14 +187,36 @@
 }
 
 .skin-stage {
+  isolation: isolate;
   background-color: var(--background);
-  background-image: var(--skin-pattern);
-  background-size: var(--skin-pattern-size);
+  background-image: var(--skin-motif);
+  background-repeat: repeat;
+  background-size: var(--skin-motif-size);
+}
+
+[data-skin="yoru"] .skin-stage::before,
+[data-skin="akari"] .skin-stage::before,
+[data-skin="yaoya"] .skin-stage::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 12.5rem;
+  pointer-events: none;
+  background: linear-gradient(
+    108deg,
+    var(--background) 0%,
+    color-mix(in srgb, var(--background) 92%, transparent) 34%,
+    color-mix(in srgb, var(--background) 40%, transparent) 62%,
+    transparent 80%
+  );
 }
 
 [data-skin="yoru"] {
   color-scheme: dark;
-  --background: #10141c;
+  --background: #0d1b2c;
   --foreground: #f3f6f4;
   --card: #1a2130;
   --card-foreground: #f3f6f4;
@@ -223,18 +245,24 @@
   --track: #2a3344;
   --wait: #3d2422;
   --wait-foreground: #ffc2b8;
-  --canvas: #07090e;
+  --canvas: #081420;
   --line: #4a5870;
   --nav: #141a26;
   --primary-shadow: rgba(61, 255, 154, 0.35);
   --radius: 0.35rem;
   --skin-card-radius: 0.55rem;
-  --skin-pattern: repeating-linear-gradient(
-    180deg,
-    transparent 0 42px,
-    color-mix(in srgb, var(--primary) 16%, transparent) 42px 43px
-  );
-  --skin-pattern-size: auto;
+  --skin-motif: url("/skins/goldfish.svg"), url("/skins/goldfish-left.svg");
+  --skin-motif-size: 340px 220px, 300px 200px;
+}
+
+[data-skin="yoru"] .skin-stage {
+  animation: skin-swim 26s linear infinite;
+}
+
+[data-skin="yoru"] .bg-card,
+[data-skin="akari"] .bg-card {
+  background-color: color-mix(in srgb, var(--card) 86%, transparent);
+  backdrop-filter: blur(7px);
 }
 
 [data-skin="akari"] {
@@ -274,8 +302,12 @@
   --primary-shadow: rgba(255, 77, 58, 0.35);
   --radius: 1.05rem;
   --skin-card-radius: 1.85rem;
-  --skin-pattern: radial-gradient(circle at 50% -20%, color-mix(in srgb, var(--accent) 32%, transparent), transparent 46%);
-  --skin-pattern-size: auto;
+  --skin-motif: url("/skins/lanterns.svg");
+  --skin-motif-size: 240px 210px;
+}
+
+[data-skin="akari"] .skin-stage {
+  animation: skin-lantern 5.5s ease-in-out infinite;
 }
 
 [data-skin="yaoya"] {
@@ -315,8 +347,26 @@
   --primary-shadow: rgba(226, 61, 43, 0.28);
   --radius: 0.4rem;
   --skin-card-radius: 0.7rem;
-  --skin-pattern: radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--primary) 28%, transparent) 1.1px, transparent 1.5px);
-  --skin-pattern-size: 16px 16px;
+  --skin-motif: url("/skins/vegetables.svg");
+  --skin-motif-size: 280px 220px;
+}
+
+[data-skin="yaoya"] .bg-card {
+  background-color: color-mix(in srgb, var(--card) 90%, transparent);
+  backdrop-filter: blur(6px);
+}
+
+[data-skin="yoru"] .receipt,
+[data-skin="akari"] .receipt {
+  background-color: color-mix(in srgb, var(--card) 86%, transparent);
+  background-image: radial-gradient(circle at 12px 0, transparent 9px, color-mix(in srgb, var(--card) 86%, transparent) 9.5px);
+  backdrop-filter: blur(7px);
+}
+
+[data-skin="yaoya"] .receipt {
+  background-color: color-mix(in srgb, var(--card) 90%, transparent);
+  background-image: radial-gradient(circle at 12px 0, transparent 9px, color-mix(in srgb, var(--card) 90%, transparent) 9.5px);
+  backdrop-filter: blur(6px);
 }
 
 [data-skin="yaoya"] .bg-notice {
@@ -341,6 +391,25 @@
 
 [data-skin] .rounded-xl {
   border-radius: calc(var(--skin-card-radius) * 0.5);
+}
+
+@keyframes skin-swim {
+  from {
+    background-position: 0 0, 0 36px;
+  }
+  to {
+    background-position: 340px 0, -300px 36px;
+  }
+}
+
+@keyframes skin-lantern {
+  0%,
+  100% {
+    background-position: 0 0;
+  }
+  50% {
+    background-position: 0 7px;
+  }
 }
 
 @keyframes rise {
@@ -402,7 +471,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .cook-bubble,
-  .cook-pan {
+  .cook-pan,
+  .skin-stage {
     animation: none;
   }
 }

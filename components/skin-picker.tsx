@@ -45,6 +45,18 @@ function SkinCard({
       )}
       style={{ background: skin.swatch.background, color: skin.swatch.foreground, borderRadius: skin.radius }}
     >
+      <span
+        aria-hidden
+        className="mb-1.5 block h-11 w-full"
+        style={{
+          backgroundColor: skin.swatch.background,
+          backgroundImage: skin.motif ? `url(${skin.motif})` : undefined,
+          backgroundSize: skin.motifPreview,
+          backgroundPosition: skin.motifPosition,
+          backgroundRepeat: "repeat",
+          borderRadius: `calc(${skin.radius} * 0.4)`,
+        }}
+      />
       <span className="block px-2 py-2" style={{ background: skin.swatch.card, borderRadius: `calc(${skin.radius} * 0.62)` }}>
         <span className="block text-[10px] font-bold tracking-[0.14em]" style={{ color: skin.swatch.primary }}>
           底値

@@ -18,6 +18,9 @@ export type Skin = {
   blurb: string;
   /** Outer corner of this template, independent of the one currently worn. */
   radius: string;
+  motif: string | null;
+  motifPreview: string;
+  motifPosition: string;
   swatch: SkinSwatch;
 };
 
@@ -28,6 +31,9 @@ export const SKINS: readonly Skin[] = [
     short: "帳面",
     blurb: "生成りの紙と、緑の値札。",
     radius: "1.5rem",
+    motif: null,
+    motifPreview: "auto",
+    motifPosition: "center",
     swatch: {
       background: "#f4efe4",
       foreground: "#1c1915",
@@ -41,8 +47,11 @@ export const SKINS: readonly Skin[] = [
     id: "yoru",
     name: "夜のスーパー",
     short: "夜店",
-    blurb: "蛍光灯の下の値札。",
+    blurb: "金魚が泳ぐ夜の店。",
     radius: "0.55rem",
+    motif: "/skins/goldfish.svg",
+    motifPreview: "210px auto",
+    motifPosition: "70% 42%",
     swatch: {
       background: "#10141c",
       foreground: "#f3f6f4",
@@ -56,8 +65,11 @@ export const SKINS: readonly Skin[] = [
     id: "akari",
     name: "赤提灯",
     short: "提灯",
-    blurb: "居酒屋の赤と金。",
+    blurb: "赤い提灯が並ぶ店先。",
     radius: "1.85rem",
+    motif: "/skins/lanterns.svg",
+    motifPreview: "150px auto",
+    motifPosition: "center top",
     swatch: {
       background: "#2a1210",
       foreground: "#f8efe4",
@@ -71,8 +83,11 @@ export const SKINS: readonly Skin[] = [
     id: "yaoya",
     name: "朝の八百屋",
     short: "八百屋",
-    blurb: "トマトと葉の朝市。",
+    blurb: "野菜が並ぶ朝の店先。",
     radius: "0.7rem",
+    motif: "/skins/vegetables.svg",
+    motifPreview: "170px auto",
+    motifPosition: "center 18%",
     swatch: {
       background: "#fff3c4",
       foreground: "#1c2a12",
