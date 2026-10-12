@@ -109,7 +109,11 @@ export function PriceDetailScreen({ id }: { id: string }) {
       <section className="mt-4 rounded-3xl bg-white p-4">
         <p className="text-sm font-bold">{area.priceBasis === "survey" ? "この生活圏の店" : "店ごとの今週"}</p>
         {area.priceBasis === "survey" ? (
-          <p className="mt-1 text-xs leading-5 text-[#5e574c]">統計は市内平均なので、店ごとの売価の差は入っていません。</p>
+          <p className="mt-1 text-xs leading-5 text-[#5e574c]">
+            {quote.byStore.every((row) => row.price === quote.byStore[0]?.price)
+              ? "統計は市内平均なので、店ごとの売価の差は入っていません。"
+              : "仙台市の平均に、このブラウザで読んだ値札を重ねています。"}
+          </p>
         ) : null}
         <ul className="mt-3 space-y-3">
           {quote.byStore.map((row) => {
