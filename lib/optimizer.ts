@@ -136,6 +136,13 @@ function targetsFor(slots: Slot[], people: number): Nutrition {
   );
 }
 
+export function dayTarget(mode: MealMode, people = 1): Nutrition {
+  return FILL_ORDER[mode].reduce(
+    (total, meal) => add(total, scale(PER_MEAL[meal], people)),
+    zeroNutrition(),
+  );
+}
+
 function allowedRecipes(meal: MealType, prefs: Prefs, excludes: string[]): Recipe[] {
   let list = recipes.filter(
     (recipe) =>

@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start -H 0.0.0.0 -p 43123",
     "lint": "eslint",
-    "test": "tsx --test lib/optimizer.test.ts lib/handoff.test.ts lib/market.test.ts lib/season.test.ts lib/deals.test.ts lib/advice.test.ts"
+    "test": "tsx --test lib/optimizer.test.ts lib/handoff.test.ts lib/market.test.ts lib/season.test.ts lib/deals.test.ts lib/advice.test.ts lib/nutrients.test.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

@@ -6,8 +6,10 @@ import { useApp } from "@/components/app-state";
 import { Yen } from "@/components/bits";
 import { RecipeVideoButton } from "@/components/recipe-player";
 import { cookingMethod, methodsInPlan, plannedFoods } from "@/lib/advice";
+import { ingredientTargetPercents, nutrientRows } from "@/lib/nutrients";
 import { addDays, formatWithWeekday } from "@/lib/dates";
-import { formatUnits, mealLabel, yen } from "@/lib/format";
+import { formatUnits, mealLabel, trimNum, yen } from "@/lib/format";
+import type { Plan } from "@/lib/types";
 
 export function BudgetAdvice({ variant }: { variant: "compact" | "full" }) {
   const app = useApp();
@@ -72,6 +74,7 @@ export function BudgetAdvice({ variant }: { variant: "compact" | "full" }) {
             const ingredient = getIngredient(food.ingredientId);
             const names = food.recipeIds.map((id) => getRecipe(id)?.name).filter((name): name is string => Boolean(name));
             const dishes = names.length <= 2 ? names.join("、") : `${names.slice(0, 2).join("、")} ほか${names.length - 2}品`;
+            const marks = ingredientTargetPercents(plan, food.ingredientId);
             return (
               <li key={food.ingredientId}>
                 <Link href={`/prices/${food.ingredientId}`} className="flex items-start justify-between gap-3 py-3">
@@ -80,6 +83,15 @@ export function BudgetAdvice({ variant }: { variant: "compact" | "full" }) {
                     <span className="mt-0.5 block text-xs leading-5 text-[#5e574c]">
                       {ingredient ? formatUnits(food.units, ingredient) : ""} · {dishes}
                     </span>
+                    {marks.length > 0 ? (
+                      <span className="mt-1 flex flex-wrap gap-1">
+                        {marks.map((mark) => (
+                          <span key={mark.label} className="rounded-full bg-[#e5f2ea] px-2 py-0.5 text-[11px] font-bold text-[#1b6b43]">
+                            {mark.label} {mark.targetPercent}%
+                          </span>
+                        ))}
+                      </span>
+                    ) : null}
                   </span>
                   <Yen value={food.linePrice} className="text-xl" />
                 </Link>
@@ -88,6 +100,7 @@ export function BudgetAdvice({ variant }: { variant: "compact" | "full" }) {
           })}
         </ul>
       </section>
+      <NutrientBoard plan={plan} />
       <section className="mt-6" id="methods">
         <p className="text-[11px] font-bold tracking-[0.16em] text-[#1b6b43]">調理法</p>
         <h2 className="text-lg font-black">この週の作り方</h2>
@@ -115,5 +128,44 @@ export function BudgetAdvice({ variant }: { variant: "compact" | "full" }) {
         </ul>
       </section>
     </>
+  );
+}
+
+function NutrientBoard({ plan }: { plan: Plan }) {
+  const rows = nutrientRows(plan);
+  return (
+    <section className="mt-6">
+      <p className="text-[11px] font-bold tracking-[0.16em] text-[#1b6b43]">栄養素</p>
+      <h2 className="text-lg font-black">食材ごとの割合</h2>
+      <p className="mt-1 text-xs leading-5 text-[#5e574c]">
+        見出しは今週の目標に対する割合です。食材の数字は、その栄養素のうち何%をその食材から取っているかです。
+      </p>
+      <ul className="mt-3 space-y-3">
+        {rows.map((row) => (
+          <li key={row.key} className="rounded-3xl bg-white p-4">
+            <div className="flex items-baseline justify-between gap-3">
+              <p className="font-bold">{row.label}</p>
+              <p className="text-right">
+                <span className="font-price text-2xl font-semibold">{row.targetPercent}%</span>
+                <span className="mt-0.5 block text-[11px] text-[#5e574c]">
+                  {row.key === "kcal" ? `${Math.round(row.amount)}kcal` : `${row.key === "salt" ? trimNum(row.amount) : Math.round(row.amount)}${row.unit}`}
+                </span>
+              </p>
+            </div>
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#efe6d4]">
+              <div className="h-full rounded-full bg-[#1b6b43]" style={{ width: `${Math.min(100, row.targetPercent)}%` }} />
+            </div>
+            <ul className="mt-3 space-y-1">
+              {row.sources.slice(0, 4).map((source) => (
+                <li key={source.ingredientId} className="flex items-center justify-between gap-3 text-sm">
+                  <span>{source.ingredientId === "seasoning" ? "調味" : getIngredient(source.ingredientId)?.name}</span>
+                  <span className="font-bold text-[#1b6b43]">{source.sharePercent}%</span>
+                </li>
+              ))}
+            </ul>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

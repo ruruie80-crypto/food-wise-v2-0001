@@ -12,8 +12,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { formatShort } from "@/lib/dates";
+import { unitTargetPercents } from "@/lib/nutrients";
+import { dayTarget } from "@/lib/optimizer";
 import { proteinYen } from "@/lib/prices";
-import { yen } from "@/lib/format";
+import { MODE_LABEL, yen } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export function PriceDetailScreen({ id }: { id: string }) {
@@ -94,6 +96,26 @@ export function PriceDetailScreen({ id }: { id: string }) {
       </div>
 
       <section className="mt-5 rounded-3xl bg-white p-4">
+        <p className="text-sm font-bold">栄養素の割合</p>
+        <p className="mt-1 text-xs leading-5 text-[#5e574c]">
+          {ingredient.unitLabel}あたり、{MODE_LABEL[app.state.mode]}の1人1日の目安に対する割合です。
+        </p>
+        <ul className="mt-3 space-y-2">
+          {unitTargetPercents(ingredient, dayTarget(app.state.mode, 1)).map((row) => (
+            <li key={row.label}>
+              <div className="flex items-baseline justify-between text-sm">
+                <span className="font-bold">{row.label}</span>
+                <span className="font-price text-xl font-semibold">{row.percent}%</span>
+              </div>
+              <div className="mt-1 h-2 overflow-hidden rounded-full bg-[#efe6d4]">
+                <div className="h-full rounded-full bg-[#1b6b43]" style={{ width: `${Math.min(100, row.percent)}%` }} />
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="mt-4 rounded-3xl bg-white p-4">
         <p className="text-sm font-bold">{area.priceBasis === "survey" ? "統計の平均" : "8週の底値"}</p>
         <HistoryChart series={quote.series} median={quote.median} />
         <p className="text-xs leading-5 text-[#5e574c]">
