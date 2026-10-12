@@ -27,8 +27,15 @@ let cached: Promise<MarketOk | { ok: false; error?: string; pageUrl?: string }> 
 
 function loadMarket() {
   cached ??= fetch("/api/market")
-    .then((response) => response.json())
-    .catch(() => ({ ok: false, error: "日報を読めませんでした。" }));
+    .then(async (response) => {
+      const data = (await response.json()) as MarketOk | { ok: false; error?: string; pageUrl?: string };
+      if (!response.ok || !data.ok) cached = null;
+      return data;
+    })
+    .catch(() => {
+      cached = null;
+      return { ok: false as const, error: "日報を読めませんでした。" };
+    });
   return cached;
 }
 

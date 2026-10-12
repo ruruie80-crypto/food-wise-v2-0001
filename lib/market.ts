@@ -5,6 +5,16 @@ export const MARKET_PAGE = "https://www.city.sendai.jp/chuo-kanri/kurashi/shizen
 export const MARKET_NOTE =
   "仙台市中央卸売市場の卸売価格です。スーパーの棚の値段ではなく、開市日の日報です。";
 
+export const PDF_HOSTS = new Set(["www.city.sendai.jp", "city.sendai.jp"]);
+export const MAX_PDF_BYTES = 10 * 1024 * 1024;
+export const MAX_PDF_PAGES = 16;
+export const MAX_REPORT_TEXT = 400_000;
+
+const MAX_ROWS = 8;
+const MAX_PLACE = 16;
+const MAX_WEATHER = 12;
+const MAX_YEN = 10_000_000;
+
 export type MarketQuote = {
   ingredientId: string;
   marketName: string;
@@ -54,8 +64,16 @@ function normalize(text: string): string {
 
 function money(token: string): number | null {
   if (token === "－" || token === "-" || token === "—") return null;
+  if (token.length > 12) return null;
   const value = Number(token.replace(/,/g, ""));
-  return Number.isFinite(value) ? value : null;
+  if (!Number.isInteger(value) || value < 0 || value > MAX_YEN) return null;
+  return value;
+}
+
+function placeName(value: string): string | null {
+  if (value.length < 1 || value.length > MAX_PLACE) return null;
+  if (/[<>&"'\\\u0000-\u001f]/.test(value)) return null;
+  return value;
 }
 
 function findRows(text: string, pattern: string): RawRow[] {
@@ -65,9 +83,13 @@ function findRows(text: string, pattern: string): RawRow[] {
   );
   const rows: RawRow[] = [];
   for (const match of text.matchAll(re)) {
+    if (rows.length >= MAX_ROWS) break;
+    const origin = placeName(match[1]);
+    const amount = Number(match[2]);
+    if (!origin || !Number.isFinite(amount) || amount <= 0 || amount > 1000) continue;
     rows.push({
-      origin: match[1],
-      amount: Number(match[2]),
+      origin,
+      amount,
       unit: match[3] === "Kg" ? "Kg" : "g",
       high: money(match[4]),
       mid: money(match[5]),
@@ -88,13 +110,18 @@ function packGrams(row: RawRow): number {
 }
 
 export function parseMarketReport(raw: string): MarketReport | null {
+  if (raw.length > MAX_REPORT_TEXT) return null;
   const text = normalize(raw);
   const dated = text.match(/令和\s*(\d+)年\s*(\d+)月\s*(\d+)日/);
-  if (!dated) return null;
+  if (!dated || dated[1].length > 4) return null;
   const year = 2018 + Number(dated[1]);
   const month = Number(dated[2]);
   const day = Number(dated[3]);
-  const weather = text.match(/天気\s*[（(]\s*([^)）]+)\s*[)）]/)?.[1] ?? "";
+  if (year < 2019 || year > 2100 || month < 1 || month > 12 || day < 1 || day > 31) return null;
+  const asOf = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  if (new Date(`${asOf}T00:00:00Z`).toISOString().slice(0, 10) !== asOf) return null;
+  const weatherRaw = text.match(/天気\s*[（(]\s*([^)）]{0,24})\s*[)）]/)?.[1]?.trim() ?? "";
+  const weather = weatherRaw.length <= MAX_WEATHER && !/[<>&"'\\\u0000-\u001f]/.test(weatherRaw) ? weatherRaw : "";
   const items: MarketQuote[] = [];
 
   for (const spec of SPECS) {
@@ -104,7 +131,8 @@ export function parseMarketReport(raw: string): MarketReport | null {
     const ingredient = getIngredient(spec.ingredientId);
     if (!row || price == null || !ingredient) continue;
     const grams = packGrams(row);
-    if (grams <= 0) continue;
+    const appYen = Math.round((price / grams) * ingredient.gramsPerUnit);
+    if (grams <= 0 || !Number.isInteger(appYen) || appYen < 1 || appYen > 100_000) continue;
     items.push({
       ingredientId: spec.ingredientId,
       marketName: spec.marketName,
@@ -113,14 +141,63 @@ export function parseMarketReport(raw: string): MarketReport | null {
       high: row.high,
       mid: row.mid,
       low: row.low,
-      appYen: Math.max(1, Math.round((price / grams) * ingredient.gramsPerUnit)),
+      appYen,
     });
   }
 
+  if (items.length === 0) return null;
   return {
-    asOf: `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
+    asOf,
     label: `令和${dated[1]}年${month}月${day}日`,
     weather,
     items,
   };
+}
+
+export function isPdfContentType(header: string | null): boolean {
+  if (!header) return false;
+  return header.split(";")[0].trim().toLowerCase() === "application/pdf";
+}
+
+export function hasPdfHeader(bytes: Uint8Array): boolean {
+  return bytes.length >= 5 && bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46 && bytes[4] === 0x2d;
+}
+
+export function nextPdfUrl(current: string, location: string | null): string | null {
+  if (!location || location.length > 2048) return null;
+  let next: URL;
+  try {
+    next = new URL(location, current);
+  } catch {
+    return null;
+  }
+  if (next.protocol !== "https:" || !PDF_HOSTS.has(next.hostname) || next.username || next.password) return null;
+  return next.toString();
+}
+
+export async function readAtMost(stream: ReadableStream<Uint8Array>, maxBytes: number): Promise<Uint8Array> {
+  const reader = stream.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel();
+        throw new Error("pdf is too large");
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return out;
 }

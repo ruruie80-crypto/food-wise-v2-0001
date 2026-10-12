@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseMarketReport } from "./market";
+import { hasPdfHeader, isPdfContentType, MARKET_PDF, nextPdfUrl, parseMarketReport, readAtMost } from "./market";
 
 const FIXTURE = `
 仙台市中央卸売市場日報（青果部）
@@ -42,4 +42,50 @@ test("market report keeps the Sendai date and prefers Miyagi rows", () => {
   assert.equal(price("egg")?.appYen, 24);
   assert.equal(price("gobo")?.appYen, 13);
   assert.equal(report.items.some((item) => item.marketName === "ミニトマト"), false);
+});
+
+test("a long report is refused before the line patterns run", () => {
+  const started = Date.now();
+  const report = parseMarketReport(`${"だいこん Ｌ ".repeat(80_000)}令和8年10月10日`);
+  assert.equal(report, null);
+  assert.ok(Date.now() - started < 500);
+});
+
+test("an oversized place name is dropped and the rest of the row is kept", () => {
+  const report = parseMarketReport(`
+令和8年10月10日 天気(晴れ)
+キャベツ　Ｌ ${"岩".repeat(40)} 10 Kg － 2,592 －
+キャベツ　Ｌ 岩手 10 Kg － 2,592 －
+`);
+  assert.equal(report?.items.find((item) => item.ingredientId === "cabbage")?.origin, "岩手");
+});
+
+test("pdf redirects stay on the Sendai city host", () => {
+  assert.equal(nextPdfUrl(MARKET_PDF, "https://www.city.sendai.jp/chuo-gyomu/documents/seika.pdf"), "https://www.city.sendai.jp/chuo-gyomu/documents/seika.pdf");
+  assert.equal(nextPdfUrl(MARKET_PDF, "/chuo-gyomu/documents/other.pdf")?.startsWith("https://www.city.sendai.jp/"), true);
+  assert.equal(nextPdfUrl(MARKET_PDF, "https://evil.example/seika.pdf"), null);
+  assert.equal(nextPdfUrl(MARKET_PDF, "http://www.city.sendai.jp/seika.pdf"), null);
+  assert.equal(nextPdfUrl(MARKET_PDF, "https://www.city.sendai.jp.evil.example/seika.pdf"), null);
+  assert.equal(nextPdfUrl(MARKET_PDF, null), null);
+});
+
+test("only a pdf content type and header are accepted", () => {
+  assert.equal(isPdfContentType("application/pdf"), true);
+  assert.equal(isPdfContentType("application/pdf; charset=binary"), true);
+  assert.equal(isPdfContentType("text/html"), false);
+  assert.equal(isPdfContentType(null), false);
+  assert.equal(hasPdfHeader(new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d])), true);
+  assert.equal(hasPdfHeader(new Uint8Array([0x3c, 0x68, 0x74, 0x6d, 0x6c])), false);
+});
+
+test("a stream larger than the cap is cut off", async () => {
+  const chunk = new Uint8Array(8);
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(chunk);
+      controller.enqueue(chunk);
+      controller.close();
+    },
+  });
+  await assert.rejects(readAtMost(stream, 8), /too large/);
 });
