@@ -1,21 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="320" height="280" viewBox="0 0 320 280">
-  <path d="M0 18h320" stroke="#f2c14e" stroke-width="2.4"/>
-  <path d="M0 158h320" stroke="#f2c14e" stroke-width="2.4" opacity="0.85"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="108" viewBox="0 0 480 108">
+  <path d="M0 8h480" stroke="#e8b84a" stroke-width="2"/>
   <defs>
     <g id="chochin">
-      <ellipse cx="50" cy="78" rx="46" ry="54" fill="#ff6a32" opacity="0.62"/>
-      <line x1="50" y1="0" x2="50" y2="18" stroke="#f6d36b" stroke-width="2.4"/>
-      <rect x="30" y="16" width="40" height="11" rx="2" fill="#ffe08a"/>
-      <path d="M12 30c5-8 71-8 76 0l-7 80c-7 18-62 18-69 0z" fill="#ff2418"/>
-      <path d="M20 34c14 12 52 12 64 0" fill="#ffb0a0"/>
-      <path d="M30 40v66M50 34v78M70 40v66" stroke="#6a100c" stroke-width="2.6" opacity="0.5"/>
-      <path d="M16 70h68" stroke="#ffe08a" stroke-width="6"/>
-      <rect x="32" y="108" width="36" height="9" rx="2" fill="#ffe08a"/>
-      <path d="M50 117v18" stroke="#ffe08a" stroke-width="2.4"/>
-      <circle cx="50" cy="139" r="3.2" fill="#ffe08a"/>
+      <line x1="40" y1="8" x2="40" y2="16" stroke="#f6d36b" stroke-width="1.6"/>
+      <rect x="26" y="15" width="28" height="7" rx="1.5" fill="#ffe08a"/>
+      <path d="M10 24c4-6 56-6 60 0l-5 52c-5 12-50 12-55 0z" fill="#e10600"/>
+      <path d="M18 28c10 8 36 8 46 0" fill="#ff8a78"/>
+      <path d="M24 32v42M40 26v52M56 32v42" stroke="#5c0c08" stroke-width="1.6" opacity="0.45"/>
+      <path d="M14 50h52" stroke="#ffe08a" stroke-width="4"/>
+      <rect x="27" y="74" width="26" height="6" rx="1.5" fill="#ffe08a"/>
+      <path d="M40 80v10" stroke="#ffe08a" stroke-width="1.6"/>
+      <circle cx="40" cy="93" r="2.2" fill="#ffe08a"/>
     </g>
   </defs>
-  <use href="#chochin" x="6" y="18"/>
-  <use href="#chochin" x="166" y="18"/>
-  <use href="#chochin" x="86" y="158"/>
+  <use href="#chochin" x="16" y="0"/>
+  <use href="#chochin" x="136" y="0"/>
+  <use href="#chochin" x="256" y="0"/>
+  <use href="#chochin" x="376" y="0"/>
 </svg>

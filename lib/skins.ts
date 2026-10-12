@@ -68,8 +68,8 @@ export const SKINS: readonly Skin[] = [
     blurb: "赤い提灯が並ぶ店先。",
     radius: "1.85rem",
     motif: "/skins/lanterns.svg",
-    motifPreview: "210px auto",
-    motifPosition: "center 28%",
+    motifPreview: "200px auto",
+    motifPosition: "center top",
     swatch: {
       background: "#2a1210",
       foreground: "#f8efe4",

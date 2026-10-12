@@ -37,6 +37,8 @@ test("night, lantern, and greengrocer skins bring their own scenery", () => {
   }
   assert.equal(SKINS[0]?.motif, null);
   assert.match(css, /goldfish-left\.svg/);
+  assert.match(css, /\[data-skin="akari"\] \.skin-stage \{\s*background-image:\s*none/);
+  assert.doesNotMatch(css, /\[data-skin="akari"\][^{]*\{[^}]*transparent/);
 });
 
 test("unknown skins are refused and the boot script only accepts the wardrobe", () => {
