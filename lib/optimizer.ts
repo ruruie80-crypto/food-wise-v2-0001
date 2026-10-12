@@ -151,7 +151,7 @@ function allowedRecipes(meal: MealType, prefs: Prefs, excludes: string[]): Recip
 
 function repeatCap(meal: MealType, poolSize: number, goal: "balanced" | "cheap"): number {
   if (poolSize <= 2) return 99;
-  if (meal === "breakfast") return 4;
+  if (meal === "breakfast") return 2;
   if (goal === "cheap") return 3;
   return 2;
 }
@@ -252,6 +252,7 @@ function search(
         const cost = costOf(recipe);
         const nutrition = recipeNutrition(recipe, people, portion);
         const times = state.used[recipe.id] ?? 0;
+        const sameAsPrevious = state.picks[state.picks.length - 1] === recipe.id;
         next.push({
           picks: [...state.picks, recipe.id],
           cost: state.cost + cost,
@@ -259,7 +260,8 @@ function search(
           used: { ...state.used, [recipe.id]: times + 1 },
           score:
             state.score +
-            marginalScore(recipe, nutrition, cost, slot.meal, goal, prefs, lookup.isBuy, coeff),
+            marginalScore(recipe, nutrition, cost, slot.meal, goal, prefs, lookup.isBuy, coeff) -
+            (goal === "balanced" && sameAsPrevious ? 18 : 0),
         });
       }
     }

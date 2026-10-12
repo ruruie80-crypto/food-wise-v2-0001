@@ -81,6 +81,15 @@ test("5000 yen balanced plan hits nutrition inside budget", () => {
   const repeats = dinnerRepeats(result.balanced);
   assert.ok(Object.keys(repeats).length >= 4, names);
   for (const count of Object.values(repeats)) assert.ok(count <= 2, names);
+  const breakfasts: Record<string, number> = {};
+  for (const slot of result.balanced.slots) {
+    if (slot.meal !== "breakfast") continue;
+    breakfasts[slot.recipeId] = (breakfasts[slot.recipeId] ?? 0) + 1;
+  }
+  assert.ok(Object.keys(breakfasts).length >= 4, names);
+  for (const count of Object.values(breakfasts)) assert.ok(count <= 2, names);
+  assert.equal(result.balanced.slots.filter((slot) => slot.meal === "dinner").length, 7);
+  assert.equal(result.balanced.slots.filter((slot) => slot.meal === "breakfast").length, 7);
 });
 
 test("tighter budget costs less and stays near the cap", () => {

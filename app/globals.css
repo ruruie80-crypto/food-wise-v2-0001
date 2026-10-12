@@ -169,3 +169,39 @@
 .scanline {
   animation: scan 1.1s ease-in-out infinite alternate;
 }
+
+@keyframes cook-rise {
+  0% {
+    transform: translateY(6px);
+    opacity: 0.2;
+  }
+  100% {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+}
+
+@keyframes cook-sway {
+  0%,
+  100% {
+    transform: rotate(-2deg);
+  }
+  50% {
+    transform: rotate(2deg);
+  }
+}
+
+.cook-bubble {
+  animation: cook-rise 1.4s ease-in infinite;
+}
+
+.cook-pan {
+  animation: cook-sway 1.1s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cook-bubble,
+  .cook-pan {
+    animation: none;
+  }
+}

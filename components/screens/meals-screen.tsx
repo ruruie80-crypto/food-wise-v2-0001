@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { BudgetAdvice } from "@/components/budget-advice";
+import { RecipeVideoButton } from "@/components/recipe-player";
 import { getRecipe, recipes } from "@/lib/catalog";
 import { useApp } from "@/components/app-state";
 import { BootScreen, SectionTitle, Yen } from "@/components/bits";
@@ -255,11 +256,7 @@ export function MealsScreen() {
                             <Yen value={slot.cost} className="text-2xl" />
                           </div>
                           <p className="mt-1 text-sm leading-6 text-[#3d3830]">{recipe.summary}</p>
-                          <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm leading-6">
-                            {recipe.steps.map((step) => (
-                              <li key={step}>{step}</li>
-                            ))}
-                          </ol>
+                          <RecipeVideoButton recipeId={recipe.id} />
                           <button
                             type="button"
                             className="mt-1 text-sm font-bold text-[#1b6b43]"
