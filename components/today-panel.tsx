@@ -153,12 +153,7 @@ export function MarketCard({ areaId }: { areaId: string }) {
       ) : null}
       {stores.length > 0 ? (
         <p className="mt-3 text-xs leading-5 text-[#5e574c]">
-          スーパーの棚の特売は、この卸値とは別です。
-          {stores.map((store) => (
-            <a key={store.id} href={store.sourceUrl} target="_blank" rel="noreferrer" className="ml-2 font-bold text-[#1b6b43]">
-              {store.name}
-            </a>
-          ))}
+          スーパーの棚の特売は、この卸値とは別です。各店の案内はこの下にあります。
         </p>
       ) : null}
     </section>

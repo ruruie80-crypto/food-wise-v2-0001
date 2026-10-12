@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { getArea, getIngredient, getStore, storesIn } from "@/lib/catalog";
+import { AreaStores } from "@/components/area-stores";
 import { useApp } from "@/components/app-state";
 import { BootScreen, Yen } from "@/components/bits";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ export function ShopScreen() {
         <p className="mt-3 rounded-3xl bg-white p-4 text-sm leading-6">
           献立ができると、品目をいちばん安い店に振り分けます。
         </p>
+        <AreaStores areaId={app.state.areaId} />
       </div>
     );
   }
@@ -185,7 +187,14 @@ export function ShopScreen() {
                 {openStore.branches[app.state.areaId]} · {openStore.kind}
               </p>
               {openStore.address ? <p>{openStore.address}</p> : null}
-              {openStore.phone ? <p>電話 {openStore.phone}</p> : null}
+              {openStore.phone ? (
+                <p>
+                  電話{" "}
+                  <a href={`tel:${openStore.phone}`} className="font-bold text-[#1b6b43]">
+                    {openStore.phone}
+                  </a>
+                </p>
+              ) : null}
               <p>営業 {openStore.hours}</p>
               {openStore.walkMinutes != null ? <p>徒歩の目安 {openStore.walkMinutes}分</p> : null}
               <p>{openStore.blurb}</p>
