@@ -1,4 +1,4 @@
-import { getRecipe } from "./catalog";
+import { getIngredient, getRecipe } from "./catalog";
 import type { Plan } from "./types";
 
 const METHODS: Record<string, string> = {
@@ -63,7 +63,10 @@ export function plannedFoods(plan: Plan, priceOf: (ingredientId: string) => numb
         recipeIds: row.recipeIds,
       };
     })
-    .sort((a, b) => b.linePrice - a.linePrice || a.ingredientId.localeCompare(b.ingredientId));
+    .sort((a, b) => {
+      const seasoning = Number(getIngredient(a.ingredientId)?.category === "seasoning") - Number(getIngredient(b.ingredientId)?.category === "seasoning");
+      return seasoning || b.linePrice - a.linePrice || a.ingredientId.localeCompare(b.ingredientId);
+    });
 }
 
 export type MethodGroup = {

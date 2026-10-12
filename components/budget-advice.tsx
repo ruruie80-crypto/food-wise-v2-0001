@@ -24,13 +24,13 @@ export function BudgetAdvice({ variant }: { variant: "compact" | "full" }) {
         </p>
         <div className="mt-3 rounded-3xl bg-white p-4">
           <p className="text-[11px] font-bold tracking-[0.14em] text-[#1b6b43]">食材</p>
-          <p className="mt-1 text-sm leading-6 font-bold">
-            {foods
-              .slice(0, 6)
-              .map((food) => getIngredient(food.ingredientId)?.name)
-              .filter(Boolean)
-              .join(" · ")}
-          </p>
+          <ul className="mt-2 flex flex-wrap gap-2">
+            {foods.slice(0, 6).map((food) => (
+              <li key={food.ingredientId} className="rounded-full bg-[#f4efe4] px-3 py-1 text-sm font-bold">
+                {getIngredient(food.ingredientId)?.name}
+              </li>
+            ))}
+          </ul>
           <p className="mt-3 text-[11px] font-bold tracking-[0.14em] text-[#1b6b43]">調理</p>
           <ul className="mt-1 space-y-1 text-sm leading-6">
             {today.map((slot) => {

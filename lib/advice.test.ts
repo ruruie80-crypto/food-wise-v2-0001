@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { cookingMethod, methodsInPlan, plannedFoods } from "./advice";
-import { recipes } from "./catalog";
+import { getIngredient, recipes } from "./catalog";
 import { buildPlan } from "./optimizer";
 import { createPriceBook } from "./prices";
 import type { Prefs } from "./types";
@@ -27,7 +27,10 @@ test("a 5000 yen plan names foods, methods, and dishes", () => {
   if (!result.ok) return;
   const foods = plannedFoods(result.balanced, book.priceOf);
   assert.ok(foods.length >= 5);
-  for (let index = 1; index < foods.length; index += 1) {
+  const firstSeasoning = foods.findIndex((food) => getIngredient(food.ingredientId)?.category === "seasoning");
+  assert.ok(firstSeasoning > 0);
+  assert.ok(foods.slice(0, firstSeasoning).every((food) => getIngredient(food.ingredientId)?.category !== "seasoning"));
+  for (let index = 1; index < firstSeasoning; index += 1) {
     assert.ok(foods[index - 1].linePrice >= foods[index].linePrice);
   }
   const rice = foods.find((food) => food.ingredientId === "rice");
