@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+export const instant = false;
+
 export default function NotFound() {
   return (
     <div className="px-4 pt-16">

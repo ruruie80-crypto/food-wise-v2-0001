@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Barlow_Condensed, Zen_Kaku_Gothic_New } from "next/font/google";
+import { connection } from "next/server";
 import { AppStateProvider } from "@/components/app-state";
 import { Shell } from "@/components/shell";
 import { Toaster } from "@/components/ui/sonner";
@@ -49,7 +50,8 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  await connection();
   return (
     <html lang="ja" className={`${zen.variable} ${barlow.variable} h-full antialiased`}>
       <body className="min-h-dvh bg-[#e7dfd0] text-[#1c1915]">

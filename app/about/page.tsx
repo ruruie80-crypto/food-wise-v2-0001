@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: "作品ノート",
   description: "底値ごはんは公開用の試作です。相場は見本で、記録はこの端末の中だけに残ります。",
 };
+export const instant = false;
 
 const BOUNDS = [
   {
