@@ -31,6 +31,7 @@ import {
   avoidsFish,
   displayRecipeName,
   recipeCopy,
+  withHomeMisoCheck,
   TOME_PRESET,
   usedItems,
   weeklyFromMonthly,
@@ -439,7 +440,7 @@ export function MealsScreen() {
           <ul className="mt-3 space-y-2">
             {plan.notes.map((note) => (
               <li key={note} className="rounded-2xl bg-card px-3 py-2 text-sm leading-6">
-                {note}
+                {withHomeMisoCheck(note, fishAside)}
               </li>
             ))}
           </ul>

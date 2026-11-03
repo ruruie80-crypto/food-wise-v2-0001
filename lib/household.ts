@@ -63,6 +63,16 @@ const EGG_CHOICE_SENTENCE = "卵をのせるかは、献立の設定「納豆・
 /** 献立の「魚を除く」が外す品。 */
 export const FISH_IDS = ["salmon", "aji", "sardine", "mackerel"];
 
+export const HOME_MISO_CHECK = "家の味噌がだし入りでないか確かめてね。";
+
+/** 家の味噌を先に使う文へ、魚を除くときだけ確認を足す。 */
+export function withHomeMisoCheck(note: string, fishAside: boolean): string {
+  if (!fishAside || !note.includes("冷蔵庫・冷凍庫の") || !note.includes("味噌") || note.includes("確かめて")) {
+    return note;
+  }
+  return `${note}${HOME_MISO_CHECK}`;
+}
+
 export function avoidsFish(excludes: string[]): boolean {
   return FISH_IDS.some((id) => excludes.includes(id));
 }

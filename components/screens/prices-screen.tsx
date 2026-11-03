@@ -8,6 +8,7 @@ import { useApp } from "@/components/app-state";
 import { BootScreen, CategoryDot, SignalMark, Sparkline, Yen } from "@/components/bits";
 import { StoreCheapest } from "@/components/store-cheapest";
 import { signedPercent } from "@/lib/format";
+import { avoidsFish, plainMisoText } from "@/lib/household";
 import { inSeason, monthOf } from "@/lib/season";
 import { Input } from "@/components/ui/input";
 import type { Category } from "@/lib/types";
@@ -17,6 +18,7 @@ export function PricesScreen() {
   const app = useApp();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<Category | "all">("all");
+  const fishAside = avoidsFish(app.state.excludes);
   const rows = useMemo(() => {
     if (!app.book) return [];
     const needle = query.trim().toLowerCase();
@@ -84,7 +86,7 @@ export function PricesScreen() {
                 <Link href={`/prices/${item.id}`} className="flex items-center gap-3 py-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-bold">{item.name}</span>
+                      <span className="font-bold">{plainMisoText(item.name, fishAside)}</span>
                       {quote.signal === "buy" ? <SignalMark signal="buy" /> : null}
                     </div>
                     <CategoryDot category={item.category} />

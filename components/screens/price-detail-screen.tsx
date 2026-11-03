@@ -16,6 +16,7 @@ import { unitTargetPercents } from "@/lib/nutrients";
 import { dayTarget } from "@/lib/optimizer";
 import { proteinYen } from "@/lib/prices";
 import { MODE_LABEL, yen } from "@/lib/format";
+import { avoidsFish, plainMisoText } from "@/lib/household";
 import { cn } from "@/lib/utils";
 
 export function PriceDetailScreen({ id }: { id: string }) {
@@ -38,6 +39,7 @@ export function PriceDetailScreen({ id }: { id: string }) {
       </div>
     );
   }
+  const fishAside = avoidsFish(app.state.excludes);
   const area = getArea(app.state.areaId);
   const localStores = storesIn(area.id);
   const recordStoreId = localStores.some((item) => item.id === storeId) ? storeId : localStores[0]?.id ?? "";
@@ -77,7 +79,7 @@ export function PriceDetailScreen({ id }: { id: string }) {
       <div className="mt-3 flex items-start justify-between gap-3">
         <div>
           <CategoryDot category={ingredient.category} />
-          <h1 className="mt-1 text-[1.7rem] font-black tracking-tight">{ingredient.name}</h1>
+          <h1 className="mt-1 text-[1.7rem] font-black tracking-tight">{plainMisoText(ingredient.name, fishAside)}</h1>
           <p className="text-sm text-muted-foreground">
             {store?.name} · {ingredient.unitLabel}
           </p>

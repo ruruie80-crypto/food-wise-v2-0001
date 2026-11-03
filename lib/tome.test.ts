@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { getIngredient, getRecipe, getStore, ingredients, recipes, storesIn } from "./catalog";
 import { expenseRangeLabel, lunchMoneyHint, planDayLabel, resolvePlanStart, weekIsOver, weekRangeLabel } from "./dates";
-import { CHEAP_EGG_DISHES, CHILD_PORTION, displayRecipeName, EGGS_PER_PACK, householdServings, MAX_WEEKLY_EGG_PACKS, PLAIN_MISO_DISH_NAME, plainMisoText, recipeCopy, TOME_PRESET, TWICE_A_WEEK_DISHES, usedItems, weeklyFromMonthly } from "./household";
+import { CHEAP_EGG_DISHES, CHILD_PORTION, displayRecipeName, EGGS_PER_PACK, HOME_MISO_CHECK, householdServings, MAX_WEEKLY_EGG_PACKS, PLAIN_MISO_DISH_NAME, plainMisoText, recipeCopy, TOME_PRESET, TWICE_A_WEEK_DISHES, usedItems, weeklyFromMonthly, withHomeMisoCheck } from "./household";
 import { formatUnits, marketHeading, seasonHeading } from "./format";
 import { consumeStock, MAX_STOCK_UNITS, readRiceKg, riceUnitsFromKg } from "./stock";
 import { buildPlan, dropDuplicateCookedDishes, ensureWeeklyDishes, isRecipeAllowed, keepCookedDays, recipeCost, syncLeftoverNote } from "./optimizer";
@@ -954,10 +954,36 @@ test("fish exclusion uses one dish name everywhere", () => {
   assert.match(dialog, /味噌やわかめは減らしません/);
 });
 
+test("miso at home asks for a fish-free check only when fish is excluded", () => {
+  const base = "冷蔵庫・冷凍庫の味噌を先に使う献立です。足りない分だけ買い物に出します。";
+  assert.equal(withHomeMisoCheck(base, false), base);
+  assert.equal(withHomeMisoCheck(base, true), `${base}${HOME_MISO_CHECK}`);
+  const book = createPriceBook("tome", TODAY, []);
+  const shared = {
+    budget: 18_400,
+    people: 4,
+    days: 7,
+    mode: "dinner_breakfast" as const,
+    prefs: { ...prefs, lessFat: true, noMilk: true },
+    fullPortions: true,
+    weeklyDishes: ["hamburg", "soboro"],
+    stock: [{ ingredientId: "miso", place: "fridge" as const, units: 20 }],
+  };
+  const fish = buildPlan({ ...shared, excludes: ["salmon", "aji", "sardine", "mackerel"] }, book);
+  const plain = buildPlan({ ...shared, excludes: [] }, book);
+  assert.equal(fish.ok && plain.ok, true);
+  if (!fish.ok || !plain.ok) return;
+  assert.match(fish.balanced.notes.join("\n"), /家の味噌がだし入りでないか確かめてね/);
+  assert.equal(plain.balanced.notes.some((note) => note.includes("確かめて")), false);
+});
+
 test("YouTube button is a search for the dish name", () => {
   const url = youtubeCookUrl("鶏と豆腐のハンバーグ");
   assert.equal(url.startsWith("https://www.youtube.com/results?search_query="), true);
   assert.equal(decodeURIComponent(url.split("search_query=")[1] ?? ""), "鶏と豆腐のハンバーグ 作り方");
+  const misoUrl = youtubeCookUrl("豆腐の味噌汁（だし入りでない味噌）");
+  assert.equal(decodeURIComponent(misoUrl.split("search_query=")[1] ?? ""), "豆腐の味噌汁 作り方");
+  assert.equal(misoUrl.includes("（"), false);
   assert.equal(url.includes("key="), false);
   assert.ok(getIngredient("chicken_hiki"));
 });

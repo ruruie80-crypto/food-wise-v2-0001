@@ -10,6 +10,8 @@ import {
   QUIET_EGG_TARGET,
   TWICE_A_WEEK_DISHES,
   usedItems,
+  withHomeMisoCheck,
+  avoidsFish,
 } from "./household";
 import type {
   MealMode,
@@ -836,7 +838,10 @@ function planWithCurrentEggs(input: PlanInput, lookup: PriceLookup): PlanResult 
       .filter((name): name is string => Boolean(name));
     if (names.length > 0) {
       notes.unshift(
-        `冷蔵庫・冷凍庫の${names.slice(0, 3).join("、")}を先に使う献立です。足りない分だけ買い物に出します。`,
+        withHomeMisoCheck(
+          `冷蔵庫・冷凍庫の${names.slice(0, 3).join("、")}を先に使う献立です。足りない分だけ買い物に出します。`,
+          avoidsFish(input.excludes) && used.has("miso"),
+        ),
       );
     }
   }

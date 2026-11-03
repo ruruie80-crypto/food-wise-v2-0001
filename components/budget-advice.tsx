@@ -50,12 +50,12 @@ export function BudgetAdvice({ variant }: { variant: "compact" | "full" }) {
                   {slots.map((slot) => {
                     const recipe = getRecipe(slot.recipeId);
                     return (
-                      <li key={`${slot.meal}-${slot.recipeId}`} className="flex items-center justify-between gap-3 text-sm">
-                        <span>
+                      <li key={`${slot.meal}-${slot.recipeId}`} className="text-sm">
+                        <p className="break-keep text-base leading-7">
                           <span className="text-muted-foreground">{mealLabel(slot.meal)}</span>{" "}
                           {recipe ? dishName(recipe) : slot.recipeId}
-                          <span className="mt-0.5 block text-xs text-muted-foreground">{cookingMethod(slot.recipeId)}</span>
-                        </span>
+                        </p>
+                        <p className="text-sm text-muted-foreground">{cookingMethod(slot.recipeId)}</p>
                         <RecipeVideoButton recipeId={slot.recipeId} />
                       </li>
                     );
