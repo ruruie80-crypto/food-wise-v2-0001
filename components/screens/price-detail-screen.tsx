@@ -126,7 +126,7 @@ export function PriceDetailScreen({ id }: { id: string }) {
         {caption ? <p className="mt-2 text-xs leading-5 text-muted-foreground">{caption}</p> : null}
       </section>
 
-      <MarketHint ingredientId={id} />
+      <MarketHint ingredientId={id} areaId={app.state.areaId} />
 
       <section className="mt-4 rounded-3xl bg-card p-4">
         <p className="text-sm font-bold">{area.priceBasis === "survey" ? "この生活圏の店" : "店ごとの今週"}</p>
@@ -242,11 +242,12 @@ export function PriceDetailScreen({ id }: { id: string }) {
             <SheetTitle>{ingredient.name}を記録</SheetTitle>
           </SheetHeader>
           <div className="space-y-3 px-4 pb-6">
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2" role="group" aria-label="記録する店">
               {localStores.map((item) => (
                 <button
                   key={item.id}
                   type="button"
+                  aria-pressed={recordStoreId === item.id}
                   onClick={() => setStoreId(item.id)}
                   className={cn(
                     "rounded-full px-3 py-1.5 text-sm font-bold",

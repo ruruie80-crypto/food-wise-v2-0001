@@ -162,7 +162,7 @@ export function HomeScreen() {
 
       <BudgetAdvice variant="compact" />
       <StoreCheapest />
-      <SeasonCard today={app.today} />
+      <SeasonCard today={app.today} areaId={app.state.areaId} />
       <MarketCard areaId={app.state.areaId} />
       <AreaStores areaId={app.state.areaId} />
 

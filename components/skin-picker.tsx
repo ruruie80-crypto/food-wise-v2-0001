@@ -20,7 +20,7 @@ export function SkinPicker({ className }: { className?: string }) {
           ? "登米では明るい画面だけです。見た目の見本で、お金はかかりません。"
           : "見た目だけが変わります。お金はかかりません。"}
       </p>
-      <div className="mt-3 grid grid-cols-2 gap-2">
+      <div className="mt-3 grid grid-cols-2 gap-2" role="group" aria-label="着せ替え">
         {skins.map((skin) => (
           <SkinCard key={skin.id} id={skin.id} selected={state.skin === skin.id} onSelect={setSkin} />
         ))}

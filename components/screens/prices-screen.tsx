@@ -63,7 +63,7 @@ export function PricesScreen() {
         aria-label="品目を探す"
         className="mt-4 h-11 bg-card text-base"
       />
-      <div className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1">
+      <div className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1" role="group" aria-label="品目の分類">
         <FilterChip active={category === "all"} onClick={() => setCategory("all")}>
           すべて
         </FilterChip>
@@ -126,6 +126,7 @@ function FilterChip({
   return (
     <button
       type="button"
+      aria-pressed={active}
       onClick={onClick}
       className={cn(
         "inline-flex min-h-11 shrink-0 items-center rounded-full px-3 text-sm font-bold",

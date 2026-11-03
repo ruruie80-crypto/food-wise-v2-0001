@@ -48,7 +48,7 @@ export function StoreCheapest() {
           ))}
         </ul>
       ) : (
-        <div className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1">
+        <div className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1" role="group" aria-label="店ごとの底値">
           {boards.map((board) => {
             const active = board.store.id === selected.store.id;
             const wins = board.picks.filter((pick) => pick.onlyHere).length;

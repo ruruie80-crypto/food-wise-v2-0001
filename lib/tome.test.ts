@@ -4,7 +4,7 @@ import test from "node:test";
 import { getIngredient, getRecipe, getStore, ingredients, recipes, storesIn } from "./catalog";
 import { expenseRangeLabel, lunchMoneyHint, planDayLabel, resolvePlanStart, weekIsOver, weekRangeLabel } from "./dates";
 import { CHEAP_EGG_DISHES, CHILD_PORTION, EGGS_PER_PACK, householdServings, MAX_WEEKLY_EGG_PACKS, TOME_PRESET, TWICE_A_WEEK_DISHES, usedItems, weeklyFromMonthly } from "./household";
-import { formatUnits } from "./format";
+import { formatUnits, marketHeading, seasonHeading } from "./format";
 import { consumeStock, MAX_STOCK_UNITS, readRiceKg, riceUnitsFromKg } from "./stock";
 import { buildPlan, dropDuplicateCookedDishes, ensureWeeklyDishes, isRecipeAllowed, keepCookedDays, recipeCost, syncLeftoverNote } from "./optimizer";
 import { samePlanAsideFromStock } from "../components/app-state";
@@ -763,6 +763,18 @@ test("optional eggs follow the setting and Tome quotes stay in Tome", () => {
     const row = book.quote(ingredient.id);
     for (const store of row?.byStore ?? []) assert.ok(TOME_STORES.includes(store.storeId), `${ingredient.id}:${store.storeId}`);
   }
+});
+
+test("Tome home headings stay local, and the egg switch is labeled for reading aloud", () => {
+  assert.equal(marketHeading("tome"), "きょうの宮城の市場（仙台市場の値段）");
+  assert.equal(marketHeading("sendai"), "きょうの仙台市場");
+  assert.equal(seasonHeading(11, "tome"), "11月の宮城の旬（仙台周辺の表）");
+  assert.equal(seasonHeading(11, "nakano"), "11月の仙台周辺");
+  const meals = readFileSync(new URL("../components/screens/meals-screen.tsx", import.meta.url), "utf8");
+  assert.match(meals, /卵を除くが優先です/);
+  assert.match(meals, /朝と夜の範囲/);
+  assert.match(meals, /aria-pressed=\{app\.state\.eggToppingPolicy === id\}/);
+  assert.match(meals, /aria-pressed=\{app\.state\.mode === mode\}/);
 });
 
 test("YouTube button is a search for the dish name", () => {

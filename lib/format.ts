@@ -62,6 +62,16 @@ export const MODE_LABEL: Record<MealMode, string> = {
   full: "朝昼夕",
 };
 
+export function seasonHeading(month: number, areaId: string): string {
+  if (areaId === "tome") return `${month}月の宮城の旬（仙台周辺の表）`;
+  return `${month}月の仙台周辺`;
+}
+
+export function marketHeading(areaId: string): string {
+  if (areaId === "tome") return "きょうの宮城の市場（仙台市場の値段）";
+  return "きょうの仙台市場";
+}
+
 export function modeHint(mode: MealMode): string {
   if (mode === "dinner") return "夕食だけの食費です。";
   if (mode === "full") return "朝昼夕をすべてこの予算で組みます。";

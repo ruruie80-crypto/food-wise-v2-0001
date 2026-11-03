@@ -41,11 +41,12 @@ export function StockScreen() {
         </p>
       ) : null}
 
-      <div className="mt-4 grid grid-cols-2 gap-2">
+      <div className="mt-4 grid grid-cols-2 gap-2" role="group" aria-label="置く場所">
         {PLACES.map((item) => (
           <button
             key={item.id}
             type="button"
+            aria-pressed={place === item.id}
             onClick={() => setPlace(item.id)}
             className={
               place === item.id
@@ -109,11 +110,12 @@ export function StockScreen() {
         <p className="mt-1 text-sm leading-6 text-muted-foreground">
           卵も肉も、米と同じ上限です。米なら{MAX_RICE_KG}kgまで入れられます。
         </p>
-        <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
+        <div className="mt-2 flex gap-2 overflow-x-auto pb-1" role="group" aria-label="食材の分類">
           {GROUPS.map((id) => (
             <button
               key={id}
               type="button"
+              aria-pressed={group === id}
               onClick={() => setGroup(id)}
               className={
                 group === id

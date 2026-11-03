@@ -11,7 +11,7 @@ export function AreaPicker({
   onSelect: (areaId: string) => void;
 }) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" role="group" aria-label="ふだん買う地域">
       {areasByPrefecture().map((group) => (
         <div key={group.prefecture}>
           <p className="text-sm font-bold tracking-[0.14em] text-primary">{group.prefecture}</p>
@@ -20,6 +20,7 @@ export function AreaPicker({
               <button
                 key={area.id}
                 type="button"
+                aria-pressed={selectedId === area.id}
                 onClick={() => onSelect(area.id)}
                 className={cn(
                   "min-h-11 w-full rounded-2xl border px-3 py-3 text-left",

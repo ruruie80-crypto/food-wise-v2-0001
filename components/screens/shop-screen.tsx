@@ -158,9 +158,10 @@ export function ShopScreen() {
             ? "選んだ店に、買うものをまとめます。ほかの店の方が安い品があっても、この店で買います。"
             : "まだ決めていないときは、いちばん安い店に入れます。値段が同じときは、一つの店にまとめます。"}
         </p>
-        <div className="mt-2 grid grid-cols-1 gap-2">
+        <div className="mt-2 grid grid-cols-1 gap-2" role="group" aria-label="ふだん行く店">
           <button
             type="button"
+            aria-pressed={app.state.preferredStoreId == null}
             onClick={() => app.setPreferredStore(null)}
             className={cn(
               "min-h-11 rounded-2xl px-3 text-left text-sm font-bold",
@@ -173,6 +174,7 @@ export function ShopScreen() {
             <button
               key={store.id}
               type="button"
+              aria-pressed={app.state.preferredStoreId === store.id}
               onClick={() => app.setPreferredStore(store.id)}
               className={cn(
                 "min-h-11 rounded-2xl px-3 text-left text-sm font-bold",

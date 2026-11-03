@@ -55,9 +55,10 @@ export function Onboarding() {
                 <p className="mt-2 text-base leading-7">子どもの年齢はまだ聞いていません。違ったらここで変えてください。</p>
                 <CountRow label="大人" value={state.adults} onChange={setAdults} />
                 <CountRow label="子ども" value={state.children} onChange={setChildren} />
-                <div className="mt-3 grid grid-cols-2 gap-2">
+                <div className="mt-3 grid grid-cols-2 gap-2" role="group" aria-label="子どもの年齢">
                   <button
                     type="button"
+                    aria-pressed={state.childStage === "young"}
                     onClick={() => setChildStage("young")}
                     className={cn(
                       "min-h-11 rounded-2xl px-2 text-sm font-bold",
@@ -68,6 +69,7 @@ export function Onboarding() {
                   </button>
                   <button
                     type="button"
+                    aria-pressed={state.childStage === "teen"}
                     onClick={() => setChildStage("teen")}
                     className={cn(
                       "min-h-11 rounded-2xl px-2 text-sm font-bold",
@@ -89,11 +91,12 @@ export function Onboarding() {
                 </Button>
               </div>
             )}
-            <div className="mt-4 grid grid-cols-3 gap-2">
+            <div className="mt-4 grid grid-cols-3 gap-2" role="group" aria-label="朝と夜の範囲">
               {MODES.map((mode) => (
                 <button
                   key={mode}
                   type="button"
+                  aria-pressed={state.mode === mode}
                   onClick={() => setMode(mode)}
                   className={cn(
                     "min-h-11 rounded-2xl px-2 py-3 text-sm font-bold",
@@ -119,11 +122,12 @@ export function Onboarding() {
                 ? `月8万円を週にならすと ${yen(state.budget)} です。30.4日で割って、7日分にしています。`
                 : `この人数と範囲なら、目安は ${yen(hint)} です。`}
             </p>
-            <div className="mt-3 grid grid-cols-4 gap-2">
+            <div className="mt-3 grid grid-cols-4 gap-2" role="group" aria-label="食費の目安">
               {(tome ? [15000, 18400, 22000, 28000] : [3000, 5000, 7000, 10000]).map((preset) => (
                 <button
                   key={preset}
                   type="button"
+                  aria-pressed={state.budget === (tome ? preset : preset * state.people)}
                   onClick={() => setBudget(tome ? preset : preset * state.people)}
                   className={cn(
                     "min-h-11 rounded-xl py-2 text-sm font-bold",

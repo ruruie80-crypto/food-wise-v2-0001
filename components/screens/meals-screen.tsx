@@ -65,6 +65,7 @@ export function MealsScreen() {
   const servings = householdServings(app.state.adults, app.state.children, app.state.childStage);
   const hint = budgetHint(servings, app.state.mode);
   const tome = app.state.areaId === "tome";
+  const eggsAside = app.state.excludes.includes("egg");
   const presetOn =
     app.state.adults === TOME_PRESET.adults &&
     app.state.children === TOME_PRESET.children &&
@@ -140,6 +141,7 @@ export function MealsScreen() {
         <div className="mt-2 grid grid-cols-2 gap-2">
           <button
             type="button"
+            aria-pressed={app.state.monthlyBudget === 80000}
             onClick={() => app.setMonthlyBudget(80000)}
             className={cn(
               "min-h-12 rounded-2xl text-base font-bold",
@@ -195,11 +197,12 @@ export function MealsScreen() {
           aria-label="今週の食費"
           className="mt-2"
         />
-        <div className="mt-3 grid grid-cols-4 gap-2">
+        <div className="mt-3 grid grid-cols-4 gap-2" role="group" aria-label="今週の食費の目安">
           {weekPresets.map((preset) => (
             <button
               key={preset}
               type="button"
+              aria-pressed={app.state.budget === preset}
               onClick={() => app.setBudget(preset)}
               className={cn(
                 "min-h-11 rounded-xl py-2 text-sm font-bold",
@@ -227,9 +230,10 @@ export function MealsScreen() {
           hint={app.state.childStage === "teen" ? "中学生以上は、大人と同じ量です。" : "小学生以下は、大人の0.6人分です。"}
           onChange={app.setChildren}
         />
-        <div className="mt-3 grid grid-cols-2 gap-2">
+        <div className="mt-3 grid grid-cols-2 gap-2" role="group" aria-label="子どもの年齢">
           <button
             type="button"
+            aria-pressed={app.state.childStage === "young"}
             onClick={() => app.setChildStage("young")}
             className={cn(
               "min-h-11 rounded-2xl px-2 text-sm font-bold",
@@ -240,6 +244,7 @@ export function MealsScreen() {
           </button>
           <button
             type="button"
+            aria-pressed={app.state.childStage === "teen"}
             onClick={() => app.setChildStage("teen")}
             className={cn(
               "min-h-11 rounded-2xl px-2 text-sm font-bold",
@@ -249,57 +254,75 @@ export function MealsScreen() {
             中学生以上
           </button>
         </div>
-        <p className="mt-4 text-base font-bold">納豆・冷奴に卵をのせる</p>
-        <p className="mt-1 text-base leading-7">初期は「しない」です。切り替えると、献立と買い物を作り直します。</p>
-        <div className="mt-2 grid grid-cols-2 gap-2">
-          {(
-            [
-              ["avoid", "しない"],
-              ["allow", "する"],
-            ] as const
-          ).map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => {
-                if (app.state.eggToppingPolicy === id) return;
-                const result = app.setEggTopping(id);
-                if (result && !result.ok) toast.error(result.error);
-                else if (result?.ok) {
-                  toast.success(
-                    id === "allow" ? "卵をのせる設定で作り直しました" : "卵をのせない設定で作り直しました",
-                  );
-                }
-              }}
-              className={cn(
-                "min-h-11 rounded-2xl px-2 text-base font-bold",
-                app.state.eggToppingPolicy === id ? "bg-primary text-primary-foreground" : "bg-muted",
-              )}
-            >
-              {label}
-            </button>
-          ))}
+        <div className="mt-5 border-t border-track pt-4">
+          <p className="text-base font-bold">納豆・冷奴に卵をのせる</p>
+          <p className="mt-1 text-base leading-7">初期は「しない」です。切り替えると、献立と買い物を作り直します。</p>
+          {eggsAside ? (
+            <p id="egg-aside-note" className="mt-1 text-base leading-7">
+              卵を除くが優先です。卵の入る皿は入りません。のせの設定は残してあり、卵を除くをやめると使います。
+            </p>
+          ) : null}
+          <div
+            role="group"
+            aria-label="納豆・冷奴に卵をのせる"
+            aria-describedby={eggsAside ? "egg-aside-note" : undefined}
+            className={cn("mt-2 grid grid-cols-2 gap-2", eggsAside && "opacity-50")}
+          >
+            {(
+              [
+                ["avoid", "しない"],
+                ["allow", "する"],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                aria-pressed={app.state.eggToppingPolicy === id}
+                onClick={() => {
+                  if (app.state.eggToppingPolicy === id) return;
+                  const result = app.setEggTopping(id);
+                  if (result && !result.ok) toast.error(result.error);
+                  else if (result?.ok) {
+                    toast.success(
+                      id === "allow" ? "卵をのせる設定で作り直しました" : "卵をのせない設定で作り直しました",
+                    );
+                  }
+                }}
+                className={cn(
+                  "min-h-11 rounded-2xl px-2 text-base font-bold",
+                  app.state.eggToppingPolicy === id ? "bg-primary text-primary-foreground" : "bg-muted",
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="mt-3 grid grid-cols-3 gap-2">
-          {MODES.map((mode) => (
-            <button
-              key={mode}
-              type="button"
-              onClick={() => app.setMode(mode)}
-              className={cn(
-                "min-h-11 rounded-2xl px-2 py-2 text-sm font-bold",
-                app.state.mode === mode ? "bg-primary text-primary-foreground" : "bg-muted",
-              )}
-            >
-              {MODE_LABEL[mode]}
-            </button>
-          ))}
+        <div className="mt-5 border-t border-track pt-4">
+          <p className="text-base font-bold">朝と夜の範囲</p>
+          <div role="group" aria-label="朝と夜の範囲" className="mt-2 grid grid-cols-3 gap-2">
+            {MODES.map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                aria-pressed={app.state.mode === mode}
+                onClick={() => app.setMode(mode)}
+                className={cn(
+                  "min-h-11 rounded-2xl px-2 py-2 text-sm font-bold",
+                  app.state.mode === mode ? "bg-primary text-primary-foreground" : "bg-muted",
+                )}
+              >
+                {MODE_LABEL[mode]}
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label="献立の好み">
           {PREFS.map((pref) => (
             <button
               key={pref.key}
               type="button"
+              aria-pressed={app.state.prefs[pref.key]}
               onClick={() => app.togglePref(pref.key)}
               className={cn(
                 "inline-flex min-h-11 items-center rounded-full px-3 text-sm font-bold",
@@ -313,6 +336,7 @@ export function MealsScreen() {
         <div className="mt-3 grid grid-cols-1 gap-2">
           <button
             type="button"
+            aria-pressed={app.state.prefs.lessFat}
             onClick={() => app.togglePref("lessFat")}
             className={cn(
               "min-h-14 rounded-2xl px-4 py-3 text-left",
@@ -326,6 +350,7 @@ export function MealsScreen() {
           </button>
           <button
             type="button"
+            aria-pressed={app.state.prefs.noMilk}
             onClick={() => app.togglePref("noMilk")}
             className={cn(
               "min-h-14 rounded-2xl px-4 py-3 text-left",
@@ -341,13 +366,14 @@ export function MealsScreen() {
         <Link href="/stock" className="mt-3 flex min-h-12 items-center justify-center rounded-2xl bg-muted text-base font-bold">
           冷蔵庫・冷凍庫を入れる
         </Link>
-        <div className="mt-2 flex flex-wrap gap-2">
+        <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label="食べないもの">
           {EXCLUSIONS.map((group) => {
             const on = group.ids.every((id) => app.state.excludes.includes(id));
             return (
               <button
                 key={group.label}
                 type="button"
+                aria-pressed={on}
                 onClick={() => app.toggleExclusion(group.ids)}
                 className={cn(
                   "inline-flex min-h-11 items-center rounded-full px-3 text-sm font-bold",
@@ -376,7 +402,7 @@ export function MealsScreen() {
         </p>
       ) : (
         <>
-          <div className="mt-4 grid grid-cols-2 gap-2">
+          <div className="mt-4 grid grid-cols-2 gap-2" role="group" aria-label="見ている献立">
             <FocusCard
               title="バランス"
               plan={app.state.balanced}
@@ -448,7 +474,7 @@ export function MealsScreen() {
                         recipe,
                         plan.people,
                         plan.portion,
-                        app.state.eggToppingPolicy === "allow",
+                        app.state.eggToppingPolicy === "allow" && !eggsAside,
                       );
                       return (
                         <li key={`${slot.meal}-${slot.recipeId}`} className="border-t border-track pt-3 first:border-0 first:pt-0">
@@ -465,15 +491,17 @@ export function MealsScreen() {
                           <p className="mt-1 text-base leading-7 text-foreground">{recipe.summary}</p>
                           {OPTIONAL_EGG_RECIPES.includes(recipe.id) ? (
                             <p className="mt-1 text-base leading-7">
-                              {app.state.eggToppingPolicy === "allow"
-                                ? "卵はのせます。上の「納豆・冷奴に卵をのせる」でやめられます。"
-                                : "卵はのせません。上の「納豆・冷奴に卵をのせる」で足せます。"}
+                              {eggsAside
+                                ? "卵を除くが優先です。この皿の卵は使いません。"
+                                : app.state.eggToppingPolicy === "allow"
+                                  ? "卵はのせます。上の「納豆・冷奴に卵をのせる」でやめられます。"
+                                  : "卵はのせません。上の「納豆・冷奴に卵をのせる」で足せます。"}
                             </p>
                           ) : null}
                           {recipe.usesMilk === false ? (
                             <p className="mt-1 text-sm font-bold text-primary">牛乳なし</p>
                           ) : null}
-                          {usedItems(recipe.id, recipe.items, app.state.eggToppingPolicy === "allow").some((item) =>
+                          {usedItems(recipe.id, recipe.items, app.state.eggToppingPolicy === "allow" && !eggsAside).some((item) =>
                             stocked.has(item.ingredientId),
                           ) ? (
                             <p className="text-sm font-bold">在庫を使います</p>
@@ -524,7 +552,7 @@ export function MealsScreen() {
                   plan,
                   app.book.priceOf,
                   stocked,
-                  app.state.eggToppingPolicy === "allow",
+                  app.state.eggToppingPolicy === "allow" && !app.state.excludes.includes("egg"),
                 ).map((option) => (
                   <li key={option.recipe.id} className="rounded-2xl bg-muted px-3 py-3">
                     <button
@@ -584,7 +612,7 @@ function OpenChoices() {
       <p className="mt-1 text-sm leading-6">あとから変えられます。献立の計算は、選んだところだけ使います。</p>
       <p className="mt-2 text-base leading-7">納豆と冷奴の卵は、上の「納豆・冷奴に卵をのせる」で選びます。</p>
       <p className="mt-3 text-base font-bold">8万円に入っているもの</p>
-      <div className="mt-2 grid grid-cols-1 gap-2">
+      <div className="mt-2 grid grid-cols-1 gap-2" role="group" aria-label="8万円に入っているもの">
         {(
           [
             ["unset", "まだ決めていない"],
@@ -595,6 +623,7 @@ function OpenChoices() {
           <button
             key={id}
             type="button"
+            aria-pressed={app.state.budgetScope === id}
             onClick={() => app.setBudgetScope(id)}
             className={cn(
               "min-h-11 rounded-2xl px-3 text-left text-sm font-bold",
@@ -606,7 +635,7 @@ function OpenChoices() {
         ))}
       </div>
       <p className="mt-3 text-base font-bold">脂身ひかえめのとき</p>
-      <div className="mt-2 grid grid-cols-1 gap-2">
+      <div className="mt-2 grid grid-cols-1 gap-2" role="group" aria-label="脂身ひかえめのとき">
         {(
           [
             ["unset", "まだ決めていない（鶏ももは外す）"],
@@ -617,6 +646,7 @@ function OpenChoices() {
           <button
             key={id}
             type="button"
+            aria-pressed={app.state.thighPolicy === id}
             onClick={() => app.setThighPolicy(id)}
             className={cn(
               "min-h-11 rounded-2xl px-3 text-left text-sm font-bold",
@@ -629,7 +659,7 @@ function OpenChoices() {
       </div>
       <p className="mt-3 text-base font-bold">牛乳以外の乳製品</p>
       <p className="mt-1 text-sm leading-6">チーズやヨーグルトは、今のレシピにはありません。</p>
-      <div className="mt-2 grid grid-cols-1 gap-2">
+      <div className="mt-2 grid grid-cols-1 gap-2" role="group" aria-label="牛乳以外の乳製品">
         {(
           [
             ["unset", "まだ決めていない"],
@@ -640,6 +670,7 @@ function OpenChoices() {
           <button
             key={id}
             type="button"
+            aria-pressed={app.state.dairyPolicy === id}
             onClick={() => app.setDairyPolicy(id)}
             className={cn(
               "min-h-11 rounded-2xl px-3 text-left text-sm font-bold",
@@ -724,6 +755,7 @@ function FocusCard({
   return (
     <button
       type="button"
+      aria-pressed={active}
       onClick={onClick}
       className={cn("rounded-3xl px-3 py-3 text-left", active ? "bg-primary text-primary-foreground" : "bg-card")}
     >
