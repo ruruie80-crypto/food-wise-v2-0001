@@ -92,6 +92,7 @@ export type Persisted = {
   dairyPolicy: DairyPolicy;
   preferredStoreId: string | null;
   stock: StockItem[];
+  cookedKeys: string[];
   observations: Observation[];
   balanced: Plan | null;
   cheap: Plan | null;
@@ -134,7 +135,8 @@ type AppContextValue = {
   setMode: (mode: MealMode) => void;
   setArea: (areaId: string) => void;
   setStock: (ingredientId: string, place: StockPlace, units: number) => void;
-  consumeUsedStock: () => void;
+  consumeCookedDay: (dayIndex: number) => void;
+  keepCookedDay: (dayIndex: number) => void;
   togglePref: (key: keyof Prefs) => void;
   toggleExclusion: (ids: string[]) => void;
   setFocus: (focus: PlanFocus) => void;
@@ -170,6 +172,7 @@ function defaultState(): Persisted {
     dairyPolicy: "unset",
     preferredStoreId: null,
     stock: [],
+    cookedKeys: [],
     observations: [],
     balanced: null,
     cheap: null,
@@ -236,6 +239,7 @@ function sanitize(raw: unknown): Persisted {
     prefs,
     excludes: Array.isArray(data.excludes) ? data.excludes.filter((id) => typeof id === "string") : [],
     stock: Array.isArray(data.stock) ? data.stock.filter(isStockItem) : [],
+    cookedKeys: Array.isArray(data.cookedKeys) ? data.cookedKeys.filter((id) => typeof id === "string") : [],
     observations: Array.isArray(data.observations) ? data.observations.filter(isObservation) : [],
     balanced: isPlan(data.balanced) ? data.balanced : null,
     cheap: isPlan(data.cheap) ? data.cheap : null,
@@ -398,6 +402,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
           state.dairyPolicy === "allDairy" ? [...new Set([...state.excludes, ...OTHER_DAIRY_IDS])] : state.excludes,
         stock: state.stock,
         weeklyDishes: state.areaId === "tome" ? WEEKLY_DISHES : [],
+        fullPortions: state.childStage === "teen" && state.children > 0,
         sourceKey: key,
       },
       lookup,
@@ -485,11 +490,25 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         }
         return { ...current, areaId };
       }),
-    consumeUsedStock: () =>
+    consumeCookedDay: (dayIndex) =>
       update((current) => {
         const plan = current.focus === "cheap" ? current.cheap : current.balanced;
         if (!plan) return current;
-        return { ...current, stock: consumeStock(current.stock, plan) };
+        const key = `${plan.sourceKey}:${dayIndex}`;
+        if (current.cookedKeys.includes(key)) return current;
+        return {
+          ...current,
+          stock: consumeStock(current.stock, plan, dayIndex),
+          cookedKeys: [...current.cookedKeys, key],
+        };
+      }),
+    keepCookedDay: (dayIndex) =>
+      update((current) => {
+        const plan = current.focus === "cheap" ? current.cheap : current.balanced;
+        if (!plan) return current;
+        const key = `${plan.sourceKey}:${dayIndex}`;
+        if (current.cookedKeys.includes(key)) return current;
+        return { ...current, cookedKeys: [...current.cookedKeys, key] };
       }),
     setStock: (ingredientId, place, units) =>
       update((current) => {

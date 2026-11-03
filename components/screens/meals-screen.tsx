@@ -50,7 +50,7 @@ export function MealsScreen() {
   const [swap, setSwap] = useState<PlanSlot | null>(null);
   const [monthlyFocus, setMonthlyFocus] = useState(false);
   const [budgetFocus, setBudgetFocus] = useState(false);
-  const [askStock, setAskStock] = useState(false);
+  const [cookDay, setCookDay] = useState<number | null>(null);
   if (!app.ready || !app.book || !app.today) return <BootScreen />;
 
   const plan = app.activePlan;
@@ -74,10 +74,7 @@ export function MealsScreen() {
   const run = () => {
     const result = app.generate();
     if (!result.ok) toast.error(result.error);
-    else {
-      toast.success(`献立は ${yen(result.balanced.cost)}、残り ${yen(result.balanced.budget - result.balanced.cost)}`);
-      if (app.state.stock.length > 0) setAskStock(true);
-    }
+    else toast.success(`献立は ${yen(result.balanced.cost)}、残り ${yen(result.balanced.budget - result.balanced.cost)}`);
   };
 
   return (
@@ -196,7 +193,7 @@ export function MealsScreen() {
               type="button"
               onClick={() => app.setBudget(preset)}
               className={cn(
-                "rounded-xl py-2 text-sm font-bold",
+                "min-h-11 rounded-xl py-2 text-sm font-bold",
                 app.state.budget === preset ? "bg-accent" : "bg-muted",
               )}
             >
@@ -250,7 +247,7 @@ export function MealsScreen() {
               type="button"
               onClick={() => app.setMode(mode)}
               className={cn(
-                "rounded-2xl px-2 py-2 text-sm font-bold",
+                "min-h-11 rounded-2xl px-2 py-2 text-sm font-bold",
                 app.state.mode === mode ? "bg-primary text-primary-foreground" : "bg-muted",
               )}
             >
@@ -265,7 +262,7 @@ export function MealsScreen() {
               type="button"
               onClick={() => app.togglePref(pref.key)}
               className={cn(
-                "rounded-full px-3 py-1.5 text-sm font-bold",
+                "inline-flex min-h-11 items-center rounded-full px-3 text-sm font-bold",
                 app.state.prefs[pref.key] ? "bg-primary text-primary-foreground" : "bg-muted",
               )}
             >
@@ -313,7 +310,7 @@ export function MealsScreen() {
                 type="button"
                 onClick={() => app.toggleExclusion(group.ids)}
                 className={cn(
-                  "rounded-full px-3 py-1.5 text-sm font-bold",
+                  "inline-flex min-h-11 items-center rounded-full px-3 text-sm font-bold",
                   on ? "bg-wait text-wait-foreground" : "bg-muted",
                 )}
               >
@@ -371,7 +368,8 @@ export function MealsScreen() {
             <Stat label="食物繊維" value={percent(plan.nutrition.fiber, plan.targets.fiber)} />
           </div>
           <p className="mt-2 text-xs leading-5 text-muted-foreground">
-            1日あたり約 {Math.round(plan.nutrition.kcal / plan.days)}kcal、たんぱく質{" "}
+            {trimPeople(plan.people)}人で1日あたり約{" "}
+            {Math.round(plan.nutrition.kcal / plan.days).toLocaleString("ja-JP")}kcal、たんぱく質{" "}
             {Math.round(plan.nutrition.protein / plan.days)}g。
             {plan.nutrition.salt > plan.targets.salt
               ? ` 食塩は目標を ${Math.round((plan.nutrition.salt - plan.targets.salt) * 10) / 10}g 超えています。`
@@ -388,7 +386,7 @@ export function MealsScreen() {
               const slots = plan.slots.filter((slot) => slot.dayIndex === day);
               return (
                 <li key={date} className="rounded-3xl bg-card p-4">
-                  <p className="text-sm font-black">{day === 0 ? "今日" : day === 1 ? "明日" : formatWithWeekday(date)}</p>
+                  <p className="text-base font-black">{day === 0 ? "今日" : day === 1 ? "明日" : formatWithWeekday(date)}</p>
                   <ul className="mt-2 space-y-3">
                     {slots.map((slot) => {
                       const recipe = getRecipe(slot.recipeId);
@@ -426,6 +424,14 @@ export function MealsScreen() {
                       );
                     })}
                   </ul>
+                  <button
+                    type="button"
+                    disabled={app.state.cookedKeys.includes(`${plan.sourceKey}:${day}`)}
+                    onClick={() => setCookDay(day)}
+                    className="mt-3 flex min-h-11 w-full items-center justify-center rounded-2xl bg-muted text-base font-bold disabled:opacity-60"
+                  >
+                    {app.state.cookedKeys.includes(`${plan.sourceKey}:${day}`) ? "この日は作った" : "この日を作った"}
+                  </button>
                 </li>
               );
             })}
@@ -476,10 +482,26 @@ export function MealsScreen() {
           </ul>
         </SheetContent>
       </Sheet>
-      <StockUseDialog open={askStock} onOpenChange={setAskStock} onUse={() => app.consumeUsedStock()} />
+      <StockUseDialog
+        open={cookDay != null}
+        onOpenChange={(open) => {
+          if (!open) setCookDay(null);
+        }}
+        onKeep={() => {
+          if (cookDay != null) app.keepCookedDay(cookDay);
+        }}
+        onUse={() => {
+          if (cookDay != null) app.consumeCookedDay(cookDay);
+        }}
+      />
       <OpenChoices />
     </div>
   );
+}
+
+function trimPeople(people: number): string {
+  const rounded = Math.round(people * 10) / 10;
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
 }
 
 function OpenChoices() {

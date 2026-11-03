@@ -5,7 +5,7 @@ import { CHILD_PORTION, householdServings, TOME_PRESET, weeklyFromMonthly } from
 import { consumeStock } from "./stock";
 import { buildPlan } from "./optimizer";
 import { createPriceBook } from "./prices";
-import { buildShoppingList } from "./shopping";
+import { buildShoppingList, retailBuy } from "./shopping";
 import { surveyUnitYen } from "./survey";
 import { youtubeCookUrl } from "./youtube";
 import type { Prefs } from "./types";
@@ -233,6 +233,42 @@ test("an unchanged household still matches the one-person plan", () => {
     plain.balanced.slots.map((slot) => slot.recipeId),
     explicit.balanced.slots.map((slot) => slot.recipeId),
   );
+});
+
+test("the shop list uses packs and keeps pantry items out of the store total", () => {
+  assert.equal(retailBuy("egg", 46).label, "10個入り×5パック");
+  assert.equal(retailBuy("egg", 46).chargeUnits, 50);
+  assert.equal(retailBuy("aji", 7.4).label, "8尾");
+  assert.equal(retailBuy("natto", 7.4).label, "8パック");
+  assert.equal(retailBuy("wakame", 33.1).label, "乾燥わかめ 1袋");
+  assert.equal(retailBuy("miso", 33.1).label, "味噌 1パック");
+  const book = createPriceBook("tome", TODAY, []);
+  const result = buildPlan(
+    {
+      budget: 18_400,
+      people: 4,
+      days: 7,
+      mode: "dinner_breakfast",
+      prefs: { ...prefs, lessFat: true, noMilk: true },
+      excludes: [],
+      fullPortions: true,
+      weeklyDishes: ["hamburg", "soboro"],
+    },
+    book,
+  );
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.ok(result.balanced.portion >= 1);
+  assert.equal(result.balanced.notes.some((note) => note.includes("少なめに見積もって")), false);
+  const withPantry = buildShoppingList(result.balanced, book);
+  assert.ok(withPantry.groups.every((group) => group.lines.every((line) => line.ingredientId !== "wakame" && line.ingredientId !== "miso")));
+  assert.ok(withPantry.pantry.some((row) => row.label === "乾燥わかめ 1袋") || withPantry.covered.some((row) => row.ingredientId === "wakame") || !result.balanced.slots.some((slot) => getRecipe(slot.recipeId)?.items.some((item) => item.ingredientId === "wakame")));
+  const stocked = buildShoppingList(result.balanced, book, [
+    { ingredientId: "wakame", place: "fridge", units: 100 },
+    { ingredientId: "miso", place: "fridge", units: 100 },
+  ]);
+  assert.equal(stocked.pantry.some((row) => row.ingredientId === "wakame"), false);
+  assert.equal(stocked.pantry.some((row) => row.ingredientId === "miso"), false);
 });
 
 test("YouTube button is a search for the dish name", () => {

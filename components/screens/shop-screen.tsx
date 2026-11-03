@@ -49,7 +49,7 @@ export function ShopScreen() {
         ...group.lines.map((line) => {
           const ingredient = getIngredient(line.ingredientId);
           const name = ingredient?.name ?? line.ingredientId;
-          const qty = ingredient ? formatUnits(line.units, ingredient) : "";
+          const qty = line.buyLabel ?? (ingredient ? formatUnits(line.units, ingredient) : "");
           return `- ${name} ${qty} ${yen(line.linePrice)}`;
         }),
       ];
@@ -106,13 +106,31 @@ export function ShopScreen() {
         </section>
       ) : null}
 
+      {list.pantry.length > 0 ? (
+        <section className="mt-4 rounded-3xl bg-card p-4">
+          <p className="text-lg font-black">家にあれば不要</p>
+          <p className="mt-1 text-base leading-7">わかめと味噌は、家にあれば買いません。在庫にあれば、ここにも出ません。</p>
+          <ul className="mt-2 space-y-1">
+            {list.pantry.map((row) => (
+              <li key={row.ingredientId} className="text-base font-bold">
+                {row.label}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
       {list.groups.length === 0 ? (
         <p className="mt-4 rounded-3xl bg-card p-4 text-base leading-7">今週の食材は、冷蔵庫と冷凍庫で足ります。</p>
       ) : null}
 
       <section className="mt-4 rounded-3xl bg-card p-4">
         <p className="text-base font-bold">ふだん行く店</p>
-        <p className="mt-1 text-sm leading-6">値段が同じときは、選んだ店にまとめます。まだ決めていなければ、一覧の先頭の店です。</p>
+        <p className="mt-1 text-sm leading-6">
+          {app.state.preferredStoreId
+            ? "選んだ店に、買うものをまとめます。ほかの店の方が安い品があっても、この店で買います。"
+            : "まだ決めていないときは、いちばん安い店に入れます。値段が同じときは、一つの店にまとめます。"}
+        </p>
         <div className="mt-2 grid grid-cols-1 gap-2">
           <button
             type="button"
@@ -182,8 +200,8 @@ export function ShopScreen() {
                         />
                         <span className={checked ? "flex-1 text-muted-foreground line-through" : "flex-1"}>
                           <span className="font-bold">{ingredient?.name}</span>
-                          <span className="ml-2 text-xs text-muted-foreground">
-                            {ingredient ? formatUnits(line.units, ingredient) : ""}
+                          <span className="ml-2 text-sm text-muted-foreground">
+                            {line.buyLabel ?? (ingredient ? formatUnits(line.units, ingredient) : "")}
                           </span>
                         </span>
                         <Yen value={line.linePrice} className="text-lg" />

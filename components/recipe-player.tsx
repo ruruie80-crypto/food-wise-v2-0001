@@ -85,7 +85,7 @@ function RecipePlayer({
                 type="button"
                 aria-label={`手順 ${index + 1}`}
                 onClick={() => setElapsed(index * STEP_MS)}
-                className={index === step ? "rounded-full bg-accent px-3 py-1 text-xs font-bold text-accent-foreground" : "rounded-full bg-secondary px-3 py-1 text-xs font-bold text-secondary-foreground"}
+                className={index === step ? "inline-flex min-h-11 min-w-11 items-center justify-center rounded-full bg-accent px-3 text-sm font-bold text-accent-foreground" : "inline-flex min-h-11 min-w-11 items-center justify-center rounded-full bg-secondary px-3 text-sm font-bold text-secondary-foreground"}
               >
                 {index + 1}
               </button>

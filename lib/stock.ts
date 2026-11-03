@@ -28,10 +28,11 @@ export function stockChoices(ingredient: Ingredient): { units: number; label: st
   return [{ units: 1, label: ingredient.unitLabel }];
 }
 
-/** 献立で使う量を、冷蔵庫から先に引く。調味料は家にある前提なので減らさない。 */
-export function consumeStock(stock: StockItem[], plan: Plan): StockItem[] {
+/** 献立で使う量を、冷蔵庫から先に引く。調味料は家にある前提なので減らさない。dayIndex があるときは、その日だけ。 */
+export function consumeStock(stock: StockItem[], plan: Plan, dayIndex?: number): StockItem[] {
   const need = new Map<string, number>();
-  for (const slot of plan.slots) {
+  const slots = dayIndex == null ? plan.slots : plan.slots.filter((slot) => slot.dayIndex === dayIndex);
+  for (const slot of slots) {
     const recipe = getRecipe(slot.recipeId);
     if (!recipe) continue;
     for (const item of recipe.items) {

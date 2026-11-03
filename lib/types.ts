@@ -173,6 +173,8 @@ export type ShopLine = {
   storeId: string;
   unitPrice: number;
   linePrice: number;
+  /** 店で買うときの呼び方。卵はパック、尾は切り上げ。 */
+  buyLabel?: string;
 };
 
 export type ShopStoreGroup = {
@@ -189,6 +191,8 @@ export type ShopList = {
   savings: number;
   /** 冷蔵庫・冷凍庫でまかなう量。買い物リストには出さない。 */
   covered: { ingredientId: string; units: number }[];
+  /** わかめ・味噌。家にあれば買わない。店の合計には入れない。 */
+  pantry: { ingredientId: string; label: string }[];
 };
 
 export type AlertItem = {

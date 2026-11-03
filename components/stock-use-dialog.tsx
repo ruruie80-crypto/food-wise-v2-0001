@@ -14,10 +14,12 @@ export function StockUseDialog({
   open,
   onOpenChange,
   onUse,
+  onKeep,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onUse: () => void;
+  onKeep?: () => void;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -25,11 +27,19 @@ export function StockUseDialog({
         <DialogHeader>
           <DialogTitle>使ったぶんを減らしますか</DialogTitle>
           <DialogDescription>
-            この献立で使う食材を、冷蔵庫から先に減らします。味噌やわかめは減らしません。減らさなければ、在庫はそのままです。
+            作った日の食材を、冷蔵庫から先に減らします。味噌やわかめは減らしません。献立を作っただけでは減らしません。
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button type="button" variant="outline" className="min-h-11" onClick={() => onOpenChange(false)}>
+          <Button
+            type="button"
+            variant="outline"
+            className="min-h-11"
+            onClick={() => {
+              onKeep?.();
+              onOpenChange(false);
+            }}
+          >
             在庫はそのまま
           </Button>
           <Button

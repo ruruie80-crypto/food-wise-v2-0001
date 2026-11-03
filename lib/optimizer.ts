@@ -29,6 +29,8 @@ export type PlanInput = {
   stock?: StockItem[];
   /** 週に1回は入れる料理。空なら献立の中身はこれまでと同じ。 */
   weeklyDishes?: string[];
+  /** 中学生以上がいるとき、一人前を1未満にしない。 */
+  fullPortions?: boolean;
 };
 
 const ZERO: Nutrition = {
@@ -116,9 +118,10 @@ function anchorBudget(people: number, mode: MealMode): number {
   return perPerson * people;
 }
 
-function portionFor(budget: number, people: number, mode: MealMode): number {
+function portionFor(budget: number, people: number, mode: MealMode, fullPortions = false): number {
   const ratio = budget / anchorBudget(people, mode);
-  return Math.round(Math.min(1.28, Math.max(0.78, ratio)) * 100) / 100;
+  const floor = fullPortions ? 1 : 0.78;
+  return Math.round(Math.min(1.28, Math.max(floor, ratio)) * 100) / 100;
 }
 
 function zeroNutrition(): Nutrition {
@@ -443,7 +446,8 @@ function buildNotes(balanced: Plan, cheap: Plan, lookup: PriceLookup): string[] 
   if (buyNames.length > 0) {
     notes.push(`買い時の${buyNames.slice(0, 3).join("、")}を優先しています。`);
   }
-  if (balanced.portion < 0.98) {
+  const leftover = balanced.budget - balanced.cost;
+  if (balanced.portion < 0.98 && leftover < 800) {
     notes.push("予算に合わせて、一人前を少なめに見積もっています。");
   } else if (balanced.portion > 1.05) {
     notes.push("予算に余裕があるので、一人前を少し大きくしています。");
@@ -506,7 +510,7 @@ export function buildPlan(input: PlanInput, lookup: PriceLookup): PlanResult {
   }
   const slots = buildSlots(input.days, input.mode);
   const targets = targetsFor(slots, input.people);
-  const portion = portionFor(input.budget, input.people, input.mode);
+  const portion = portionFor(input.budget, input.people, input.mode, input.fullPortions);
   const slack = input.budget / anchorBudget(input.people, input.mode);
   const coeff = slack >= 1.05 ? 0.012 : 0.02 + (1.05 - slack) * 0.55;
   const stock = stockOf(input.stock);

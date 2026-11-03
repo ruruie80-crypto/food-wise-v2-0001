@@ -180,9 +180,13 @@ function renderText(record: HandoffRecord, today: string, stale: boolean): strin
       for (const line of group.lines) {
         const ingredient = getIngredient(line.ingredientId);
         const name = ingredient?.name ?? line.ingredientId;
-        const qty = ingredient ? formatUnits(line.units, ingredient) : "";
+        const qty = line.buyLabel ?? (ingredient ? formatUnits(line.units, ingredient) : "");
         lines.push(`- ${name} ${qty} ${yen(line.linePrice)}`.replace(/\s+/g, " "));
       }
+    }
+    if (shop.pantry.length > 0) {
+      lines.push("家にあれば不要:");
+      for (const row of shop.pantry) lines.push(`- ${row.label}`);
     }
     if (shop.seasoningYen > 0) lines.push(`調味料の見込み ${yen(shop.seasoningYen)}`);
     lines.push(`合計 ${yen(shop.multiTotal)}`);

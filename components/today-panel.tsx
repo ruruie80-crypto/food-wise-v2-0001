@@ -80,18 +80,18 @@ export function SeasonCard({ today }: { today: string }) {
             <Link
               key={item.name}
               href={`/prices/${item.ingredientId}`}
-              className="rounded-full bg-chip px-3 py-1.5 text-sm font-bold"
+              className="inline-flex min-h-11 items-center rounded-full bg-chip px-3 text-sm font-bold"
             >
               {item.name}
             </Link>
           ) : (
-            <span key={item.name} className="rounded-full bg-card px-3 py-1.5 text-sm font-bold">
+            <span key={item.name} className="inline-flex min-h-11 items-center rounded-full bg-card px-3 text-sm font-bold">
               {item.name}
             </span>
           ),
         )}
       </div>
-      <a href={SEASON_URL} target="_blank" rel="noreferrer" className="mt-3 inline-block text-xs font-bold text-primary">
+      <a href={SEASON_URL} target="_blank" rel="noreferrer" className="mt-3 inline-flex min-h-11 items-center text-sm font-bold text-primary">
         東北農政局の旬の表
       </a>
     </section>
@@ -146,7 +146,7 @@ export function MarketCard({ areaId }: { areaId: string }) {
               );
             })}
           </ul>
-          <a href={market.report.sourceUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs font-bold text-primary">
+          <a href={market.report.sourceUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex min-h-11 items-center text-sm font-bold text-primary">
             青果部の日報（PDF）
           </a>
         </>

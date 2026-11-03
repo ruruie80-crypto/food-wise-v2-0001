@@ -128,7 +128,7 @@ function FilterChip({
       type="button"
       onClick={onClick}
       className={cn(
-        "shrink-0 rounded-full px-3 py-1.5 text-sm font-bold",
+        "inline-flex min-h-11 shrink-0 items-center rounded-full px-3 text-sm font-bold",
         active ? "bg-primary text-primary-foreground" : "bg-card text-foreground",
       )}
     >

@@ -21,7 +21,6 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { AreaStores } from "@/components/area-stores";
 import { YouTubeCookButton } from "@/components/youtube-button";
-import { StockUseDialog } from "@/components/stock-use-dialog";
 import { describeHousehold } from "@/lib/household";
 import { BudgetAdvice } from "@/components/budget-advice";
 import { SkinPicker } from "@/components/skin-picker";
@@ -35,7 +34,6 @@ export function HomeScreen() {
   const [settings, setSettings] = useState(false);
   const [handoff, setHandoff] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
-  const [askStock, setAskStock] = useState(false);
   if (!app.ready || !app.book || !app.today) return <BootScreen />;
 
   const area = getArea(app.state.areaId);
@@ -105,10 +103,7 @@ export function HomeScreen() {
           onClick={() => {
             const result = app.generate();
             if (!result.ok) toast.error(result.error);
-            else {
-              toast.success(`今週の献立は ${yen(result.balanced.cost)} です`);
-              if (app.state.stock.length > 0) setAskStock(true);
-            }
+            else toast.success(`今週の献立は ${yen(result.balanced.cost)} です`);
           }}
         >
           {plan ? "この予算で作り直す" : "今週の献立を作る"}
@@ -304,8 +299,6 @@ export function HomeScreen() {
           </div>
         </SheetContent>
       </Sheet>
-
-      <StockUseDialog open={askStock} onOpenChange={setAskStock} onUse={() => app.consumeUsedStock()} />
 
       <Dialog open={confirmReset} onOpenChange={setConfirmReset}>
         <DialogContent>

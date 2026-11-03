@@ -164,7 +164,7 @@ export function ScanScreen() {
               setPhase("capture");
             }}
             className={cn(
-              "rounded-full py-2 text-sm font-bold",
+              "min-h-11 rounded-full py-2 text-sm font-bold",
               mode === value ? "bg-primary text-primary-foreground" : "text-muted-foreground",
             )}
           >
