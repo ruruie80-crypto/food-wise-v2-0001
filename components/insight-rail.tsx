@@ -55,7 +55,7 @@ export function InsightRail() {
           <Metric label="野菜" value={`${percent(plan.nutrition.veg, plan.targets.veg)}%`} note="目標比" />
         </div>
       ) : (
-        <Link href="/meals" className="mt-6 inline-flex rounded-full bg-primary px-4 py-2 text-sm font-bold text-panel-foreground">
+        <Link href="/meals" className="mt-6 inline-flex min-h-11 items-center rounded-full bg-primary px-4 text-base font-bold text-panel-foreground">
           今週の食費から献立を作る
         </Link>
       )}

@@ -28,6 +28,7 @@ import {
   describeHousehold,
   householdServings,
   OPTIONAL_EGG_RECIPES,
+  recipeCopy,
   TOME_PRESET,
   usedItems,
   weeklyFromMonthly,
@@ -259,7 +260,9 @@ export function MealsScreen() {
           <p className="mt-1 text-base leading-7">初期は「しない」です。切り替えると、献立と買い物を作り直します。</p>
           {eggsAside ? (
             <p id="egg-aside-note" className="mt-1 text-base leading-7">
-              卵を除くが優先です。納豆と冷奴は卵なしで残します。のせのボタンは、卵を除くをやめると押せます。
+              卵を除くが優先です。納豆と冷奴は卵なしで残します。卵を除くをやめると「
+              {app.state.eggToppingPolicy === "allow" ? "する" : "しない"}
+              」に戻ります。
             </p>
           ) : null}
           <div
@@ -277,7 +280,7 @@ export function MealsScreen() {
               <button
                 key={id}
                 type="button"
-                aria-pressed={app.state.eggToppingPolicy === id}
+                aria-pressed={eggsAside ? false : app.state.eggToppingPolicy === id}
                 disabled={eggsAside}
                 aria-disabled={eggsAside}
                 onClick={() => {
@@ -293,9 +296,7 @@ export function MealsScreen() {
                 className={cn(
                   "min-h-11 rounded-2xl px-2 text-base font-bold",
                   eggsAside
-                    ? app.state.eggToppingPolicy === id
-                      ? "border-2 border-foreground bg-card text-foreground"
-                      : "border-2 border-dashed border-foreground/40 bg-card text-foreground"
+                    ? "border-2 border-dashed border-foreground/40 bg-card text-foreground"
                     : app.state.eggToppingPolicy === id
                       ? "bg-primary text-primary-foreground"
                       : "bg-muted text-foreground",
@@ -478,6 +479,7 @@ export function MealsScreen() {
                     {slots.map((slot) => {
                       const recipe = getRecipe(slot.recipeId);
                       if (!recipe) return null;
+                      const shown = recipeCopy(recipe, eggsAside);
                       const nutrition = recipeNutrition(
                         recipe,
                         plan.people,
@@ -496,7 +498,7 @@ export function MealsScreen() {
                             </div>
                             <Yen value={slot.cost} className="text-2xl" />
                           </div>
-                          <p className="mt-1 text-base leading-7 text-foreground">{recipe.summary}</p>
+                          <p className="mt-1 text-base leading-7 text-foreground">{shown.summary}</p>
                           {OPTIONAL_EGG_RECIPES.includes(recipe.id) ? (
                             <p className="mt-1 text-base leading-7">
                               {eggsAside

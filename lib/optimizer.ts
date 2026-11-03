@@ -179,6 +179,7 @@ export function isRecipeAllowed(
   prefs: Prefs,
   excludes: string[],
 ): boolean {
+  if (recipe.id === "free-night") return false;
   if (!recipe.meals.includes(meal)) return false;
   if (
     recipe.items.some(
@@ -201,11 +202,20 @@ export function isRecipeAllowed(
   return true;
 }
 
-function allowedRecipes(meal: MealType, prefs: Prefs, excludes: string[]): Recipe[] {
-  let list = recipes.filter((recipe) => isRecipeAllowed(recipe, meal, prefs, excludes));
+function dinnerCapacity(list: Recipe[]): number {
+  return list.reduce((sum, recipe) => sum + (TWICE_A_WEEK_DISHES.includes(recipe.id) ? 2 : 1), 0);
+}
+
+function allowedRecipes(meal: MealType, prefs: Prefs, excludes: string[], days = 7): Recipe[] {
+  let list = recipes.filter((recipe) => recipe.id !== "free-night" && isRecipeAllowed(recipe, meal, prefs, excludes));
+  if (meal === "dinner") {
+    const core = list.filter((recipe) => !recipe.spare);
+    const spare = list.filter((recipe) => recipe.spare);
+    list = dinnerCapacity(core) >= days ? core : [...core, ...spare];
+  }
   if (prefs.quick && meal === "dinner") {
     const quick = list.filter((recipe) => recipe.minutes <= 20);
-    if (quick.length >= 4) list = quick;
+    if (quick.length >= 4 && dinnerCapacity(quick) >= days) list = quick;
   }
   return list;
 }
@@ -259,7 +269,22 @@ function capDinnerRepeats(
     counts.set(replacement.id, (counts.get(replacement.id) ?? 0) + 1);
     next[index] = replacement.id;
   }
-  return next;
+  return openSpareDinners(next, slots);
+}
+
+/** 週の回数を超えた晩ごはんは、繰り返さず自由な日にする。 */
+function openSpareDinners(picks: string[], slots: Slot[]): string[] {
+  const counts = new Map<string, number>();
+  return picks.map((id, index) => {
+    if (slots[index].meal !== "dinner" || id === "free-night") return id;
+    const cap = TWICE_A_WEEK_DISHES.includes(id) ? 2 : 1;
+    const seen = counts.get(id) ?? 0;
+    if (seen < cap) {
+      counts.set(id, seen + 1);
+      return id;
+    }
+    return "free-night";
+  });
 }
 
 function ingredientUnits(recipeId: string, ingredientId: string): number {
@@ -784,7 +809,15 @@ function planWithCurrentEggs(input: PlanInput, lookup: PriceLookup): PlanResult 
     cheapEgg ? [cheapEgg] : [],
   );
   const balanced = materialize(balancedPicks, slots, input, lookup, "balanced", targets, portion);
-  const cheap = materialize(cheapPlaced.picks, slots, input, lookup, "cheap", targets, portion);
+  const cheap = materialize(
+    openSpareDinners(cheapPlaced.picks, slots),
+    slots,
+    input,
+    lookup,
+    "cheap",
+    targets,
+    portion,
+  );
   const notes = buildNotes(balanced, cheap, lookup);
   if (balancedPlaced.names.length > 0) {
     notes.unshift(`${balancedPlaced.names.join("と")}を、週に1回は入れています。`);
@@ -824,8 +857,13 @@ function menuLimitNote(plan: Plan, prefs: Prefs, excludes: string[]): string | n
     return count > (TWICE_A_WEEK_DISHES.includes(slot.recipeId) ? 2 : 1);
   });
   const lines: string[] = [];
-  if (days > 0 && (capacity < days || over)) {
-    lines.push("晩ごはんの種類が足りません。同じ皿が続くことがあります。食べるものを少し戻すと、予算を使い切らずに済みやすいです。");
+  const freeDays = dinnerSlots.filter((slot) => slot.recipeId === "free-night").length;
+  if (freeDays > 0) {
+    lines.push(
+      `晩ごはんの種類が足りないので、${freeDays}日は自由にしました。余ったお金は、お昼や予備に使えます。`,
+    );
+  } else if (days > 0 && (capacity < days || over)) {
+    lines.push("晩ごはんの種類が足りません。食べるものを少し戻すと、同じ皿が続きにくくなります。");
   }
   const breakfasts = plan.slots.filter((slot) => slot.meal === "breakfast");
   if (breakfasts.length > 1) {

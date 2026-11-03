@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { getIngredient, getRecipe, getStore, ingredients, recipes, storesIn } from "./catalog";
 import { expenseRangeLabel, lunchMoneyHint, planDayLabel, resolvePlanStart, weekIsOver, weekRangeLabel } from "./dates";
-import { CHEAP_EGG_DISHES, CHILD_PORTION, EGGS_PER_PACK, householdServings, MAX_WEEKLY_EGG_PACKS, TOME_PRESET, TWICE_A_WEEK_DISHES, usedItems, weeklyFromMonthly } from "./household";
+import { CHEAP_EGG_DISHES, CHILD_PORTION, EGGS_PER_PACK, householdServings, MAX_WEEKLY_EGG_PACKS, recipeCopy, TOME_PRESET, TWICE_A_WEEK_DISHES, usedItems, weeklyFromMonthly } from "./household";
 import { formatUnits, marketHeading, seasonHeading } from "./format";
 import { consumeStock, MAX_STOCK_UNITS, readRiceKg, riceUnitsFromKg } from "./stock";
 import { buildPlan, dropDuplicateCookedDishes, ensureWeeklyDishes, isRecipeAllowed, keepCookedDays, recipeCost, syncLeftoverNote } from "./optimizer";
@@ -773,7 +773,7 @@ test("Tome home headings stay local, and the egg switch is labeled for reading a
   const meals = readFileSync(new URL("../components/screens/meals-screen.tsx", import.meta.url), "utf8");
   assert.match(meals, /卵を除くが優先です/);
   assert.match(meals, /朝と夜の範囲/);
-  assert.match(meals, /aria-pressed=\{app\.state\.eggToppingPolicy === id\}/);
+  assert.match(meals, /aria-pressed=\{eggsAside \? false : app\.state\.eggToppingPolicy === id\}/);
   assert.match(meals, /aria-pressed=\{app\.state\.mode === mode\}/);
 });
 
@@ -826,6 +826,58 @@ test("excluding eggs keeps natto and cold tofu, and stays inside the budget", ()
   const next = "tome|2|2|teen|unset|unset|avoid|4|18400|80000|dinner_breakfast|false|false|false|false|true|true|egg|";
   assert.equal(planChangeNote(saved, next), "きらいな食べ物の設定が変わりました。献立を作り直してください。");
   assert.equal(planChangeNote(saved, saved), "");
+});
+
+test("excluding eggs and fish keeps the twice-a-week cap", () => {
+  const book = createPriceBook("tome", TODAY, []);
+  const family = { ...prefs, lessFat: true, noMilk: true };
+  const cold = getRecipe("hiyayakko");
+  const natto = getRecipe("natto-set");
+  assert.ok(cold && natto);
+  if (!cold || !natto) return;
+  const hidden = recipeCopy(cold, true);
+  assert.equal(hidden.summary.includes("設定"), false);
+  assert.match(hidden.summary, /卵はのせません/);
+  assert.equal(hidden.steps.some((step) => step.includes("設定")), false);
+  assert.match(recipeCopy(natto, false).summary, /納豆・冷奴に卵をのせる/);
+  const result = buildPlan(
+    {
+      budget: 18_400,
+      people: 4,
+      days: 7,
+      mode: "dinner_breakfast",
+      prefs: family,
+      excludes: ["egg", "salmon", "aji", "sardine", "mackerel"],
+      fullPortions: true,
+      weeklyDishes: ["hamburg", "soboro"],
+      allowOptionalEggs: false,
+    },
+    book,
+  );
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  const plan = result.balanced;
+  assert.ok(plan.cost <= 18_400, String(plan.cost));
+  const dinners = plan.slots.filter((slot) => slot.meal === "dinner");
+  const counts: Record<string, number> = {};
+  for (const slot of dinners) counts[slot.recipeId] = (counts[slot.recipeId] ?? 0) + 1;
+  assert.ok((counts["hiyayakko"] ?? 0) <= 2, JSON.stringify(counts));
+  for (const [id, count] of Object.entries(counts)) {
+    if (id === "free-night") continue;
+    assert.ok(count <= (TWICE_A_WEEK_DISHES.includes(id) ? 2 : 1), `${id}:${count}`);
+  }
+  const freeDays = counts["free-night"] ?? 0;
+  if (freeDays > 0) {
+    assert.match(plan.notes.join("\n"), /自由/);
+    assert.match(plan.notes.join("\n"), /余ったお金/);
+    assert.equal(plan.notes.some((note) => note.includes("使い切らずに済みやすい")), false);
+  }
+  assert.equal(plan.notes.some((note) => note.includes("使い切らずに済みやすい")), false);
+  const shop = buildShoppingList(plan, book);
+  assert.equal(shop.groups.some((group) => group.lines.some((line) => line.ingredientId === "egg")), false);
+  const detail = readFileSync(new URL("../components/screens/price-detail-screen.tsx", import.meta.url), "utf8");
+  assert.match(detail, /底値帳へ戻る/);
+  assert.match(detail, /min-h-11/);
 });
 
 test("YouTube button is a search for the dish name", () => {

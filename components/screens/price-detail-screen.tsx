@@ -32,7 +32,7 @@ export function PriceDetailScreen({ id }: { id: string }) {
     return (
       <div className="px-4 pt-8">
         <p>その品目は帳面にありません。</p>
-        <Link href="/prices" className="mt-3 inline-block font-bold text-primary">
+        <Link href="/prices" className="mt-3 inline-flex min-h-11 items-center text-base font-bold text-primary">
           底値帳へ
         </Link>
       </div>
@@ -71,7 +71,7 @@ export function PriceDetailScreen({ id }: { id: string }) {
 
   return (
     <div className="px-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-10">
-      <Link href="/prices" className="text-sm font-bold text-primary">
+      <Link href="/prices" className="inline-flex min-h-11 items-center text-base font-bold text-primary">
         底値帳へ戻る
       </Link>
       <div className="mt-3 flex items-start justify-between gap-3">

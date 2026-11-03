@@ -58,6 +58,18 @@ export const EGG_FREE_MEAL_CAP = 4;
 export const INCLUDE_OPTIONAL_EGGS = false;
 export const OPTIONAL_EGG_RECIPES = ["natto-set", "hiyayakko"];
 
+const EGG_CHOICE_SENTENCE = "卵をのせるかは、献立の設定「納豆・冷奴に卵をのせる」で選びます。";
+
+/** 卵を除いているときは、おまけの卵を「設定で選ぶ」と書かない。 */
+export function recipeCopy<T extends { id: string; summary: string; steps: string[] }>(
+  recipe: T,
+  eggsAside: boolean,
+): T {
+  if (!eggsAside || !OPTIONAL_EGG_RECIPES.includes(recipe.id)) return recipe;
+  const swap = (text: string) => text.replaceAll(EGG_CHOICE_SENTENCE, "卵はのせません。");
+  return { ...recipe, summary: swap(recipe.summary), steps: recipe.steps.map(swap) };
+}
+
 export type EggToppingPolicy = "avoid" | "allow";
 
 /** 卵をのせないときの目安。5パックまでは許すが、初期の献立はここに収める。 */

@@ -59,6 +59,8 @@ export type Recipe = {
   extraSalt: number;
   /** 牛乳を材料に使う皿。無いときは使わない。 */
   usesMilk?: boolean;
+  /** いつもの皿が週の回数に足りないときだけ使う。 */
+  spare?: boolean;
 };
 
 export type Store = {

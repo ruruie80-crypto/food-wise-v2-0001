@@ -240,6 +240,9 @@ export function ShopScreen() {
                           {line.neededUnits != null && line.units - line.neededUnits > 0.05 ? (
                             <span className="mt-1 block text-sm leading-6">余りは、カゴに入れると在庫になります。</span>
                           ) : null}
+                          {changeNote && app.state.excludes.includes(line.ingredientId) ? (
+                            <span className="mt-1 block text-base font-bold">作り直すと消えます</span>
+                          ) : null}
                         </span>
                         <Yen value={line.linePrice} className="text-lg" />
                       </label>

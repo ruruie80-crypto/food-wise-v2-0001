@@ -38,6 +38,11 @@ function planAt(budget: number, people = 1) {
 
 test("every recipe points at a real ingredient", () => {
   for (const recipe of recipes) {
+    if (recipe.id === "free-night") {
+      assert.equal(recipe.items.length, 0);
+      assert.ok(recipe.steps.length >= 1);
+      continue;
+    }
     assert.ok(recipe.steps.length >= 2, recipe.id);
     for (const item of recipe.items) {
       assert.ok(getIngredient(item.ingredientId), `${recipe.id} missing ${item.ingredientId}`);
