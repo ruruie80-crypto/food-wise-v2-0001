@@ -89,8 +89,10 @@ export function MealsScreen() {
         <section className="mt-4 rounded-3xl bg-card p-4">
           <h2 className="text-xl font-black">登米の家族設定</h2>
           <p className="mt-1 text-base leading-7">
-            大人2人・中学生2人で4人分です。月8万円を週にならすと約18,400円。はじめは朝と夜で、脂身ひかえめと牛乳なしも入ります。
+            {describeHousehold(app.state.adults, app.state.children, app.state.childStage)}。月8万円を週にならすと約
+            {yen(TOME_PRESET.budget)}。はじめは朝と夜で、脂身ひかえめと牛乳なしも入ります。
           </p>
+          <p className="mt-2 text-base leading-7">子どもの年齢はまだ聞いていません。違ったらここで変えてください。</p>
           {presetOn ? (
             <p className="mt-3 text-base font-bold">この目安を入れています。</p>
           ) : (

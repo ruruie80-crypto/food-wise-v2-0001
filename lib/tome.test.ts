@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { getIngredient, getRecipe, ingredients, recipes, storesIn } from "./catalog";
 import { expenseRangeLabel, planDayLabel, resolvePlanStart, weekIsOver, weekRangeLabel } from "./dates";
-import { CHILD_PORTION, EGGS_PER_PACK, householdServings, MAX_WEEKLY_EGG_PACKS, TOME_PRESET, TWICE_A_WEEK_DISHES, weeklyFromMonthly } from "./household";
+import { CHEAP_EGG_DISHES, CHILD_PORTION, EGGS_PER_PACK, householdServings, MAX_WEEKLY_EGG_PACKS, TOME_PRESET, TWICE_A_WEEK_DISHES, weeklyFromMonthly } from "./household";
 import { consumeStock, MAX_STOCK_UNITS, readRiceKg, riceUnitsFromKg } from "./stock";
 import { buildPlan, dropDuplicateCookedDishes, ensureWeeklyDishes, isRecipeAllowed, keepCookedDays, syncLeftoverNote } from "./optimizer";
 import { samePlanAsideFromStock } from "../components/app-state";
@@ -115,6 +115,7 @@ test("a Tome family plan stays inside budget and includes the home dishes", () =
   assert.ok(dinners.includes("soboro"), dinners.join(","));
   const dinnerCounts: Record<string, number> = {};
   for (const id of dinners) dinnerCounts[id] = (dinnerCounts[id] ?? 0) + 1;
+  assert.ok(dinners.some((id) => CHEAP_EGG_DISHES.includes(id)), dinners.join(","));
   assert.equal(dinnerCounts.hamburg, 1);
   for (const [id, count] of Object.entries(dinnerCounts)) {
     assert.ok(count <= (TWICE_A_WEEK_DISHES.includes(id) ? 2 : 1), `${id}:${count}`);
@@ -140,6 +141,26 @@ test("a Tome family plan stays inside budget and includes the home dishes", () =
       assert.equal(["pork", "pork_hiki", "chicken_t", "milk"].includes(item.ingredientId), false, recipe?.name);
     }
   }
+});
+
+test("younger children keep age-sized portions and leave the spare money", () => {
+  const book = createPriceBook("tome", TODAY, []);
+  const shared = {
+    budget: 18_400,
+    days: 7,
+    mode: "dinner_breakfast" as const,
+    prefs: { ...prefs, lessFat: true, noMilk: true },
+    excludes: [] as string[],
+    weeklyDishes: ["hamburg", "soboro"],
+  };
+  const teen = buildPlan({ ...shared, people: householdServings(2, 2, "teen"), fullPortions: true }, book);
+  const young = buildPlan({ ...shared, people: householdServings(2, 2, "young"), fullPortions: false }, book);
+  assert.equal(teen.ok && young.ok, true);
+  if (!teen.ok || !young.ok) return;
+  assert.equal(young.balanced.people, 3.2);
+  assert.equal(young.balanced.portion, 1);
+  assert.ok(young.balanced.cost < teen.balanced.cost, `${young.balanced.cost} vs ${teen.balanced.cost}`);
+  assert.ok(young.balanced.budget - young.balanced.cost > teen.balanced.budget - teen.balanced.cost);
 });
 
 test("a new week with rice at home still serves each dinner once", () => {

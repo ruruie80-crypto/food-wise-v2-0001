@@ -103,6 +103,12 @@ export function HomeScreen() {
               : "献立は使う量の金額です。買い物は、袋の大きさや家にある分を数えた金額です。"
             : "献立を作ると、今日から7日で数えます。"}
         </p>
+        {plan && plan.budget - plan.cost > 0 && plan.budget - plan.cost <= 4000 ? (
+          <p className="mt-2 text-sm leading-6">
+            残りは週{yen(plan.budget - plan.cost)}（月にならすと約
+            {yen(Math.round(((plan.budget - plan.cost) / 7) * 30.4 / 100) * 100)}）です。お昼ごはん代には少なめかもしれません。
+          </p>
+        ) : null}
         {app.stale ? (
           <p className="mt-2 rounded-xl bg-notice text-notice-foreground px-3 py-2 text-xs leading-5">
             予算か値札が変わりました。献立を組み直すと、底値の計算が追いつきます。
@@ -149,7 +155,7 @@ export function HomeScreen() {
         <Link href="/meals" className="mt-4 block rounded-3xl bg-card p-4">
           <p className="text-lg font-black">登米の家族設定</p>
           <p className="mt-1 text-base leading-7">
-            大人2人・中学生2人、月8万円（1週間 約18,400円）、朝と夜。献立の画面で入れられます。
+            仮の目安は大人2人と子ども2人、月8万円（1週間 約18,400円）、朝と夜です。子どもの年齢はまだ聞いていません。献立の画面で変えられます。
           </p>
         </Link>
       ) : null}

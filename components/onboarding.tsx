@@ -40,7 +40,7 @@ export function Onboarding() {
             </div>
             {tome ? (
               <p className="mt-3 text-base leading-7">
-                登米は、大人2人と中学生2人、月8万円（1週間 {yen(TOME_PRESET.budget)}）から始まります。脂の多い肉と牛乳は、最初から控えます。
+                登米は、仮に大人2人と子ども2人、月8万円（1週間 {yen(TOME_PRESET.budget)}）から始まります。子どもの年齢はまだ聞いていません。次の画面で変えられます。脂の多い肉と牛乳は、最初から控えます。
               </p>
             ) : null}
           </div>
@@ -52,6 +52,7 @@ export function Onboarding() {
             {tome ? (
               <>
                 <p className="mt-2 text-base leading-7">{describeHousehold(state.adults, state.children, state.childStage)}</p>
+                <p className="mt-2 text-base leading-7">子どもの年齢はまだ聞いていません。違ったらここで変えてください。</p>
                 <CountRow label="大人" value={state.adults} onChange={setAdults} />
                 <CountRow label="子ども" value={state.children} onChange={setChildren} />
                 <div className="mt-3 grid grid-cols-2 gap-2">

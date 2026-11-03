@@ -1,6 +1,13 @@
 import { getIngredient, getRecipe, recipes } from "./catalog";
 import { percent, yen } from "./format";
-import { EGG_FREE_MEAL_CAP, EGGS_PER_PACK, fattyIds, MAX_WEEKLY_EGG_PACKS, TWICE_A_WEEK_DISHES } from "./household";
+import {
+  CHEAP_EGG_DISHES,
+  EGG_FREE_MEAL_CAP,
+  EGGS_PER_PACK,
+  fattyIds,
+  MAX_WEEKLY_EGG_PACKS,
+  TWICE_A_WEEK_DISHES,
+} from "./household";
 import type {
   MealMode,
   MealType,
@@ -121,7 +128,8 @@ function anchorBudget(people: number, mode: MealMode): number {
 function portionFor(budget: number, people: number, mode: MealMode, fullPortions = false): number {
   const ratio = budget / anchorBudget(people, mode);
   const floor = fullPortions ? 1 : 0.78;
-  return Math.round(Math.min(1.28, Math.max(floor, ratio)) * 100) / 100;
+  // 予算が余っても一人前は大きくしない。年齢の人数分のまま、残りはお金で見せる。
+  return Math.round(Math.min(1, Math.max(floor, ratio)) * 100) / 100;
 }
 
 function zeroNutrition(): Nutrition {
@@ -234,6 +242,23 @@ function ingredientUnits(recipeId: string, ingredientId: string): number {
   return getRecipe(recipeId)?.items.find((item) => item.ingredientId === ingredientId)?.units ?? 0;
 }
 
+function cheapestDish(
+  dishIds: string[],
+  meal: MealType,
+  prefs: Prefs,
+  excludes: string[],
+  people: number,
+  priceOf: PriceLookup["priceOf"],
+  portion: number,
+): string | null {
+  const choices = dishIds
+    .map((id) => getRecipe(id))
+    .filter((recipe): recipe is Recipe => Boolean(recipe))
+    .filter((recipe) => isRecipeAllowed(recipe, meal, prefs, excludes))
+    .sort((a, b) => recipeCost(a, people, priceOf, portion) - recipeCost(b, people, priceOf, portion));
+  return choices[0]?.id ?? null;
+}
+
 function trimWeeklyEggs(
   picks: string[],
   slots: Slot[],
@@ -243,6 +268,7 @@ function trimWeeklyEggs(
   priceOf: PriceLookup["priceOf"],
   portion: number,
   budget: number,
+  protect: string[] = [],
 ): string[] {
   const next = [...picks];
   const maxEggs = MAX_WEEKLY_EGG_PACKS * EGGS_PER_PACK;
@@ -257,7 +283,9 @@ function trimWeeklyEggs(
     let worst = -1;
     let worstEggs = 0;
     for (let index = 0; index < next.length; index += 1) {
-      const eggs = eggsOf(next[index]);
+      const id = next[index];
+      if (protect.includes(id) && next.filter((item) => item === id).length <= 1) continue;
+      const eggs = eggsOf(id);
       if (eggs > worstEggs) {
         worstEggs = eggs;
         worst = index;
@@ -363,12 +391,6 @@ function marginalScore(
   let score = nutritionPoints(nutrition, meal, prefs) - cost * coeff + fromStock;
   if (prefs.washoku && recipe.tags.includes("washoku")) score += 8;
   if (prefs.quick && recipe.minutes <= 15) score += 8;
-  if (goal === "balanced") {
-    const eggUnits = recipe.items.find((item) => item.ingredientId === "egg")?.units ?? 0;
-    const tofuUnits = recipe.items.find((item) => item.ingredientId === "tofu")?.units ?? 0;
-    if (tofuUnits > eggUnits) score += 8;
-    else if (eggUnits > 0 && tofuUnits === 0) score -= 6;
-  }
   const buyCount = recipe.items.filter((item) => isBuy(item.ingredientId)).length;
   score += buyCount * 11;
   return score;
@@ -692,9 +714,21 @@ export function buildPlan(input: PlanInput, lookup: PriceLookup): PlanResult {
     input.prefs,
     input.excludes,
   );
+  const cheapEgg = cheapestDish(
+    CHEAP_EGG_DISHES,
+    "dinner",
+    input.prefs,
+    input.excludes,
+    input.people,
+    lookup.priceOf,
+    portion,
+  );
+  const withEgg = cheapEgg
+    ? placeWeeklyDishes(balancedPlaced.picks, slots, [cheapEgg], input.prefs, input.excludes).picks
+    : balancedPlaced.picks;
   const balancedPicks = trimWeeklyEggs(
     capDinnerRepeats(
-      balancedPlaced.picks,
+      withEgg,
       slots,
       input.prefs,
       input.excludes,
@@ -710,6 +744,7 @@ export function buildPlan(input: PlanInput, lookup: PriceLookup): PlanResult {
     lookup.priceOf,
     portion,
     input.budget,
+    cheapEgg ? [cheapEgg] : [],
   );
   const balanced = materialize(balancedPicks, slots, input, lookup, "balanced", targets, portion);
   const cheap = materialize(cheapPlaced.picks, slots, input, lookup, "cheap", targets, portion);

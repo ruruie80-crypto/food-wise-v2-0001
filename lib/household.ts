@@ -38,9 +38,15 @@ export const WEEKLY_DISHES = ["hamburg", "soboro"];
  */
 export const TWICE_A_WEEK_DISHES = ["hiyayakko"];
 
-/** 卵は10個入り。買い物がこのパック数を超えないようにする。 */
+/**
+ * 卵は10個入り。お姉さんの答えが来るまでは、底値を優先してこのパック数まで。
+ * 3だと卵丼やにら玉が外れ、買い物が高くなった。
+ */
 export const EGGS_PER_PACK = 10;
-export const MAX_WEEKLY_EGG_PACKS = 3;
+export const MAX_WEEKLY_EGG_PACKS = 5;
+
+/** この中でいちばん安い皿を、週に1回は残す。 */
+export const CHEAP_EGG_DISHES = ["niratama", "tamago-don"];
 
 /** 卵を減らすとき、卵のない朝（豆腐と味噌汁）はここまで繰り返してよい。 */
 export const EGG_FREE_MEAL_CAP = 4;
@@ -85,8 +91,8 @@ export function householdServings(adults: number, children: number, stage: Child
 export function describeHousehold(adults: number, children: number, stage: ChildStage = "young"): string {
   const servings = householdServings(adults, children, stage);
   if (children <= 0) return `大人${adults}人`;
-  if (stage === "teen") return `大人${adults}人・中学生${children}人（大人と同じ量、合わせて${servings}人分）`;
-  return `大人${adults}人・子ども${children}人（小学生以下は大人の0.6人分、合わせて${servings}人分）`;
+  if (stage === "teen") return `大人${adults}人・中学生以上${children}人（仮に大人と同じ量、合わせて${servings}人分）`;
+  return `大人${adults}人・小学生以下${children}人（仮に大人の0.6人分、合わせて${servings}人分）`;
 }
 
 export function fattyIds(allowSkinlessThigh: boolean): string[] {
