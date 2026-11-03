@@ -25,8 +25,10 @@ import {
   mealIsLocked,
   mealStockNeed,
   readCookedKeys,
+  readCookedModes,
   readCookedUses,
   stockTaken,
+  type CookedMode,
   type StockTake,
 } from "@/lib/cooked";
 import { buildShoppingList, cookedDaysOn, cookedMealsOn, stockAside } from "@/lib/shopping";
@@ -117,6 +119,7 @@ export type Persisted = {
   stock: StockItem[];
   cookedKeys: string[];
   cookedUses: Record<string, StockTake[]>;
+  cookedModes: Record<string, CookedMode>;
   packAdded: Record<string, { units: number; place: StockPlace }>;
   observations: Observation[];
   balanced: Plan | null;
@@ -203,6 +206,7 @@ function defaultState(): Persisted {
     stock: [],
     cookedKeys: [],
     cookedUses: {},
+    cookedModes: {},
     packAdded: {},
     observations: [],
     balanced: null,
@@ -277,6 +281,7 @@ function sanitize(raw: unknown): Persisted {
     stock: Array.isArray(data.stock) ? data.stock.filter(isStockItem) : [],
     cookedKeys: readCookedKeys(data.cookedKeys),
     cookedUses: readCookedUses(data.cookedUses),
+    cookedModes: readCookedModes(data.cookedModes),
     packAdded: sanitizePackAdded(data.packAdded),
     observations: Array.isArray(data.observations) ? data.observations.filter(isObservation) : [],
     balanced: isPlan(data.balanced) ? data.balanced : null,
@@ -551,6 +556,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       checks: {},
       cookedKeys: cookedKeysAfterRebuild(current.cookedKeys, continueWeek),
       cookedUses: continueWeek ? current.cookedUses : {},
+      cookedModes: continueWeek ? current.cookedModes : {},
       packAdded: continueWeek ? current.packAdded : {},
       onboarded: true,
     }));
@@ -649,6 +655,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
           stock,
           cookedKeys: [...current.cookedKeys, key],
           cookedUses: { ...current.cookedUses, [key]: stockTaken(current.stock, stock) },
+          cookedModes: { ...current.cookedModes, [key]: "used" },
         };
       }),
     keepCookedMeal: (dayIndex, meal) =>
@@ -660,7 +667,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
           return current;
         }
         const key = cookedMealKey(start, dayIndex, meal);
-        return { ...current, cookedKeys: [...current.cookedKeys, key] };
+        return {
+          ...current,
+          cookedKeys: [...current.cookedKeys, key],
+          cookedModes: { ...current.cookedModes, [key]: "kept" },
+        };
       }),
     undoCookedMeal: (dayIndex, meal) =>
       update((current) => {
@@ -674,6 +685,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
           keys: current.cookedKeys,
           uses: current.cookedUses,
           stock: current.stock,
+          modes: current.cookedModes,
           start,
           dayIndex,
           meal,
@@ -682,7 +694,13 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
           otherNeeds: others.map((other) => mealStockNeed(plan, dayIndex, other)),
         });
         if (undone.keys === current.cookedKeys) return current;
-        return { ...current, cookedKeys: undone.keys, cookedUses: undone.uses, stock: undone.stock };
+        return {
+          ...current,
+          cookedKeys: undone.keys,
+          cookedUses: undone.uses,
+          cookedModes: undone.modes,
+          stock: undone.stock,
+        };
       }),
     setStock: (ingredientId, place, units) =>
       update((current) => {

@@ -137,66 +137,104 @@ export function splitDayTakes(
   return { mine, rest };
 }
 
-export function applyCookUndo(input: {
+export type CookedMode = "used" | "kept" | "legacy";
+
+export type CookUndoState = {
   keys: string[];
   uses: Record<string, StockTake[]>;
   stock: StockItem[];
+  modes?: Record<string, CookedMode>;
   start: string;
   dayIndex: number;
   meal: MealType;
   otherMeals: MealType[];
   mealNeed: StockTake[];
   otherNeeds: StockTake[][];
-}): { keys: string[]; uses: Record<string, StockTake[]>; stock: StockItem[] } {
+};
+
+export function applyCookUndo(input: CookUndoState): CookUndoState & { modes: Record<string, CookedMode> } {
+  const inputModes = input.modes ?? {};
   const undone = keysAfterUndo(input.keys, input.start, input.dayIndex, input.meal, input.otherMeals);
-  if (undone.removed.length === 0) return { keys: input.keys, uses: input.uses, stock: input.stock };
+  if (undone.removed.length === 0) return { ...input, modes: inputModes };
   let stock = input.stock;
   const uses = { ...input.uses };
+  const modes = { ...inputModes };
   const mealKey = cookedMealKey(input.start, input.dayIndex, input.meal);
   const dayKey = `${input.start}:${input.dayIndex}`;
   if (undone.removed.includes(mealKey)) {
     const taken = uses[mealKey];
     if (taken) stock = restoreStock(stock, taken);
     delete uses[mealKey];
+    delete modes[mealKey];
   }
   if (undone.removed.includes(dayKey)) {
     const taken = uses[dayKey];
     delete uses[dayKey];
+    delete modes[dayKey];
     if (taken && taken.length > 0) {
       const { mine, rest } = splitDayTakes(taken, input.mealNeed, input.otherNeeds.flat());
       if (mine.length > 0) stock = restoreStock(stock, mine);
       let leftover = rest;
       input.otherMeals.forEach((other, index) => {
+        const key = cookedMealKey(input.start, input.dayIndex, other);
         const part = splitDayTakes(leftover, input.otherNeeds[index] ?? [], []);
-        if (part.mine.length > 0) uses[cookedMealKey(input.start, input.dayIndex, other)] = part.mine;
+        modes[key] = "used";
+        if (part.mine.length > 0) uses[key] = part.mine;
         leftover = part.rest;
       });
+    } else {
+      for (const other of input.otherMeals) {
+        const key = cookedMealKey(input.start, input.dayIndex, other);
+        if (!modes[key]) modes[key] = "legacy";
+      }
     }
   }
-  return { keys: undone.keys, uses, stock };
+  return { ...input, keys: undone.keys, uses, stock, modes };
 }
 
 export const LEGACY_UNDO_NOTE = "前の版で付けた印なので、在庫は戻りません。";
+export const KEPT_UNDO_NOTE = "在庫を減らさずに付けた印なので、在庫は変わりません。";
 
-/** 減らした量が記録にあるときだけ、取り消しで在庫を戻す。 */
-export function undoRestoresStock(
+export function readCookedModes(raw: unknown): Record<string, CookedMode> {
+  if (!raw || typeof raw !== "object") return {};
+  const modes: Record<string, CookedMode> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (!parseCookedKey(key)) continue;
+    if (value === "used" || value === "kept" || value === "legacy") modes[key] = value;
+  }
+  return modes;
+}
+
+/** この版の「そのまま」と、使った量のある印と、前の版の印を分ける。 */
+export function undoStockKind(
   keys: string[],
   uses: Record<string, StockTake[] | undefined>,
+  modes: Record<string, CookedMode | undefined>,
   start: string,
   dayIndex: number,
   meal: MealType,
-): boolean {
+): CookedMode {
   const mealKey = cookedMealKey(start, dayIndex, meal);
   const dayKey = `${start}:${dayIndex}`;
-  if (keys.includes(mealKey)) return (uses[mealKey]?.length ?? 0) > 0;
-  if (keys.includes(dayKey)) return (uses[dayKey]?.length ?? 0) > 0;
-  return false;
+  const key = keys.includes(mealKey) ? mealKey : keys.includes(dayKey) ? dayKey : "";
+  if (!key) return "legacy";
+  const mode = modes[key];
+  if (mode === "kept" || mode === "legacy" || mode === "used") return mode;
+  if ((uses[key]?.length ?? 0) > 0) return "used";
+  return "legacy";
 }
 
-export function undoConfirmDetail(restores: boolean): string {
-  return restores
-    ? "印を外します。在庫を減らしていたときは、その分だけ戻します。"
-    : `印を外します。${LEGACY_UNDO_NOTE}`;
+export function undoConfirmDetail(kind: CookedMode): string {
+  if (kind === "used") return "印を外します。在庫を減らしていたときは、その分だけ戻します。";
+  if (kind === "kept") return `印を外します。${KEPT_UNDO_NOTE}`;
+  return `印を外します。${LEGACY_UNDO_NOTE}`;
+}
+
+/** やめるなら印も在庫もそのまま。取り消すときだけ印を外す。 */
+export function resolveUndo(action: "cancel" | "confirm", input: CookUndoState): CookUndoState & { modes: Record<string, CookedMode> } {
+  const modes = input.modes ?? {};
+  if (action === "cancel") return { ...input, modes };
+  return applyCookUndo({ ...input, modes });
 }
 
 /** 1日まとめの印を外すときは、取り消した食事以外の印を残す。 */

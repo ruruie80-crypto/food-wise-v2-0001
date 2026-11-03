@@ -100,6 +100,13 @@ export function displayRecipeName(recipe: { id: string; name?: string }, fishAsi
   return plainMisoText(name, true);
 }
 
+/** 今日カードの題だけ短くする。献立と買い物の正式名は変えない。 */
+export function todayDishTitle(fullName: string): { title: string; note: string } {
+  const open = fullName.lastIndexOf("（");
+  if (open <= 0 || !fullName.endsWith("）")) return { title: fullName, note: "" };
+  return { title: fullName.slice(0, open), note: fullName.slice(open + 1, -1) };
+}
+
 /** 卵を除いているときは、おまけの卵を「設定で選ぶ」と書かない。魚を除くときは味噌の書き方を変える。 */
 export function recipeCopy<T extends { id: string; summary: string; steps: string[]; name?: string }>(
   recipe: T,

@@ -3,8 +3,8 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { getIngredient, getRecipe, getStore, ingredients, recipes, storesIn } from "./catalog";
 import { bottomNavHeightPx, compactHomeLayout, expenseRangeLabel, homePlanStatus, lunchMoneyHint, mealsDayHref, pageClearsNav, planDayDomId, planDayLabel, resolvePlanStart, todayCardBody, todayCardTitle, weekIsOver, weekRangeLabel } from "./dates";
-import { applyCookUndo, cookedKeysAfterRebuild, cookedMealsOn, isMealCooked, keysAfterUndo, LEGACY_UNDO_NOTE, mealStockNeed, readCookedKeys, restoreStock, stockTaken, undoConfirmDetail, undoRestoresStock } from "./cooked";
-import { CHEAP_EGG_DISHES, CHILD_PORTION, displayRecipeName, EGGS_PER_PACK, HOME_MISO_CHECK, householdServings, MAX_WEEKLY_EGG_PACKS, PLAIN_MISO_DISH_NAME, plainMisoText, recipeCopy, showChildAgeNotice, showUnaskedAge, TOME_PRESET, TWICE_A_WEEK_DISHES, usedItems, weeklyFromMonthly, withHomeMisoCheck } from "./household";
+import { applyCookUndo, cookedKeysAfterRebuild, cookedMealsOn, isMealCooked, KEPT_UNDO_NOTE, keysAfterUndo, LEGACY_UNDO_NOTE, mealStockNeed, readCookedKeys, resolveUndo, restoreStock, stockTaken, undoConfirmDetail, undoStockKind } from "./cooked";
+import { CHEAP_EGG_DISHES, CHILD_PORTION, displayRecipeName, EGGS_PER_PACK, HOME_MISO_CHECK, householdServings, MAX_WEEKLY_EGG_PACKS, PLAIN_MISO_DISH_NAME, plainMisoText, recipeCopy, showChildAgeNotice, showUnaskedAge, todayDishTitle, TOME_PRESET, TWICE_A_WEEK_DISHES, usedItems, weeklyFromMonthly, withHomeMisoCheck } from "./household";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createElement } from "react";
 import { CookedMark, cookControl } from "../components/cooked-mark";
@@ -1234,9 +1234,10 @@ test("an old day mark without a saved amount does not invent stock", () => {
   assert.deepEqual(unknown.stock, before);
   assert.equal(unknown.keys.includes(`${start}:0`), false);
   assert.equal(unknown.uses[`${start}:0:dinner`], undefined);
-  assert.equal(undoRestoresStock([`${start}:0`], {}, start, 0, "breakfast"), false);
-  assert.match(undoConfirmDetail(false), new RegExp(LEGACY_UNDO_NOTE));
-  assert.match(undoConfirmDetail(true), /その分だけ戻します/);
+  assert.equal(undoStockKind([`${start}:0`], {}, {}, start, 0, "breakfast"), "legacy");
+  assert.match(undoConfirmDetail("legacy"), new RegExp(LEGACY_UNDO_NOTE));
+  assert.match(undoConfirmDetail("used"), /その分だけ戻します/);
+  assert.equal(undoStockKind(unknown.keys, unknown.uses, unknown.modes, start, 0, "dinner"), "legacy");
 });
 
 test("restored stock stops at the fridge limit", () => {
@@ -1302,11 +1303,52 @@ test("a short screen moves the budget note and the meals link opens today", () =
   const notice = home.indexOf("home-aside");
   assert.ok(todayCard > 0 && notice > todayCard);
   const rendered = renderToStaticMarkup(
-    createElement("div", null, undoConfirmDetail(false), createElement("button", { type: "button" }, "やめる")),
+    createElement("div", null, undoConfirmDetail("legacy"), createElement("button", { type: "button" }, "やめる")),
   );
   assert.match(rendered, /前の版で付けた印なので、在庫は戻りません/);
   assert.match(rendered, /やめる/);
   assert.match(meals, /やめる/);
   assert.match(meals, /undoConfirmDetail\(/);
   assert.match(meals, /mealsDayHref|planDayDomId\(day\)/);
+});
+
+test("keeping stock uses its own undo note, and cancel leaves the mark", () => {
+  const start = "2026-11-03";
+  const key = `${start}:1:breakfast`;
+  const stock = [{ ingredientId: "egg", place: "fridge" as const, units: 2 }];
+  const kept = {
+    keys: [key],
+    uses: {},
+    stock,
+    modes: { [key]: "kept" as const },
+    start,
+    dayIndex: 1,
+    meal: "breakfast" as const,
+    otherMeals: [] as Array<"dinner">,
+    mealNeed: [{ ingredientId: "tofu", place: "fridge" as const, units: 1 }],
+    otherNeeds: [] as [],
+  };
+  assert.equal(undoStockKind(kept.keys, kept.uses, kept.modes, start, 1, "breakfast"), "kept");
+  assert.match(undoConfirmDetail("kept"), new RegExp(KEPT_UNDO_NOTE));
+  assert.equal(undoConfirmDetail("kept").includes(LEGACY_UNDO_NOTE), false);
+  const cancelled = resolveUndo("cancel", kept);
+  assert.equal(cancelled.keys, kept.keys);
+  assert.equal(cancelled.stock, kept.stock);
+  assert.equal(cancelled.modes, kept.modes);
+  const confirmed = resolveUndo("confirm", kept);
+  assert.equal(confirmed.keys.includes(key), false);
+  assert.equal(confirmed.stock, stock);
+});
+
+test("the home card shortens the fish-free miso name", () => {
+  const shown = todayDishTitle(PLAIN_MISO_DISH_NAME);
+  assert.equal(shown.title, "豆腐の味噌汁");
+  assert.equal(shown.note, "だし入りでない味噌");
+  assert.equal(todayDishTitle("豆腐と味噌汁").title, "豆腐と味噌汁");
+  assert.equal(todayDishTitle("豆腐と味噌汁").note, "");
+  assert.equal(displayRecipeName({ id: "tofu-morning", name: "豆腐と味噌汁" }, true), PLAIN_MISO_DISH_NAME);
+  const home = readFileSync(new URL("../components/screens/home-screen.tsx", import.meta.url), "utf8");
+  assert.match(home, /todayDishTitle\(dishName\)/);
+  assert.match(home, /dishTitle\.title/);
+  assert.match(home, /dishTitle\.note/);
 });

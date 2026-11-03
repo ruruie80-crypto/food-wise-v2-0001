@@ -21,7 +21,7 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { AreaStores } from "@/components/area-stores";
 import { YouTubeCookButton } from "@/components/youtube-button";
-import { avoidsFish, describeHousehold, displayRecipeName, recipeCopy, showChildAgeNotice, showUnaskedAge } from "@/lib/household";
+import { avoidsFish, describeHousehold, displayRecipeName, recipeCopy, showChildAgeNotice, showUnaskedAge, todayDishTitle } from "@/lib/household";
 import { BudgetAdvice } from "@/components/budget-advice";
 import { SkinPicker } from "@/components/skin-picker";
 import { StoreCheapest } from "@/components/store-cheapest";
@@ -54,6 +54,7 @@ export function HomeScreen() {
   );
   const fishAside = avoidsFish(app.state.excludes);
   const dishName = recipe ? displayRecipeName(recipe, fishAside) : "";
+  const dishTitle = todayDishTitle(dishName);
   const buys = ingredients
     .map((item) => app.book?.quote(item.id) ?? null)
     .filter((quote) => quote && quote.signal === "buy" && getIngredient(quote.ingredientId)?.category !== "seasoning")
@@ -137,7 +138,7 @@ export function HomeScreen() {
           eyebrow={inPlanWeek ? "今日" : "献立"}
           title={
             spotlight && recipe
-              ? todayCardTitle(planStatus, planStart, `${mealLabel(spotlight.meal)}は${dishName}`)
+              ? todayCardTitle(planStatus, planStart, `${mealLabel(spotlight.meal)}は${dishTitle.title}`)
               : todayCardTitle(planStatus, planStart)
           }
         />
@@ -150,7 +151,8 @@ export function HomeScreen() {
                     {planDayLabel(planStart, spotlight.dayIndex, app.today)}の{mealLabel(spotlight.meal)} · {recipe.minutes}分
                     <CookedMark cooked={cookedToday} />
                   </p>
-                  <p className="mt-1 text-xl font-black">{dishName}</p>
+                  <p className="mt-1 text-xl font-black">{dishTitle.title}</p>
+                  {dishTitle.note ? <p className="text-sm leading-5 text-muted-foreground">{dishTitle.note}</p> : null}
                   <p className="mt-1 text-base leading-6 text-muted-foreground">
                     {recipeCopy(recipe, app.state.excludes.includes("egg"), fishAside).summary}
                   </p>
