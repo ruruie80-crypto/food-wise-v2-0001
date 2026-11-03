@@ -23,6 +23,7 @@ import {
   yen,
 } from "@/lib/format";
 import { cookingMethod } from "@/lib/advice";
+import { StockUseDialog } from "@/components/stock-use-dialog";
 import { describeHousehold, householdServings, TOME_PRESET, weeklyFromMonthly } from "@/lib/household";
 import { isRecipeAllowed, recipeCost, recipeNutrition } from "@/lib/optimizer";
 import type { MealMode, MealType, Plan, PlanSlot, Prefs } from "@/lib/types";
@@ -47,25 +48,36 @@ const MODES: MealMode[] = ["dinner_breakfast", "dinner", "full"];
 export function MealsScreen() {
   const app = useApp();
   const [swap, setSwap] = useState<PlanSlot | null>(null);
+  const [monthlyFocus, setMonthlyFocus] = useState(false);
+  const [budgetFocus, setBudgetFocus] = useState(false);
+  const [askStock, setAskStock] = useState(false);
   if (!app.ready || !app.book || !app.today) return <BootScreen />;
 
   const plan = app.activePlan;
   const other = app.state.focus === "cheap" ? app.state.balanced : app.state.cheap;
-  const servings = householdServings(app.state.adults, app.state.children);
+  const servings = householdServings(app.state.adults, app.state.children, app.state.childStage);
   const hint = budgetHint(servings, app.state.mode);
   const tome = app.state.areaId === "tome";
   const presetOn =
     app.state.adults === TOME_PRESET.adults &&
     app.state.children === TOME_PRESET.children &&
+    app.state.childStage === TOME_PRESET.childStage &&
     app.state.budget === TOME_PRESET.budget &&
     app.state.mode === TOME_PRESET.mode &&
-    app.state.monthlyBudget === TOME_PRESET.monthlyBudget;
+    app.state.monthlyBudget === TOME_PRESET.monthlyBudget &&
+    app.state.prefs.lessFat === true &&
+    app.state.prefs.noMilk === true;
+  const weekPresets = servings >= 3 || tome ? [15000, 18400, 22000, 28000] : [3000, 5000, 7000, 10000];
+  const sliderMax = servings >= 3 || tome ? 30000 : 20000;
   const stocked = new Set(app.state.stock.map((item) => item.ingredientId));
 
   const run = () => {
     const result = app.generate();
     if (!result.ok) toast.error(result.error);
-    else toast.success(`献立は ${yen(result.balanced.cost)}、残り ${yen(result.balanced.budget - result.balanced.cost)}`);
+    else {
+      toast.success(`献立は ${yen(result.balanced.cost)}、残り ${yen(result.balanced.budget - result.balanced.cost)}`);
+      if (app.state.stock.length > 0) setAskStock(true);
+    }
   };
 
   return (
@@ -80,7 +92,7 @@ export function MealsScreen() {
         <section className="mt-4 rounded-3xl bg-card p-4">
           <h2 className="text-xl font-black">登米の家族設定</h2>
           <p className="mt-1 text-base leading-7">
-            大人2人・子ども2人、月8万円は1週間で約18,700円です。はじめは朝と夜がおすすめです。3食だと予算がきびしめです。
+            大人2人・中学生2人で4人分です。月8万円を週にならすと約18,400円。はじめは朝と夜で、脂身ひかえめと牛乳なしも入ります。
           </p>
           {presetOn ? (
             <p className="mt-3 text-base font-bold">この目安を入れています。</p>
@@ -99,8 +111,16 @@ export function MealsScreen() {
         <Input
           id="monthly"
           inputMode="numeric"
-          value={app.state.monthlyBudget == null ? "" : String(app.state.monthlyBudget)}
-          placeholder="80000"
+          value={
+            monthlyFocus || app.state.monthlyBudget == null
+              ? app.state.monthlyBudget == null
+                ? ""
+                : String(app.state.monthlyBudget)
+              : `${app.state.monthlyBudget.toLocaleString("ja-JP")}円`
+          }
+          placeholder="80,000円"
+          onFocus={() => setMonthlyFocus(true)}
+          onBlur={() => setMonthlyFocus(false)}
           onChange={(event) => {
             const digits = event.target.value.replace(/[^\d]/g, "");
             if (!digits) {
@@ -132,7 +152,7 @@ export function MealsScreen() {
         </div>
         <p className="mt-2 text-base leading-7">
           {app.state.monthlyBudget
-            ? `1週間では約${yen(weeklyFromMonthly(app.state.monthlyBudget))}です。30日で割って、7日分にしています。`
+            ? `月${app.state.monthlyBudget.toLocaleString("ja-JP")}円を週にならすと ${yen(weeklyFromMonthly(app.state.monthlyBudget))} です。30.4日で割って、7日分にしています。`
             : "月の金額を入れると、1週間の食費に直します。"}
         </p>
 
@@ -143,7 +163,13 @@ export function MealsScreen() {
           <Input
             id="budget"
             inputMode="numeric"
-            value={String(app.state.budget)}
+            value={
+              budgetFocus
+                ? String(app.state.budget)
+                : `${app.state.budget.toLocaleString("ja-JP")}円`
+            }
+            onFocus={() => setBudgetFocus(true)}
+            onBlur={() => setBudgetFocus(false)}
             onChange={(event) => {
               const next = Number(event.target.value.replace(/[^\d]/g, ""));
               if (Number.isFinite(next)) app.setBudget(next || 0);
@@ -153,9 +179,9 @@ export function MealsScreen() {
         </div>
         <Slider
           min={2000}
-          max={20000}
+          max={sliderMax}
           step={100}
-            value={[Math.min(20000, Math.max(2000, app.state.budget))]}
+            value={[Math.min(sliderMax, Math.max(2000, app.state.budget))]}
           onValueChange={(value) => {
             const next = Array.isArray(value) ? value[0] : value;
             app.setBudget(next);
@@ -164,7 +190,7 @@ export function MealsScreen() {
           className="mt-2"
         />
         <div className="mt-3 grid grid-cols-4 gap-2">
-          {[3000, 5000, 7000, 10000].map((preset) => (
+          {weekPresets.map((preset) => (
             <button
               key={preset}
               type="button"
@@ -179,7 +205,7 @@ export function MealsScreen() {
           ))}
         </div>
         <p className="mt-2 text-base leading-7">
-          {describeHousehold(app.state.adults, app.state.children)}・{MODE_LABEL[app.state.mode]}の目安は {yen(hint)}。
+          {describeHousehold(app.state.adults, app.state.children, app.state.childStage)}・{MODE_LABEL[app.state.mode]}の目安は {yen(hint)}。
           {modeHint(app.state.mode)}
           {tome ? " 朝と夜だと、月8万円の中に収まりやすいです。" : ""}
         </p>
@@ -192,9 +218,31 @@ export function MealsScreen() {
         <HouseholdStepper
           label="子ども"
           value={app.state.children}
-          hint="子どもは大人の0.6人分です。"
+          hint={app.state.childStage === "teen" ? "中学生以上は、大人と同じ量です。" : "小学生以下は、大人の0.6人分です。"}
           onChange={app.setChildren}
         />
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => app.setChildStage("young")}
+            className={cn(
+              "min-h-11 rounded-2xl px-2 text-sm font-bold",
+              app.state.childStage === "young" ? "bg-primary text-primary-foreground" : "bg-muted",
+            )}
+          >
+            小学生以下
+          </button>
+          <button
+            type="button"
+            onClick={() => app.setChildStage("teen")}
+            className={cn(
+              "min-h-11 rounded-2xl px-2 text-sm font-bold",
+              app.state.childStage === "teen" ? "bg-primary text-primary-foreground" : "bg-muted",
+            )}
+          >
+            中学生以上
+          </button>
+        </div>
         <div className="mt-3 grid grid-cols-3 gap-2">
           {MODES.map((mode) => (
             <button
@@ -299,7 +347,7 @@ export function MealsScreen() {
               onClick={() => app.setFocus("balanced")}
             />
             <FocusCard
-              title="最安だけ"
+              title="いちばん安い献立"
               plan={app.state.cheap}
               active={app.state.focus === "cheap"}
               onClick={() => app.setFocus("cheap")}
@@ -307,7 +355,7 @@ export function MealsScreen() {
           </div>
           {other ? (
             <p className="mt-2 text-xs leading-5 text-muted-foreground">
-              いま見ているのは{app.state.focus === "balanced" ? "バランス" : "最安"}の献立です。買い物リストもこちらに従います。
+              いま見ているのは{app.state.focus === "balanced" ? "バランス" : "いちばん安い"}献立です。買い物リストもこちらに合わせます。
             </p>
           ) : null}
           <ul className="mt-3 space-y-2">
@@ -369,7 +417,7 @@ export function MealsScreen() {
                           <RecipeVideoButton recipeId={recipe.id} />
                           <button
                             type="button"
-                            className="mt-1 text-sm font-bold text-primary"
+                            className="mt-2 flex min-h-11 w-full items-center justify-center rounded-2xl bg-muted text-base font-bold text-primary"
                             onClick={() => setSwap(slot)}
                           >
                             別の皿に変える
@@ -392,7 +440,14 @@ export function MealsScreen() {
           </SheetHeader>
           <ul className="space-y-2 overflow-y-auto px-4 pb-6">
             {swap && plan
-              ? optionsFor(swap.meal, app.state.prefs, app.state.excludes, plan, app.book.priceOf, stocked).map((option) => (
+              ? optionsFor(
+                  swap.meal,
+                  { ...app.state.prefs, allowSkinlessThigh: app.state.thighPolicy === "allow" },
+                  app.state.excludes,
+                  plan,
+                  app.book.priceOf,
+                  stocked,
+                ).map((option) => (
                   <li key={option.recipe.id} className="rounded-2xl bg-muted px-3 py-3">
                     <button
                       type="button"
@@ -421,7 +476,86 @@ export function MealsScreen() {
           </ul>
         </SheetContent>
       </Sheet>
+      <StockUseDialog open={askStock} onOpenChange={setAskStock} onUse={() => app.consumeUsedStock()} />
+      <OpenChoices />
     </div>
+  );
+}
+
+function OpenChoices() {
+  const app = useApp();
+  return (
+    <section className="mt-4 rounded-3xl bg-card p-4">
+      <h2 className="text-lg font-black">まだ決めていないこと</h2>
+      <p className="mt-1 text-sm leading-6">あとから変えられます。献立の計算は、選んだところだけ使います。</p>
+      <p className="mt-3 text-base font-bold">8万円に入っているもの</p>
+      <div className="mt-2 grid grid-cols-1 gap-2">
+        {(
+          [
+            ["unset", "まだ決めていない"],
+            ["food", "食材だけ（調味料・おやつは別）"],
+            ["all", "調味料・お米・おやつも入る"],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => app.setBudgetScope(id)}
+            className={cn(
+              "min-h-11 rounded-2xl px-3 text-left text-sm font-bold",
+              app.state.budgetScope === id ? "bg-primary text-primary-foreground" : "bg-muted",
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <p className="mt-3 text-base font-bold">脂身ひかえめのとき</p>
+      <div className="mt-2 grid grid-cols-1 gap-2">
+        {(
+          [
+            ["unset", "まだ決めていない（鶏ももは外す）"],
+            ["avoid", "鶏ももも外す"],
+            ["allow", "皮なしの鶏ももは入れてよい"],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => app.setThighPolicy(id)}
+            className={cn(
+              "min-h-11 rounded-2xl px-3 text-left text-sm font-bold",
+              app.state.thighPolicy === id ? "bg-primary text-primary-foreground" : "bg-muted",
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <p className="mt-3 text-base font-bold">牛乳以外の乳製品</p>
+      <p className="mt-1 text-sm leading-6">チーズやヨーグルトは、今のレシピにはありません。</p>
+      <div className="mt-2 grid grid-cols-1 gap-2">
+        {(
+          [
+            ["unset", "まだ決めていない"],
+            ["milkOnly", "牛乳だけ気をつける"],
+            ["allDairy", "乳製品も避ける"],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => app.setDairyPolicy(id)}
+            className={cn(
+              "min-h-11 rounded-2xl px-3 text-left text-sm font-bold",
+              app.state.dairyPolicy === id ? "bg-primary text-primary-foreground" : "bg-muted",
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }
 

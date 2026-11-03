@@ -15,6 +15,7 @@ const NAV = [
   { href: "/prices", label: "底値", icon: Tag },
   { href: "/meals", label: "献立", icon: Utensils },
   { href: "/shop", label: "買う", icon: ShoppingBasket },
+  { href: "/stock", label: "冷蔵庫", icon: Refrigerator },
 ];
 
 function isActive(pathname: string, href: string): boolean {
@@ -24,7 +25,7 @@ function isActive(pathname: string, href: string): boolean {
 
 export function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mx-auto min-h-dvh w-full max-w-[480px] bg-background lg:grid lg:h-dvh lg:max-w-none lg:grid-cols-[92px_minmax(320px,460px)_minmax(280px,1fr)] lg:overflow-hidden lg:bg-canvas">
+    <div className="readable-app mx-auto min-h-dvh w-full max-w-[480px] bg-background lg:grid lg:h-dvh lg:max-w-none lg:grid-cols-[92px_minmax(320px,460px)_minmax(280px,1fr)] lg:overflow-hidden lg:bg-canvas">
       <Suspense fallback={<div className="hidden lg:block" />}>
         <SideNav />
       </Suspense>
@@ -77,17 +78,6 @@ function SideNav() {
         );
       })}
       <Link
-        href="/stock"
-        aria-current={isActive(pathname, "/stock") ? "page" : undefined}
-        className={cn(
-          "flex flex-col items-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-medium",
-          isActive(pathname, "/stock") ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-secondary",
-        )}
-      >
-        <Refrigerator className="size-5" />
-        在庫
-      </Link>
-      <Link
         href="/alerts"
         className="mt-auto flex items-center justify-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-medium text-foreground hover:bg-secondary"
       >
@@ -105,7 +95,7 @@ function BottomNav() {
   const pathname = usePathname();
   return (
     <nav
-      className="fixed bottom-0 left-1/2 z-30 grid w-full max-w-[480px] -translate-x-1/2 grid-cols-5 border-t border-border bg-card/95 px-1 pt-1 pb-[max(0.4rem,env(safe-area-inset-bottom))] backdrop-blur lg:hidden"
+      className="fixed bottom-0 left-1/2 z-30 grid w-full max-w-[480px] -translate-x-1/2 grid-cols-6 border-t border-border bg-card/95 px-1 pt-1 pb-[max(0.4rem,env(safe-area-inset-bottom))] backdrop-blur lg:hidden"
       aria-label="主要"
     >
       {NAV.map((item) => {
@@ -118,7 +108,7 @@ function BottomNav() {
             href={item.href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "flex flex-col items-center gap-0.5 rounded-xl py-1 text-[10px] font-medium",
+              "flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl py-1 text-sm font-medium",
               active ? "text-primary" : "text-muted-foreground",
             )}
           >

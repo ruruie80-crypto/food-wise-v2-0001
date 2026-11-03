@@ -13,7 +13,11 @@ export function RecipeVideoButton({ recipeId }: { recipeId: string }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button type="button" className="text-sm font-bold text-primary" onClick={() => setOpen(true)}>
+      <button
+        type="button"
+        className="mt-2 flex min-h-11 w-full items-center justify-center rounded-2xl bg-muted px-3 text-base font-bold"
+        onClick={() => setOpen(true)}
+      >
         動画で見る
       </button>
       {open ? <RecipePlayer recipeId={recipeId} onOpenChange={setOpen} /> : null}

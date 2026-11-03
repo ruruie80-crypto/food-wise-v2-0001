@@ -1,6 +1,6 @@
 import { getIngredient, getRecipe, recipes } from "./catalog";
 import { percent, yen } from "./format";
-import { FATTY_MEAT_IDS } from "./household";
+import { fattyIds } from "./household";
 import type {
   MealMode,
   MealType,
@@ -27,6 +27,8 @@ export type PlanInput = {
   sourceKey?: string;
   /** 冷蔵庫・冷凍庫。空なら献立の選び方はこれまでと同じ。 */
   stock?: StockItem[];
+  /** 週に1回は入れる料理。空なら献立の中身はこれまでと同じ。 */
+  weeklyDishes?: string[];
 };
 
 const ZERO: Nutrition = {
@@ -155,7 +157,9 @@ export function isRecipeAllowed(
 ): boolean {
   if (!recipe.meals.includes(meal)) return false;
   if (recipe.items.some((item) => excludes.includes(item.ingredientId))) return false;
-  if (prefs.lessFat && recipe.items.some((item) => FATTY_MEAT_IDS.includes(item.ingredientId))) return false;
+  if (prefs.lessFat && recipe.items.some((item) => fattyIds(Boolean(prefs.allowSkinlessThigh)).includes(item.ingredientId))) {
+    return false;
+  }
   if (
     prefs.noMilk &&
     (recipe.usesMilk === true || recipe.items.some((item) => item.ingredientId === "milk"))
@@ -456,6 +460,39 @@ function buildNotes(balanced: Plan, cheap: Plan, lookup: PriceLookup): string[] 
   return notes;
 }
 
+function placeWeeklyDishes(
+  picks: string[],
+  slots: Slot[],
+  dishIds: string[],
+  prefs: Prefs,
+  excludes: string[],
+): { picks: string[]; names: string[] } {
+  if (dishIds.length === 0) return { picks, names: [] };
+  const next = [...picks];
+  const names: string[] = [];
+  for (const dishId of dishIds) {
+    const recipe = getRecipe(dishId);
+    if (!recipe || !isRecipeAllowed(recipe, "dinner", prefs, excludes)) continue;
+    const indexes = slots.flatMap((slot, index) => (slot.meal === "dinner" ? [index] : []));
+    if (indexes.length === 0) continue;
+    if (indexes.some((index) => next[index] === dishId)) {
+      names.push(recipe.name);
+      continue;
+    }
+    const counts: Record<string, number> = {};
+    for (const index of indexes) counts[next[index]] = (counts[next[index]] ?? 0) + 1;
+    let replaceAt = indexes[0];
+    for (const index of indexes) {
+      const count = counts[next[index]] ?? 0;
+      const best = counts[next[replaceAt]] ?? 0;
+      if (count > best || (count === best && index > replaceAt)) replaceAt = index;
+    }
+    next[replaceAt] = dishId;
+    names.push(recipe.name);
+  }
+  return { picks: next, names };
+}
+
 export type PlanResult =
   | { ok: true; balanced: Plan; cheap: Plan }
   | { ok: false; error: string };
@@ -503,29 +540,45 @@ export function buildPlan(input: PlanInput, lookup: PriceLookup): PlanResult {
       error: "この条件だと作れる献立が足りません。食べないものを減らしてください。",
     };
   }
-  const balancedPicks = repair(
-    balancedSearch.picks,
+  const weekly = input.weeklyDishes ?? [];
+  const balancedPlaced = placeWeeklyDishes(
+    repair(
+      balancedSearch.picks,
+      slots,
+      input.budget,
+      input.people,
+      input.prefs,
+      input.excludes,
+      lookup,
+      portion,
+    ),
     slots,
-    input.budget,
-    input.people,
+    weekly,
     input.prefs,
     input.excludes,
-    lookup,
-    portion,
   );
-  const cheapPicks = repair(
-    cheapSearch.picks,
+  const cheapPlaced = placeWeeklyDishes(
+    repair(
+      cheapSearch.picks,
+      slots,
+      input.budget,
+      input.people,
+      input.prefs,
+      input.excludes,
+      lookup,
+      portion,
+    ),
     slots,
-    input.budget,
-    input.people,
+    weekly,
     input.prefs,
     input.excludes,
-    lookup,
-    portion,
   );
-  const balanced = materialize(balancedPicks, slots, input, lookup, "balanced", targets, portion);
-  const cheap = materialize(cheapPicks, slots, input, lookup, "cheap", targets, portion);
+  const balanced = materialize(balancedPlaced.picks, slots, input, lookup, "balanced", targets, portion);
+  const cheap = materialize(cheapPlaced.picks, slots, input, lookup, "cheap", targets, portion);
   const notes = buildNotes(balanced, cheap, lookup);
+  if (balancedPlaced.names.length > 0) {
+    notes.unshift(`${balancedPlaced.names.join("と")}を、週に1回は入れています。`);
+  }
   if (stock.size > 0) {
     const used = new Set<string>();
     for (const slot of balanced.slots) {

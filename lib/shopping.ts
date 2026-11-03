@@ -6,7 +6,12 @@ type Lookup = Pick<PriceLookup, "priceOf"> & {
   quote(ingredientId: string): { byStore: { storeId: string; price: number }[] } | null;
 };
 
-export function buildShoppingList(plan: Plan, lookup: Lookup, stock: StockItem[] = []): ShopList {
+export function buildShoppingList(
+  plan: Plan,
+  lookup: Lookup,
+  stock: StockItem[] = [],
+  preferredStoreId?: string | null,
+): ShopList {
   const have = new Map<string, number>();
   for (const item of stock) {
     if (item.units <= 0) continue;
@@ -35,7 +40,10 @@ export function buildShoppingList(plan: Plan, lookup: Lookup, stock: StockItem[]
     if (units <= 0.05) continue;
     const quote = lookup.quote(ingredientId);
     if (!quote || quote.byStore.length === 0) continue;
-    const best = quote.byStore[0];
+    const preferred = preferredStoreId
+      ? quote.byStore.find((row) => row.storeId === preferredStoreId)
+      : undefined;
+    const best = preferred ?? quote.byStore[0];
     lines.push({
       ingredientId,
       units,

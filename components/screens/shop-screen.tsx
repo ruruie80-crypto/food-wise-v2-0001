@@ -12,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { formatUnits, yen } from "@/lib/format";
 import { buildShoppingList } from "@/lib/shopping";
+import { cn } from "@/lib/utils";
 import type { Store } from "@/lib/types";
 
 export function ShopScreen() {
@@ -31,7 +32,7 @@ export function ShopScreen() {
     );
   }
 
-  const list = buildShoppingList(plan, app.book, app.state.stock);
+  const list = buildShoppingList(plan, app.book, app.state.stock, app.state.preferredStoreId);
   const area = getArea(app.state.areaId);
   const openStore = storeId ? getStore(storeId) : undefined;
   const localStores = storesIn(app.state.areaId);
@@ -74,10 +75,15 @@ export function ShopScreen() {
 
   return (
     <div className="px-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-10">
-      <p className="text-[11px] font-bold tracking-[0.16em] text-primary">{area.name}</p>
-      <h1 className="text-[1.7rem] font-black tracking-tight">買う店が分かれる</h1>
-      <p className="mt-1 text-sm leading-6 text-muted-foreground">
-        {checkedCount}/{totalLines} をカゴに入れました。合計 <Yen value={list.multiTotal} className="text-base" />。
+      <p className="text-sm font-bold text-primary">{area.name}</p>
+      <h1 className="text-[1.7rem] font-black tracking-tight">
+        {app.state.preferredStoreId ? "ふだんの店で買う" : list.groups.length <= 1 ? "この店でそろいます" : "店ごとに買う"}
+      </h1>
+      <p className="mt-1 text-base leading-7 text-muted-foreground">
+        {checkedCount === 0
+          ? `まだカゴに入れていません。買うものは${totalLines}品です。`
+          : `${totalLines}品のうち、カゴに入れたのは${checkedCount}品です。`}
+        合計 <Yen value={list.multiTotal} className="text-base" />。
       </p>
       {area.priceBasis === "survey" ? (
         <p className="mt-2 text-sm leading-6 text-muted-foreground">{area.priceNote}</p>
@@ -104,18 +110,48 @@ export function ShopScreen() {
         <p className="mt-4 rounded-3xl bg-card p-4 text-base leading-7">今週の食材は、冷蔵庫と冷凍庫で足ります。</p>
       ) : null}
 
-      {list.single && list.savings >= 120 ? (
+      <section className="mt-4 rounded-3xl bg-card p-4">
+        <p className="text-base font-bold">ふだん行く店</p>
+        <p className="mt-1 text-sm leading-6">値段が同じときは、選んだ店にまとめます。まだ決めていなければ、一覧の先頭の店です。</p>
+        <div className="mt-2 grid grid-cols-1 gap-2">
+          <button
+            type="button"
+            onClick={() => app.setPreferredStore(null)}
+            className={cn(
+              "min-h-11 rounded-2xl px-3 text-left text-sm font-bold",
+              app.state.preferredStoreId == null ? "bg-primary text-primary-foreground" : "bg-muted",
+            )}
+          >
+            まだ決めていない
+          </button>
+          {localStores.map((store) => (
+            <button
+              key={store.id}
+              type="button"
+              onClick={() => app.setPreferredStore(store.id)}
+              className={cn(
+                "min-h-11 rounded-2xl px-3 text-left text-sm font-bold",
+                app.state.preferredStoreId === store.id ? "bg-primary text-primary-foreground" : "bg-muted",
+              )}
+            >
+              {store.name}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {list.groups.length > 1 && list.single && list.savings >= 120 ? (
         <div className="mt-4 rounded-3xl bg-notice text-notice-foreground p-4 text-sm leading-6">
           <p className="font-bold">2店以上はしごすると {yen(list.savings)} 安い</p>
           <p className="mt-1">
             {getStore(list.single.storeId)?.name} 1店にまとめると {yen(list.single.total)}。差額が小さい日は、1店で済ませてください。
           </p>
         </div>
-      ) : list.single ? (
-        <div className="mt-4 rounded-3xl bg-card p-4 text-sm leading-6">
-          <p className="font-bold">今日は1店で足りる</p>
+      ) : list.groups.length > 1 && list.single ? (
+        <div className="mt-4 rounded-3xl bg-card p-4 text-base leading-7">
+          <p className="font-bold">1店にまとめても、金額はほぼ同じです</p>
           <p className="mt-1">
-            分ける差額は {yen(list.savings)}。{getStore(list.single.storeId)?.name} にまとめても {yen(list.single.total)} です。
+            分ける差額は {yen(list.savings)}。{getStore(list.single.storeId)?.name} にまとめると {yen(list.single.total)} です。
           </p>
         </div>
       ) : null}
@@ -221,7 +257,7 @@ export function ShopScreen() {
               {openStore.phone ? (
                 <p>
                   電話{" "}
-                  <a href={`tel:${openStore.phone}`} className="font-bold text-primary">
+                  <a href={`tel:${openStore.phone}`} className="inline-flex min-h-11 items-center font-bold text-primary">
                     {openStore.phone}
                   </a>
                 </p>

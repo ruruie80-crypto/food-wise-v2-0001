@@ -121,6 +121,8 @@ export type Prefs = {
   lessFat?: boolean;
   /** 牛乳を使う皿を外す。未設定はオフ。 */
   noMilk?: boolean;
+  /** 脂身ひかえめでも、皮なしの鶏ももは残す。 */
+  allowSkinlessThigh?: boolean;
 };
 
 export type PlanSlot = {

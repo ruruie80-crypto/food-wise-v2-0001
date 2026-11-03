@@ -6,6 +6,7 @@ import { categoryLabel, getIngredient, ingredients } from "@/lib/catalog";
 import { useApp } from "@/components/app-state";
 import { BootScreen } from "@/components/bits";
 import { formatUnits } from "@/lib/format";
+import { stockChoices } from "@/lib/stock";
 import type { Category, StockPlace } from "@/lib/types";
 
 const PLACES: { id: StockPlace; label: string; hint: string }[] = [
@@ -121,18 +122,49 @@ export function StockScreen() {
         <ul className="mt-3 space-y-2">
           {choices.map((ingredient) => {
             const have = unitsOf(ingredient.id);
+            const choicesFor = stockChoices(ingredient);
             return (
-              <li key={ingredient.id}>
-                <button
-                  type="button"
-                  onClick={() => app.setStock(ingredient.id, place, have + 1)}
-                  className="flex min-h-14 w-full items-center justify-between rounded-2xl bg-card px-4 py-3 text-left"
-                >
-                  <span className="text-lg font-bold">{ingredient.name}</span>
-                  <span className="text-base font-bold text-primary">
-                    {have > 0 ? `${formatUnits(have, ingredient)} · 追加` : "入れる"}
-                  </span>
-                </button>
+              <li key={ingredient.id} className="rounded-2xl bg-card px-4 py-3">
+                <p className="text-lg font-bold">
+                  {ingredient.name}
+                  {have > 0 ? <span className="ml-2 text-base text-primary">{formatUnits(have, ingredient)}</span> : null}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {choicesFor.map((choice) => (
+                    <button
+                      key={choice.label}
+                      type="button"
+                      onClick={() => app.setStock(ingredient.id, place, have + choice.units)}
+                      className="min-h-11 rounded-2xl bg-muted px-3 text-base font-bold"
+                    >
+                      {choice.label}
+                    </button>
+                  ))}
+                </div>
+                {ingredient.unitKind === "grams100" ? (
+                  <form
+                    className="mt-2 flex gap-2"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      const data = new FormData(event.currentTarget);
+                      const grams = Number(String(data.get("grams") ?? "").replace(/[^\d]/g, ""));
+                      if (!Number.isFinite(grams) || grams <= 0) return;
+                      app.setStock(ingredient.id, place, have + grams / 100);
+                      event.currentTarget.reset();
+                    }}
+                  >
+                    <input
+                      name="grams"
+                      inputMode="numeric"
+                      placeholder="グラム"
+                      aria-label={`${ingredient.name}のグラム`}
+                      className="h-11 min-w-0 flex-1 rounded-2xl bg-muted px-3 text-base"
+                    />
+                    <button type="submit" className="min-h-11 rounded-2xl bg-muted px-3 text-base font-bold">
+                      グラムで入れる
+                    </button>
+                  </form>
+                ) : null}
               </li>
             );
           })}

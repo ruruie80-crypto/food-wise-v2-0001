@@ -25,7 +25,7 @@ export function AreaStores({ areaId }: { areaId: string }) {
             ) : null}
             <p className={tome ? "text-base leading-7" : "text-sm leading-6"}>営業 {store.hours}</p>
             {store.phone ? (
-              <a href={`tel:${store.phone}`} className="text-base font-bold text-primary">
+              <a href={`tel:${store.phone}`} className="inline-flex min-h-11 items-center text-base font-bold text-primary">
                 電話 {store.phone}
               </a>
             ) : null}

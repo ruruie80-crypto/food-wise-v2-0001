@@ -4,7 +4,19 @@ import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useSy
 import { areas } from "@/lib/catalog";
 import { tokyoHour, tokyoToday } from "@/lib/dates";
 import { buildAlerts } from "@/lib/alerts";
-import { householdServings, MAX_WEEKLY_BUDGET, TOME_PRESET, weeklyFromMonthly } from "@/lib/household";
+import {
+  type BudgetScope,
+  type ChildStage,
+  type DairyPolicy,
+  householdServings,
+  MAX_WEEKLY_BUDGET,
+  OTHER_DAIRY_IDS,
+  type ThighPolicy,
+  TOME_PRESET,
+  WEEKLY_DISHES,
+  weeklyFromMonthly,
+} from "@/lib/household";
+import { consumeStock } from "@/lib/stock";
 import { buildPlan, replacePlanSlot, type PlanResult } from "@/lib/optimizer";
 import { createPriceBook, type PriceBook } from "@/lib/prices";
 import { isBrightSkin, isSkin, skinThemeColor, type SkinId } from "@/lib/skins";
@@ -73,7 +85,12 @@ export type Persisted = {
   excludes: string[];
   adults: number;
   children: number;
+  childStage: ChildStage;
   monthlyBudget: number | null;
+  budgetScope: BudgetScope;
+  thighPolicy: ThighPolicy;
+  dairyPolicy: DairyPolicy;
+  preferredStoreId: string | null;
   stock: StockItem[];
   observations: Observation[];
   balanced: Plan | null;
@@ -108,10 +125,16 @@ type AppContextValue = {
   setPeople: (value: number) => void;
   setAdults: (value: number) => void;
   setChildren: (value: number) => void;
+  setChildStage: (stage: ChildStage) => void;
+  setBudgetScope: (scope: BudgetScope) => void;
+  setThighPolicy: (policy: ThighPolicy) => void;
+  setDairyPolicy: (policy: DairyPolicy) => void;
+  setPreferredStore: (storeId: string | null) => void;
   applyTomePreset: () => void;
   setMode: (mode: MealMode) => void;
   setArea: (areaId: string) => void;
   setStock: (ingredientId: string, place: StockPlace, units: number) => void;
+  consumeUsedStock: () => void;
   togglePref: (key: keyof Prefs) => void;
   toggleExclusion: (ids: string[]) => void;
   setFocus: (focus: PlanFocus) => void;
@@ -140,7 +163,12 @@ function defaultState(): Persisted {
     excludes: [],
     adults: 1,
     children: 0,
+    childStage: "young",
     monthlyBudget: null,
+    budgetScope: "unset",
+    thighPolicy: "unset",
+    dairyPolicy: "unset",
+    preferredStoreId: null,
     stock: [],
     observations: [],
     balanced: null,
@@ -172,12 +200,17 @@ function sanitize(raw: unknown): Persisted {
   const legacyPeople = clampCount(data.people, 1, 4, 1);
   const adults = clampCount(data.adults, 1, 4, legacyPeople);
   const children = clampCount(data.children, 0, 4, 0);
-  const people = householdServings(adults, children);
-  const budget = typeof data.budget === "number" ? Math.min(MAX_WEEKLY_BUDGET, Math.max(500, Math.round(data.budget))) : 5000;
+  const childStage: ChildStage =
+    data.childStage === "teen" || data.childStage === "young" ? data.childStage : areaId === "tome" ? "teen" : "young";
+  const people = householdServings(adults, children, childStage);
+  let budget = typeof data.budget === "number" ? Math.min(MAX_WEEKLY_BUDGET, Math.max(500, Math.round(data.budget))) : 5000;
   const monthlyBudget =
     typeof data.monthlyBudget === "number" && data.monthlyBudget > 0
       ? Math.min(300_000, Math.round(data.monthlyBudget))
       : null;
+  if (areaId === "tome" && monthlyBudget === TOME_PRESET.monthlyBudget && budget === 18_700) {
+    budget = weeklyFromMonthly(monthlyBudget);
+  }
   const prefs = {
     ...base.prefs,
     ...(data.prefs ?? {}),
@@ -192,8 +225,13 @@ function sanitize(raw: unknown): Persisted {
     people,
     adults,
     children,
+    childStage,
     budget,
     monthlyBudget,
+    budgetScope: data.budgetScope === "food" || data.budgetScope === "all" ? data.budgetScope : "unset",
+    thighPolicy: data.thighPolicy === "avoid" || data.thighPolicy === "allow" ? data.thighPolicy : "unset",
+    dairyPolicy: data.dairyPolicy === "milkOnly" || data.dairyPolicy === "allDairy" ? data.dairyPolicy : "unset",
+    preferredStoreId: typeof data.preferredStoreId === "string" ? data.preferredStoreId : null,
     mode,
     prefs,
     excludes: Array.isArray(data.excludes) ? data.excludes.filter((id) => typeof id === "string") : [],
@@ -245,6 +283,9 @@ export function sourceKey(state: Persisted): string {
     state.areaId,
     state.adults,
     state.children,
+    state.childStage,
+    state.thighPolicy,
+    state.dairyPolicy,
     state.people,
     state.budget,
     state.monthlyBudget ?? "",
@@ -274,6 +315,44 @@ function safeParse(raw: string): unknown {
   } catch {
     return null;
   }
+}
+
+function tomeHousehold(current: Persisted): Partial<Persisted> {
+  return {
+    adults: TOME_PRESET.adults,
+    children: TOME_PRESET.children,
+    childStage: TOME_PRESET.childStage,
+    people: householdServings(TOME_PRESET.adults, TOME_PRESET.children, TOME_PRESET.childStage),
+    monthlyBudget: TOME_PRESET.monthlyBudget,
+    budget: TOME_PRESET.budget,
+    mode: TOME_PRESET.mode,
+    prefs: { ...current.prefs, lessFat: true, noMilk: true },
+  };
+}
+
+function isUntouchedTomePreset(current: Persisted): boolean {
+  return (
+    current.adults === TOME_PRESET.adults &&
+    current.children === TOME_PRESET.children &&
+    current.childStage === TOME_PRESET.childStage &&
+    current.monthlyBudget === TOME_PRESET.monthlyBudget &&
+    current.budget === TOME_PRESET.budget &&
+    current.mode === TOME_PRESET.mode &&
+    current.prefs.lessFat === true &&
+    current.prefs.noMilk === true
+  );
+}
+
+function factoryHousehold(): Partial<Persisted> {
+  return {
+    adults: 1,
+    children: 0,
+    childStage: "young",
+    people: 1,
+    monthlyBudget: null,
+    budget: 5000,
+    mode: "dinner_breakfast",
+  };
 }
 
 export function AppStateProvider({ children }: { children: React.ReactNode }) {
@@ -311,12 +390,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     const result = buildPlan(
       {
         budget: state.budget,
-        people: householdServings(state.adults, state.children),
+        people: householdServings(state.adults, state.children, state.childStage),
         days: 7,
         mode: state.mode,
-        prefs: state.prefs,
-        excludes: state.excludes,
+        prefs: { ...state.prefs, allowSkinlessThigh: state.thighPolicy === "allow" },
+        excludes:
+          state.dairyPolicy === "allDairy" ? [...new Set([...state.excludes, ...OTHER_DAIRY_IDS])] : state.excludes,
         stock: state.stock,
+        weeklyDishes: state.areaId === "tome" ? WEEKLY_DISHES : [],
         sourceKey: key,
       },
       lookup,
@@ -366,29 +447,50 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setAdults: (adults) =>
       update((current) => {
         const next = Math.min(4, Math.max(1, Math.round(adults)));
-        return { ...current, adults: next, people: householdServings(next, current.children) };
+        return { ...current, adults: next, people: householdServings(next, current.children, current.childStage) };
       }),
     setChildren: (children) =>
       update((current) => {
         const next = Math.min(4, Math.max(0, Math.round(children)));
-        return { ...current, children: next, people: householdServings(current.adults, next) };
+        return { ...current, children: next, people: householdServings(current.adults, next, current.childStage) };
       }),
-    applyTomePreset: () =>
-      patch({
-        adults: TOME_PRESET.adults,
-        children: TOME_PRESET.children,
-        people: householdServings(TOME_PRESET.adults, TOME_PRESET.children),
-        monthlyBudget: TOME_PRESET.monthlyBudget,
-        budget: TOME_PRESET.budget,
-        mode: TOME_PRESET.mode,
-      }),
-    setMode: (mode) => patch({ mode }),
-    setArea: (areaId) =>
+    setChildStage: (childStage) =>
       update((current) => ({
         ...current,
-        areaId,
-        skin: areaId === "tome" && !isBrightSkin(current.skin) ? "kami" : current.skin,
+        childStage,
+        people: householdServings(current.adults, current.children, childStage),
       })),
+    setBudgetScope: (budgetScope) => patch({ budgetScope }),
+    setThighPolicy: (thighPolicy) => patch({ thighPolicy }),
+    setDairyPolicy: (dairyPolicy) => patch({ dairyPolicy }),
+    setPreferredStore: (preferredStoreId) => patch({ preferredStoreId }),
+    applyTomePreset: () =>
+      update((current) => ({
+        ...current,
+        ...tomeHousehold(current),
+      })),
+    setMode: (mode) => patch({ mode }),
+    setArea: (areaId) =>
+      update((current) => {
+        if (areaId === "tome") {
+          return {
+            ...current,
+            ...tomeHousehold(current),
+            areaId,
+            skin: isBrightSkin(current.skin) ? current.skin : "kami",
+          };
+        }
+        if (current.areaId === "tome" && isUntouchedTomePreset(current)) {
+          return { ...current, ...factoryHousehold(), areaId };
+        }
+        return { ...current, areaId };
+      }),
+    consumeUsedStock: () =>
+      update((current) => {
+        const plan = current.focus === "cheap" ? current.cheap : current.balanced;
+        if (!plan) return current;
+        return { ...current, stock: consumeStock(current.stock, plan) };
+      }),
     setStock: (ingredientId, place, units) =>
       update((current) => {
         const nextUnits = Math.round(units * 10) / 10;

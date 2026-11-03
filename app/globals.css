@@ -486,6 +486,14 @@
   animation: cook-sway 1.1s ease-in-out infinite;
 }
 
+/* 11〜12px の指定を 14px にする。明るい画面のまま。 */
+.readable-app .text-xs,
+.readable-app .text-\[10px\],
+.readable-app .text-\[11px\] {
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .cook-bubble,
   .cook-pan,

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { getIngredient, getRecipe, ingredients, recipes, storesIn } from "./catalog";
 import { CHILD_PORTION, householdServings, TOME_PRESET, weeklyFromMonthly } from "./household";
+import { consumeStock } from "./stock";
 import { buildPlan } from "./optimizer";
 import { createPriceBook } from "./prices";
 import { buildShoppingList } from "./shopping";
@@ -46,14 +47,26 @@ test("Tome lists the four real stores and uses Sendai survey prices", () => {
   }
 });
 
-test("monthly 80000 yen becomes a weekly budget of about 18700", () => {
+test("monthly 80000 yen becomes about 18400 yen a week", () => {
   assert.equal(CHILD_PORTION, 0.6);
-  assert.equal(weeklyFromMonthly(80_000), 18_700);
-  assert.equal(TOME_PRESET.budget, weeklyFromMonthly(TOME_PRESET.monthlyBudget));
-  assert.equal(TOME_PRESET.mode, "dinner_breakfast");
+  assert.equal(weeklyFromMonthly(80_000), 18_400);
+  assert.equal(TOME_PRESET.budget, 18_400);
+  assert.equal(TOME_PRESET.childStage, "teen");
+  assert.equal(TOME_PRESET.lessFat, true);
+  assert.equal(TOME_PRESET.noMilk, true);
   assert.equal(householdServings(2, 2), 3.2);
+  assert.equal(householdServings(2, 2, "teen"), 4);
   assert.equal(householdServings(1, 0), 1);
-  assert.equal(householdServings(4, 0), 4);
+});
+
+test("wakame is priced as one bowl of miso soup, and miso stays one spoon", () => {
+  const wakame = getIngredient("wakame");
+  const miso = getIngredient("miso");
+  assert.equal(wakame?.gramsPerUnit, 1.5);
+  assert.equal(surveyUnitYen("wakame"), Math.round((2431 * 1.5) / 100));
+  assert.ok((surveyUnitYen("wakame") ?? 0) < 50);
+  assert.equal(miso?.gramsPerUnit, 18);
+  assert.equal(surveyUnitYen("miso"), Math.round((490 * 18) / 750));
 });
 
 test("milk-free hamburger avoids fatty meat and milk", () => {
@@ -78,24 +91,33 @@ test("milk-free hamburger avoids fatty meat and milk", () => {
   }
 });
 
-test("less fat and no milk still build a plan without those foods", () => {
+test("a Tome family plan stays inside budget and includes the home dishes", () => {
   const result = buildPlan(
     {
-      budget: 18_700,
-      people: householdServings(2, 2),
+      budget: 18_400,
+      people: householdServings(2, 2, "teen"),
       days: 7,
       mode: "dinner_breakfast",
       prefs: { ...prefs, lessFat: true, noMilk: true },
       excludes: [],
+      weeklyDishes: ["hamburg", "soboro"],
     },
     createPriceBook("tome", TODAY, []),
   );
   assert.equal(result.ok, true);
   if (!result.ok) return;
-  assert.ok(result.balanced.cost <= 18_700, String(result.balanced.cost));
+  assert.equal(result.balanced.people, 4);
+  assert.ok(result.balanced.cost <= 18_400, String(result.balanced.cost));
+  const dinners = result.balanced.slots.filter((slot) => slot.meal === "dinner").map((slot) => slot.recipeId);
+  assert.ok(dinners.includes("hamburg"), dinners.join(","));
+  assert.ok(dinners.includes("soboro"), dinners.join(","));
+  assert.equal(getRecipe("soboro")?.name, "そぼろご飯");
+  const veg = result.balanced.nutrition.veg / result.balanced.targets.veg;
+  assert.ok(veg >= 0.4, `veg ${veg}`);
+  const eggOnly = dinners.every((id) => id === "tamago-kake" || id === "tamago-don");
+  assert.equal(eggOnly, false);
   for (const slot of result.balanced.slots) {
     const recipe = getRecipe(slot.recipeId);
-    assert.ok(recipe, slot.recipeId);
     for (const item of recipe?.items ?? []) {
       assert.equal(["pork", "pork_hiki", "chicken_t", "milk"].includes(item.ingredientId), false, recipe?.name);
     }
@@ -106,7 +128,7 @@ test("shopping list drops what is already in the fridge and keeps the store grou
   const book = createPriceBook("tome", TODAY, []);
   const result = buildPlan(
     {
-      budget: 18_700,
+      budget: 18_400,
       people: 3.2,
       days: 7,
       mode: "dinner_breakfast",
@@ -140,6 +162,57 @@ test("shopping list drops what is already in the fridge and keeps the store grou
     getRecipe(slot.recipeId)?.items.some((item) => item.ingredientId === "chicken_hiki" || item.ingredientId === "tofu"),
   );
   assert.ok(chickenMeals.length >= 1, result.balanced.slots.map((slot) => slot.recipeId).join(","));
+});
+
+test("a chosen store keeps the whole list when prices match", () => {
+  const book = createPriceBook("tome", TODAY, []);
+  const result = buildPlan(
+    {
+      budget: 18_400,
+      people: 4,
+      days: 7,
+      mode: "dinner_breakfast",
+      prefs,
+      excludes: [],
+    },
+    book,
+  );
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  const list = buildShoppingList(result.balanced, book, [], "gyomu-minamikata");
+  assert.deepEqual(
+    list.groups.map((group) => group.storeId),
+    ["gyomu-minamikata"],
+  );
+});
+
+test("using the plan reduces fridge stock and leaves seasonings", () => {
+  const plan = {
+    focus: "balanced" as const,
+    budget: 18400,
+    people: 1,
+    days: 1,
+    mode: "dinner" as const,
+    slots: [{ dayIndex: 0, meal: "dinner" as const, recipeId: "soboro", cost: 100 }],
+    cost: 100,
+    overBy: 0,
+    portion: 1,
+    nutrition: { kcal: 0, protein: 0, fat: 0, carb: 0, fiber: 0, salt: 0, veg: 0 },
+    targets: { kcal: 0, protein: 0, fat: 0, carb: 0, fiber: 0, salt: 0, veg: 0 },
+    notes: [],
+    sourceKey: "",
+  };
+  const next = consumeStock(
+    [
+      { ingredientId: "chicken_hiki", place: "fridge", units: 3 },
+      { ingredientId: "wakame", place: "fridge", units: 2 },
+    ],
+    plan,
+  );
+  const chicken = next.find((item) => item.ingredientId === "chicken_hiki");
+  const wakame = next.find((item) => item.ingredientId === "wakame");
+  assert.equal(chicken?.units, 1.5);
+  assert.equal(wakame?.units, 2);
 });
 
 test("an unchanged household still matches the one-person plan", () => {

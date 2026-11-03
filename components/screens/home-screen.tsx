@@ -21,6 +21,7 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { AreaStores } from "@/components/area-stores";
 import { YouTubeCookButton } from "@/components/youtube-button";
+import { StockUseDialog } from "@/components/stock-use-dialog";
 import { describeHousehold } from "@/lib/household";
 import { BudgetAdvice } from "@/components/budget-advice";
 import { SkinPicker } from "@/components/skin-picker";
@@ -34,6 +35,7 @@ export function HomeScreen() {
   const [settings, setSettings] = useState(false);
   const [handoff, setHandoff] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [askStock, setAskStock] = useState(false);
   if (!app.ready || !app.book || !app.today) return <BootScreen />;
 
   const area = getArea(app.state.areaId);
@@ -91,7 +93,7 @@ export function HomeScreen() {
           />
         </div>
         <p className="mt-3 text-base leading-7 text-muted-foreground">
-          {describeHousehold(app.state.adults, app.state.children)}。{modeHint(app.state.mode)}
+          {describeHousehold(app.state.adults, app.state.children, app.state.childStage)}。{modeHint(app.state.mode)}
         </p>
         {app.stale ? (
           <p className="mt-2 rounded-xl bg-notice text-notice-foreground px-3 py-2 text-xs leading-5">
@@ -103,7 +105,10 @@ export function HomeScreen() {
           onClick={() => {
             const result = app.generate();
             if (!result.ok) toast.error(result.error);
-            else toast.success(`今週の献立は ${yen(result.balanced.cost)} です`);
+            else {
+              toast.success(`今週の献立は ${yen(result.balanced.cost)} です`);
+              if (app.state.stock.length > 0) setAskStock(true);
+            }
           }}
         >
           {plan ? "この予算で作り直す" : "今週の献立を作る"}
@@ -132,13 +137,14 @@ export function HomeScreen() {
       !(
         app.state.adults === 2 &&
         app.state.children === 2 &&
+        app.state.childStage === "teen" &&
         app.state.monthlyBudget === 80000 &&
         app.state.mode === "dinner_breakfast"
       ) ? (
         <Link href="/meals" className="mt-4 block rounded-3xl bg-card p-4">
           <p className="text-lg font-black">登米の家族設定</p>
           <p className="mt-1 text-base leading-7">
-            大人2人・子ども2人、月8万円（1週間 約18,700円）、朝と夜。献立の画面で入れられます。
+            大人2人・中学生2人、月8万円（1週間 約18,400円）、朝と夜。献立の画面で入れられます。
           </p>
         </Link>
       ) : null}
@@ -258,10 +264,10 @@ export function HomeScreen() {
       </button>
 
       <Link href="/about" className="mt-3 block rounded-3xl bg-card px-4 py-4">
-        <p className="text-[11px] font-bold tracking-[0.14em] text-primary">公開用の試作</p>
+        <p className="text-sm font-bold text-primary">このアプリについて</p>
         <p className="mt-1 font-black">作品ノート</p>
         <p className="mt-1 text-sm leading-6 text-muted-foreground">
-          相場は見本です。記録は端末の中だけで、決済も在庫もつながっていません。
+          値段は目安です。記録はこのスマホの中だけで、お店のレジとはつながっていません。
         </p>
       </Link>
 
@@ -298,6 +304,8 @@ export function HomeScreen() {
           </div>
         </SheetContent>
       </Sheet>
+
+      <StockUseDialog open={askStock} onOpenChange={setAskStock} onUse={() => app.consumeUsedStock()} />
 
       <Dialog open={confirmReset} onOpenChange={setConfirmReset}>
         <DialogContent>
