@@ -351,10 +351,13 @@ export function MealsScreen() {
             />
           </div>
           {other ? (
-            <p className="mt-2 text-xs leading-5 text-muted-foreground">
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
               いま見ているのは{app.state.focus === "balanced" ? "バランス" : "いちばん安い"}献立です。買い物リストもこちらに合わせます。
             </p>
           ) : null}
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            上の金額は、使う量で見た献立です。買い物は、袋の大きさや家にある分を数えた金額です。
+          </p>
           <ul className="mt-3 space-y-2">
             {plan.notes.map((note) => (
               <li key={note} className="rounded-2xl bg-card px-3 py-2 text-sm leading-6">

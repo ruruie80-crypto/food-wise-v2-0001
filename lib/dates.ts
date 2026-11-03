@@ -107,8 +107,9 @@ export function weekRangeLabel(iso: string): string {
 export const EXPENSE_WEEK_ANCHOR: "plan" | "monday" = "plan";
 
 export function expenseRangeLabel(today: string, planStart?: string): string {
-  if (EXPENSE_WEEK_ANCHOR === "plan" && planStart) {
-    return `${formatShort(planStart)}–${formatShort(addDays(planStart, 6))}`;
+  if (EXPENSE_WEEK_ANCHOR === "plan") {
+    const start = planStart || today;
+    return `${formatShort(start)}–${formatShort(addDays(start, 6))}`;
   }
   return weekRangeLabel(today);
 }

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { categoryLabel, getIngredient, ingredients } from "@/lib/catalog";
 import { useApp } from "@/components/app-state";
 import { BootScreen } from "@/components/bits";
-import { formatUnits } from "@/lib/format";
+import { formatUnits, trimNum } from "@/lib/format";
 import { stockChoices } from "@/lib/stock";
 import type { Category, StockPlace } from "@/lib/types";
 
@@ -74,7 +74,10 @@ export function StockScreen() {
                 <li key={item.ingredientId} className="flex items-center justify-between gap-3">
                   <span>
                     <span className="block text-lg font-bold">{ingredient.name}</span>
-                    <span className="text-base text-muted-foreground">{formatUnits(item.units, ingredient)}</span>
+                    <span className="text-base text-muted-foreground">
+                      {formatUnits(item.units, ingredient)}
+                      {ingredient.id === "rice" ? `（${trimNum((item.units * 75) / 1000)}kg）` : ""}
+                    </span>
                   </span>
                   <span className="flex items-center gap-2">
                     <button

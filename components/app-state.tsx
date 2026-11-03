@@ -16,7 +16,7 @@ import {
   WEEKLY_DISHES,
   weeklyFromMonthly,
 } from "@/lib/household";
-import { consumeStock } from "@/lib/stock";
+import { consumeStock, MAX_STOCK_UNITS } from "@/lib/stock";
 import { buildShoppingList, cookedDaysOn, stockAside } from "@/lib/shopping";
 import {
   buildPlan,
@@ -277,7 +277,7 @@ function sanitizePackAdded(value: unknown): Persisted["packAdded"] {
     const item = row as { units?: unknown; place?: unknown };
     if (typeof item.units !== "number" || (item.place !== "fridge" && item.place !== "freezer")) continue;
     if (item.units <= 0) continue;
-    out[id] = { units: item.units, place: item.place };
+    out[id] = { units: Math.min(MAX_STOCK_UNITS, item.units), place: item.place };
   }
   return out;
 }
@@ -291,7 +291,7 @@ function isStockItem(value: unknown): value is StockItem {
     typeof row.units === "number" &&
     Number.isFinite(row.units) &&
     row.units > 0 &&
-    row.units <= 80
+    row.units <= MAX_STOCK_UNITS
   );
 }
 
@@ -576,7 +576,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       update((current) => {
         const nextUnits = Math.round(units * 10) / 10;
         const stock = current.stock.filter((item) => !(item.ingredientId === ingredientId && item.place === place));
-        if (nextUnits > 0) stock.push({ ingredientId, place, units: Math.min(200, nextUnits) });
+        if (nextUnits > 0) stock.push({ ingredientId, place, units: Math.min(MAX_STOCK_UNITS, nextUnits) });
         return { ...current, stock };
       }),
     togglePref: (key) =>
@@ -654,9 +654,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
             const existing = stock.find((item) => item.ingredientId === ingredientId && item.place === place);
             stock = existing
               ? stock.map((item) =>
-                  item === existing ? { ...item, units: Math.min(200, Math.round((item.units + rounded) * 10) / 10) } : item,
+                  item === existing ? { ...item, units: Math.min(MAX_STOCK_UNITS, Math.round((item.units + rounded) * 10) / 10) } : item,
                 )
-              : [...stock, { ingredientId, place, units: Math.min(200, rounded) }];
+              : [...stock, { ingredientId, place, units: Math.min(MAX_STOCK_UNITS, rounded) }];
             packAdded[ingredientId] = { units: rounded, place };
           }
         }

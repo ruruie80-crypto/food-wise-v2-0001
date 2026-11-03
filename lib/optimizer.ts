@@ -188,6 +188,46 @@ function repeatCap(meal: MealType, poolSize: number, goal: "balanced" | "cheap")
   return 2;
 }
 
+function capDinnerRepeats(
+  picks: string[],
+  slots: Slot[],
+  prefs: Prefs,
+  excludes: string[],
+  people: number,
+  priceOf: PriceLookup["priceOf"],
+  portion: number,
+  budget: number,
+): string[] {
+  const next = [...picks];
+  const seen = new Set<string>();
+  const costOf = (id: string) => {
+    const recipe = getRecipe(id);
+    return recipe ? recipeCost(recipe, people, priceOf, portion) : 0;
+  };
+  let cost = next.reduce((sum, id) => sum + costOf(id), 0);
+  const pool = allowedRecipes("dinner", prefs, excludes).sort(
+    (a, b) => recipeCost(a, people, priceOf, portion) - recipeCost(b, people, priceOf, portion),
+  );
+  for (let index = 0; index < next.length; index += 1) {
+    if (slots[index].meal !== "dinner") continue;
+    if (!seen.has(next[index])) {
+      seen.add(next[index]);
+      continue;
+    }
+    const currentCost = costOf(next[index]);
+    const replacement = pool.find((recipe) => {
+      if (seen.has(recipe.id)) return false;
+      const nextCost = cost - currentCost + recipeCost(recipe, people, priceOf, portion);
+      return nextCost <= budget + 0.5;
+    });
+    if (!replacement) continue;
+    cost = cost - currentCost + recipeCost(replacement, people, priceOf, portion);
+    next[index] = replacement.id;
+    seen.add(replacement.id);
+  }
+  return next;
+}
+
 type Beam = {
   picks: string[];
   cost: number;
@@ -577,7 +617,17 @@ export function buildPlan(input: PlanInput, lookup: PriceLookup): PlanResult {
     input.prefs,
     input.excludes,
   );
-  const balanced = materialize(balancedPlaced.picks, slots, input, lookup, "balanced", targets, portion);
+  const balancedPicks = capDinnerRepeats(
+    balancedPlaced.picks,
+    slots,
+    input.prefs,
+    input.excludes,
+    input.people,
+    lookup.priceOf,
+    portion,
+    input.budget,
+  );
+  const balanced = materialize(balancedPicks, slots, input, lookup, "balanced", targets, portion);
   const cheap = materialize(cheapPlaced.picks, slots, input, lookup, "cheap", targets, portion);
   const notes = buildNotes(balanced, cheap, lookup);
   if (balancedPlaced.names.length > 0) {

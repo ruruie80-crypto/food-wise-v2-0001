@@ -13,7 +13,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { formatUnits, yen } from "@/lib/format";
 import { formatWithWeekday, weekIsOver } from "@/lib/dates";
 import { buildShoppingList, cookedDaysOn, stockAside } from "@/lib/shopping";
-import { riceUnitsFromKg } from "@/lib/stock";
+import { readRiceKg, riceUnitsFromKg } from "@/lib/stock";
 import { cn } from "@/lib/utils";
 import type { Store } from "@/lib/types";
 
@@ -101,6 +101,9 @@ export function ShopScreen() {
         小計 <Yen value={foodSubtotal} className="text-base" />
         、調味料 <Yen value={list.seasoningYen} className="text-base" />
         、合計 <Yen value={list.multiTotal} className="text-base" />。
+      </p>
+      <p className="mt-1 text-sm leading-6 text-muted-foreground">
+        買い物は、袋の大きさや家にある分を数えた金額です。献立の金額とは違います。
       </p>
       {finished ? (
         <p className="mt-3 rounded-2xl bg-card px-3 py-3 text-base leading-7">
@@ -236,28 +239,11 @@ export function ShopScreen() {
                       </label>
                       {line.ingredientId === "rice" &&
                       (app.state.stock.find((item) => item.ingredientId === "rice")?.units ?? 0) <= 0 ? (
-                        <div className="mt-1 pl-9 text-base leading-7">
-                          <p>米は家にありますか。何kgあるか入れてください。</p>
-                          <div className="mt-1 flex flex-wrap items-center gap-2">
-                            <input
-                              value={riceKg}
-                              onChange={(event) => setRiceKg(event.target.value)}
-                              inputMode="decimal"
-                              aria-label="家にある米（kg）"
-                              placeholder="例 5"
-                              className="h-11 w-24 rounded-xl border border-border bg-card px-3 text-base"
-                            />
-                            <span>kg</span>
-                            <button
-                              type="button"
-                              className="inline-flex min-h-11 items-center text-base font-bold text-primary disabled:opacity-40"
-                              disabled={riceUnitsFromKg(Number(riceKg)) <= 0}
-                              onClick={() => app.setStock("rice", "fridge", riceUnitsFromKg(Number(riceKg)))}
-                            >
-                              家にあります
-                            </button>
-                          </div>
-                        </div>
+                        <RiceAtHome
+                          value={riceKg}
+                          onChange={setRiceKg}
+                          onSave={(kg) => app.setStock("rice", "fridge", riceUnitsFromKg(kg))}
+                        />
                       ) : null}
                     </li>
                   );
@@ -348,6 +334,45 @@ export function ShopScreen() {
           ) : null}
         </SheetContent>
       </Sheet>
+    </div>
+  );
+}
+
+function RiceAtHome({
+  value,
+  onChange,
+  onSave,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  onSave: (kg: number) => void;
+}) {
+  const parsed = readRiceKg(value);
+  return (
+    <div className="mt-1 pl-9 text-base leading-7">
+      <p>米は家にありますか。何kgあるか入れてください。</p>
+      <div className="mt-1 flex flex-wrap items-center gap-2">
+        <input
+          value={parsed.text}
+          onChange={(event) => onChange(readRiceKg(event.target.value).text)}
+          inputMode="decimal"
+          aria-label="家にある米（kg）"
+          placeholder="例 5"
+          className="h-11 w-24 rounded-xl border border-border bg-card px-3 text-base"
+        />
+        <span>kg</span>
+        <button
+          type="button"
+          className="inline-flex min-h-11 items-center text-base font-bold text-primary disabled:opacity-40"
+          disabled={parsed.kg == null}
+          onClick={() => {
+            if (parsed.kg != null) onSave(parsed.kg);
+          }}
+        >
+          家にあります
+        </button>
+      </div>
+      {parsed.hint ? <p className="mt-1 text-sm leading-6 text-muted-foreground">{parsed.hint}</p> : null}
     </div>
   );
 }

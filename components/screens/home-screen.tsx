@@ -96,6 +96,13 @@ export function HomeScreen() {
         <p className="mt-3 text-base leading-7 text-muted-foreground">
           {describeHousehold(app.state.adults, app.state.children, app.state.childStage)}。{modeHint(app.state.mode)}
         </p>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          {plan
+            ? weekIsOver(plan.startedOn ?? app.today, app.today)
+              ? "この表示は、前の献立の7日です。新しい献立を作ると、今日から7日になります。"
+              : "献立は使う量の金額です。買い物は、袋の大きさや家にある分を数えた金額です。"
+            : "献立を作ると、今日から7日で数えます。"}
+        </p>
         {app.stale ? (
           <p className="mt-2 rounded-xl bg-notice text-notice-foreground px-3 py-2 text-xs leading-5">
             予算か値札が変わりました。献立を組み直すと、底値の計算が追いつきます。
