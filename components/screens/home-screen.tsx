@@ -76,8 +76,6 @@ export function HomeScreen() {
         </Link>
       </header>
 
-      <SkinPicker />
-
       <section className="receipt mt-5 rounded-b-3xl px-4 pt-5 pb-4 shadow-[0_10px_30px_rgba(28,25,21,0.05)]">
         <p className="text-sm text-muted-foreground">{expenseRangeLabel(app.today, plan?.startedOn)} の食費</p>
         <div className="mt-2 flex items-end justify-between gap-3">
@@ -146,29 +144,7 @@ export function HomeScreen() {
         </Link>
       </section>
 
-      {app.state.areaId === "tome" &&
-      !(
-        app.state.adults === 2 &&
-        app.state.children === 2 &&
-        app.state.childStage === "teen" &&
-        app.state.monthlyBudget === 80000 &&
-        app.state.mode === "dinner_breakfast"
-      ) ? (
-        <Link href="/meals" className="mt-4 block rounded-3xl bg-card p-4">
-          <p className="text-lg font-black">登米の家族設定</p>
-          <p className="mt-1 text-base leading-7">
-            仮の目安は大人2人と子ども2人、月8万円（1週間 約18,400円）、朝と夜です。子どもの年齢はまだ聞いていません。献立の画面で変えられます。
-          </p>
-        </Link>
-      ) : null}
-
-      <BudgetAdvice variant="compact" />
-      <StoreCheapest />
-      <SeasonCard today={app.today} areaId={app.state.areaId} />
-      <MarketCard areaId={app.state.areaId} />
-      <AreaStores areaId={app.state.areaId} />
-
-      <section className="mt-6">
+      <section className="mt-4">
         <SectionTitle
           eyebrow={inPlanWeek ? "今日" : "献立"}
           title={
@@ -203,6 +179,30 @@ export function HomeScreen() {
           </p>
         )}
       </section>
+
+      <SkinPicker />
+
+      {app.state.areaId === "tome" &&
+      !(
+        app.state.adults === 2 &&
+        app.state.children === 2 &&
+        app.state.childStage === "teen" &&
+        app.state.monthlyBudget === 80000 &&
+        app.state.mode === "dinner_breakfast"
+      ) ? (
+        <Link href="/meals" className="mt-4 block rounded-3xl bg-card p-4">
+          <p className="text-lg font-black">登米の家族設定</p>
+          <p className="mt-1 text-base leading-7">
+            仮の目安は大人2人と子ども2人、月8万円（1週間 約18,400円）、朝と夜です。子どもの年齢はまだ聞いていません。献立の画面で変えられます。
+          </p>
+        </Link>
+      ) : null}
+
+      <BudgetAdvice variant="compact" />
+      <StoreCheapest />
+      <SeasonCard today={app.today} areaId={app.state.areaId} />
+      <MarketCard areaId={app.state.areaId} />
+      <AreaStores areaId={app.state.areaId} />
 
       <section className="mt-6">
         <div className="flex items-end justify-between">

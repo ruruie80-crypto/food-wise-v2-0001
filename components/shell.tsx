@@ -122,7 +122,9 @@ function BottomNav() {
             >
               <Icon className={scan ? "size-5" : "size-4"} />
             </span>
-            {item.label}
+            <span className="max-w-full whitespace-nowrap text-center text-[12px] leading-none min-[360px]:text-sm">
+              {item.label}
+            </span>
           </Link>
         );
       })}

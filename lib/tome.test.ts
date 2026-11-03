@@ -957,7 +957,10 @@ test("fish exclusion uses one dish name everywhere", () => {
 test("miso at home asks for a fish-free check only when fish is excluded", () => {
   const base = "冷蔵庫・冷凍庫の味噌を先に使う献立です。足りない分だけ買い物に出します。";
   assert.equal(withHomeMisoCheck(base, false), base);
-  assert.equal(withHomeMisoCheck(base, true), `${base}${HOME_MISO_CHECK}`);
+  assert.equal(
+    withHomeMisoCheck(base, true),
+    `冷蔵庫・冷凍庫のだし入りでない味噌を先に使う献立です。足りない分だけ買い物に出します。${HOME_MISO_CHECK}`,
+  );
   const book = createPriceBook("tome", TODAY, []);
   const shared = {
     budget: 18_400,
@@ -975,6 +978,14 @@ test("miso at home asks for a fish-free check only when fish is excluded", () =>
   if (!fish.ok || !plain.ok) return;
   assert.match(fish.balanced.notes.join("\n"), /家の味噌がだし入りでないか確かめてね/);
   assert.equal(plain.balanced.notes.some((note) => note.includes("確かめて")), false);
+});
+
+test("today's meal sits under the budget and above the week list", () => {
+  const home = readFileSync(new URL("../components/screens/home-screen.tsx", import.meta.url), "utf8");
+  const budget = home.indexOf("の食費");
+  const today = home.indexOf('inPlanWeek ? "今日"');
+  const week = home.indexOf('BudgetAdvice variant="compact"');
+  assert.ok(budget > 0 && today > budget && week > today);
 });
 
 test("YouTube button is a search for the dish name", () => {

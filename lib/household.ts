@@ -65,12 +65,16 @@ export const FISH_IDS = ["salmon", "aji", "sardine", "mackerel"];
 
 export const HOME_MISO_CHECK = "家の味噌がだし入りでないか確かめてね。";
 
-/** 家の味噌を先に使う文へ、魚を除くときだけ確認を足す。 */
+/** 家の味噌を先に使う文へ、魚を除くときだけ確認を足す。前半の味噌もだし入りでないと書く。 */
 export function withHomeMisoCheck(note: string, fishAside: boolean): string {
-  if (!fishAside || !note.includes("冷蔵庫・冷凍庫の") || !note.includes("味噌") || note.includes("確かめて")) {
-    return note;
-  }
-  return `${note}${HOME_MISO_CHECK}`;
+  if (!fishAside || !note.includes("冷蔵庫・冷凍庫の") || !note.includes("味噌")) return note;
+  const checkAt = note.indexOf(HOME_MISO_CHECK);
+  const body = checkAt >= 0 ? note.slice(0, checkAt) : note;
+  const renamed = body
+    .replaceAll("だし入りでない味噌", "\u0000")
+    .replaceAll("味噌", "だし入りでない味噌")
+    .replaceAll("\u0000", "だし入りでない味噌");
+  return `${renamed}${HOME_MISO_CHECK}`;
 }
 
 export function avoidsFish(excludes: string[]): boolean {
