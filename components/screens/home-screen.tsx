@@ -20,6 +20,8 @@ import {
 } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { AreaStores } from "@/components/area-stores";
+import { YouTubeCookButton } from "@/components/youtube-button";
+import { describeHousehold } from "@/lib/household";
 import { BudgetAdvice } from "@/components/budget-advice";
 import { SkinPicker } from "@/components/skin-picker";
 import { StoreCheapest } from "@/components/store-cheapest";
@@ -88,7 +90,9 @@ export function HomeScreen() {
             }}
           />
         </div>
-        <p className="mt-3 text-xs leading-5 text-muted-foreground">{modeHint(app.state.mode)}</p>
+        <p className="mt-3 text-base leading-7 text-muted-foreground">
+          {describeHousehold(app.state.adults, app.state.children)}。{modeHint(app.state.mode)}
+        </p>
         {app.stale ? (
           <p className="mt-2 rounded-xl bg-notice text-notice-foreground px-3 py-2 text-xs leading-5">
             予算か値札が変わりました。献立を組み直すと、底値の計算が追いつきます。
@@ -116,7 +120,28 @@ export function HomeScreen() {
         >
           Zipをダウンロード
         </Button>
+        <Link
+          href="/stock"
+          className="mt-2 flex min-h-12 items-center justify-center rounded-2xl bg-card text-base font-bold"
+        >
+          冷蔵庫・冷凍庫
+        </Link>
       </section>
+
+      {app.state.areaId === "tome" &&
+      !(
+        app.state.adults === 2 &&
+        app.state.children === 2 &&
+        app.state.monthlyBudget === 80000 &&
+        app.state.mode === "dinner_breakfast"
+      ) ? (
+        <Link href="/meals" className="mt-4 block rounded-3xl bg-card p-4">
+          <p className="text-lg font-black">登米の家族設定</p>
+          <p className="mt-1 text-base leading-7">
+            大人2人・子ども2人、月8万円（1週間 約18,700円）、朝と夜。献立の画面で入れられます。
+          </p>
+        </Link>
+      ) : null}
 
       <BudgetAdvice variant="compact" />
       <StoreCheapest />
@@ -130,18 +155,21 @@ export function HomeScreen() {
           title={spotlight && recipe ? `${mealLabel(spotlight.meal)}は${recipe.name}` : "献立はまだありません"}
         />
         {spotlight && recipe ? (
-          <Link href="/meals" className="mt-3 block rounded-3xl bg-card p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs text-muted-foreground">
-                  {spotlight.dayIndex === 0 ? "今日" : "明日"}の{mealLabel(spotlight.meal)} · {recipe.minutes}分
-                </p>
-                <p className="mt-1 text-xl font-black">{recipe.name}</p>
-                <p className="mt-1 text-sm text-muted-foreground">{recipe.summary}</p>
+          <div className="mt-3 rounded-3xl bg-card p-4">
+            <Link href="/meals" className="block">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    {spotlight.dayIndex === 0 ? "今日" : "明日"}の{mealLabel(spotlight.meal)} · {recipe.minutes}分
+                  </p>
+                  <p className="mt-1 text-xl font-black">{recipe.name}</p>
+                  <p className="mt-1 text-base leading-7 text-muted-foreground">{recipe.summary}</p>
+                </div>
+                <PriceSticker value={spotlight.cost} />
               </div>
-              <PriceSticker value={spotlight.cost} />
-            </div>
-          </Link>
+            </Link>
+            <YouTubeCookButton name={recipe.name} />
+          </div>
         ) : (
           <p className="mt-3 rounded-3xl bg-card p-4 text-sm leading-6 text-muted-foreground">
             「今週の食費 5,000円」のように予算を入れると、朝と夜の献立と買い物リストが出ます。

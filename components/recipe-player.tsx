@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Pause, Play, RotateCcw } from "lucide-react";
 import { getRecipe } from "@/lib/catalog";
 import { cookingMethod } from "@/lib/advice";
+import { YouTubeCookButton } from "@/components/youtube-button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 const STEP_MS = 7000;
@@ -102,6 +103,7 @@ function RecipePlayer({
             {done ? <RotateCcw className="size-5" /> : playing ? <Pause className="size-5" /> : <Play className="size-5" />}
             {done ? "もう一度" : playing ? "一時停止" : "再生"}
           </button>
+          <YouTubeCookButton name={recipe.name} />
         </div>
       </SheetContent>
     </Sheet>

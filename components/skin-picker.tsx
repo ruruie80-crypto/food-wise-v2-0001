@@ -2,20 +2,26 @@
 
 import { useId } from "react";
 import { useApp } from "@/components/app-state";
-import { SKINS, type SkinId } from "@/lib/skins";
+import { isBrightSkin, SKINS, type SkinId } from "@/lib/skins";
 import { cn } from "@/lib/utils";
 
 export function SkinPicker({ className }: { className?: string }) {
   const { state, setSkin } = useApp();
   const headingId = useId();
+  const tome = state.areaId === "tome";
+  const skins = tome ? SKINS.filter((skin) => isBrightSkin(skin.id)) : SKINS;
   return (
     <section className={cn("mt-5", className)} aria-labelledby={headingId}>
       <h2 id={headingId} className="text-[11px] font-bold tracking-[0.16em] text-primary">
         着せ替え
       </h2>
-      <p className="mt-1 text-xs leading-5 text-muted-foreground">見た目だけが変わります。献立と値札はそのままです。</p>
+      <p className="mt-1 text-xs leading-5 text-muted-foreground">
+        {tome
+          ? "登米では明るい画面だけです。献立と値札はそのままです。"
+          : "見た目だけが変わります。献立と値札はそのままです。"}
+      </p>
       <div className="mt-3 grid grid-cols-2 gap-2">
-        {SKINS.map((skin) => (
+        {skins.map((skin) => (
           <SkinCard key={skin.id} id={skin.id} selected={state.skin === skin.id} onSelect={setSkin} />
         ))}
       </div>

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { getArea, getIngredient, getStore, storesIn } from "@/lib/catalog";
 import { AreaStores } from "@/components/area-stores";
+import { FlyerLink } from "@/components/flyer-link";
 import { useApp } from "@/components/app-state";
 import { BootScreen, Yen } from "@/components/bits";
 import { Button } from "@/components/ui/button";
@@ -30,7 +31,7 @@ export function ShopScreen() {
     );
   }
 
-  const list = buildShoppingList(plan, app.book);
+  const list = buildShoppingList(plan, app.book, app.state.stock);
   const area = getArea(app.state.areaId);
   const openStore = storeId ? getStore(storeId) : undefined;
   const localStores = storesIn(app.state.areaId);
@@ -52,6 +53,15 @@ export function ShopScreen() {
         }),
       ];
     });
+    if (list.covered.length > 0) {
+      lines.push("【在庫でまかなう】");
+      for (const row of list.covered) {
+        const ingredient = getIngredient(row.ingredientId);
+        const name = ingredient?.name ?? row.ingredientId;
+        const qty = ingredient ? formatUnits(row.units, ingredient) : "";
+        lines.push(`- ${name} ${qty}`);
+      }
+    }
     lines.push(`調味料の見込み ${yen(list.seasoningYen)}`);
     lines.push(`合計 ${yen(list.multiTotal)}`);
     try {
@@ -71,6 +81,27 @@ export function ShopScreen() {
       </p>
       {area.priceBasis === "survey" ? (
         <p className="mt-2 text-sm leading-6 text-muted-foreground">{area.priceNote}</p>
+      ) : null}
+
+      {list.covered.length > 0 ? (
+        <section className="mt-4 rounded-3xl bg-card p-4">
+          <p className="text-lg font-black">冷蔵庫・冷凍庫から出す</p>
+          <p className="mt-1 text-base leading-7">この分は買い物リストに入れていません。</p>
+          <ul className="mt-2 space-y-1">
+            {list.covered.map((row) => {
+              const ingredient = getIngredient(row.ingredientId);
+              return (
+                <li key={row.ingredientId} className="text-base font-bold">
+                  {ingredient?.name} {ingredient ? formatUnits(row.units, ingredient) : ""}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ) : null}
+
+      {list.groups.length === 0 ? (
+        <p className="mt-4 rounded-3xl bg-card p-4 text-base leading-7">今週の食材は、冷蔵庫と冷凍庫で足ります。</p>
       ) : null}
 
       {list.single && list.savings >= 120 ? (
@@ -200,8 +231,9 @@ export function ShopScreen() {
               <p>{openStore.blurb}</p>
               <p className="rounded-2xl bg-notice text-notice-foreground px-3 py-2">{openStore.saleNote}</p>
               {openStore.closedWeekday != null ? <p>定休日は週の途中に1日あります。通知で前日に出します。</p> : null}
-              {openStore.sourceUrl ? (
-                <a href={openStore.sourceUrl} target="_blank" rel="noreferrer" className="inline-block font-bold text-primary">
+              <FlyerLink store={openStore} />
+              {openStore.sourceUrl && openStore.sourceUrl !== openStore.flyerUrl ? (
+                <a href={openStore.sourceUrl} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer" className="inline-block text-base font-bold text-primary">
                   店舗の案内を開く
                 </a>
               ) : null}

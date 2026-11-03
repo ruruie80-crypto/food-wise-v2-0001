@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
+import Link from "next/link";
 import { BudgetAdvice } from "@/components/budget-advice";
 import { RecipeVideoButton } from "@/components/recipe-player";
+import { YouTubeCookButton } from "@/components/youtube-button";
 import { getRecipe, recipes } from "@/lib/catalog";
 import { useApp } from "@/components/app-state";
 import { BootScreen, SectionTitle, Yen } from "@/components/bits";
@@ -21,7 +23,8 @@ import {
   yen,
 } from "@/lib/format";
 import { cookingMethod } from "@/lib/advice";
-import { recipeCost, recipeNutrition } from "@/lib/optimizer";
+import { describeHousehold, householdServings, TOME_PRESET, weeklyFromMonthly } from "@/lib/household";
+import { isRecipeAllowed, recipeCost, recipeNutrition } from "@/lib/optimizer";
 import type { MealMode, MealType, Plan, PlanSlot, Prefs } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -48,7 +51,16 @@ export function MealsScreen() {
 
   const plan = app.activePlan;
   const other = app.state.focus === "cheap" ? app.state.balanced : app.state.cheap;
-  const hint = budgetHint(app.state.people, app.state.mode);
+  const servings = householdServings(app.state.adults, app.state.children);
+  const hint = budgetHint(servings, app.state.mode);
+  const tome = app.state.areaId === "tome";
+  const presetOn =
+    app.state.adults === TOME_PRESET.adults &&
+    app.state.children === TOME_PRESET.children &&
+    app.state.budget === TOME_PRESET.budget &&
+    app.state.mode === TOME_PRESET.mode &&
+    app.state.monthlyBudget === TOME_PRESET.monthlyBudget;
+  const stocked = new Set(app.state.stock.map((item) => item.ingredientId));
 
   const run = () => {
     const result = app.generate();
@@ -64,8 +76,67 @@ export function MealsScreen() {
         予算を入れると、買う食材、調理法、7日の献立が出ます。
       </p>
 
+      {tome ? (
+        <section className="mt-4 rounded-3xl bg-card p-4">
+          <h2 className="text-xl font-black">登米の家族設定</h2>
+          <p className="mt-1 text-base leading-7">
+            大人2人・子ども2人、月8万円は1週間で約18,700円です。はじめは朝と夜がおすすめです。3食だと予算がきびしめです。
+          </p>
+          {presetOn ? (
+            <p className="mt-3 text-base font-bold">この目安を入れています。</p>
+          ) : (
+            <Button type="button" className="mt-3 h-12 w-full text-base" onClick={() => app.applyTomePreset()}>
+              登米の目安を入れる
+            </Button>
+          )}
+        </section>
+      ) : null}
+
       <section className="mt-4 rounded-3xl bg-card p-4">
-        <label htmlFor="budget" className="text-sm font-bold">
+        <label htmlFor="monthly" className="text-base font-bold">
+          1か月の食費
+        </label>
+        <Input
+          id="monthly"
+          inputMode="numeric"
+          value={app.state.monthlyBudget == null ? "" : String(app.state.monthlyBudget)}
+          placeholder="80000"
+          onChange={(event) => {
+            const digits = event.target.value.replace(/[^\d]/g, "");
+            if (!digits) {
+              app.setMonthlyBudget(null);
+              return;
+            }
+            app.setMonthlyBudget(Number(digits));
+          }}
+          className="mt-1 h-14 border-0 bg-transparent px-0 font-price text-4xl shadow-none focus-visible:ring-0"
+        />
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => app.setMonthlyBudget(80000)}
+            className={cn(
+              "min-h-12 rounded-2xl text-base font-bold",
+              app.state.monthlyBudget === 80000 ? "bg-accent" : "bg-muted",
+            )}
+          >
+            月8万円
+          </button>
+          <button
+            type="button"
+            onClick={() => app.setMonthlyBudget(null)}
+            className="min-h-12 rounded-2xl bg-muted text-base font-bold"
+          >
+            月の金額を消す
+          </button>
+        </div>
+        <p className="mt-2 text-base leading-7">
+          {app.state.monthlyBudget
+            ? `1週間では約${yen(weeklyFromMonthly(app.state.monthlyBudget))}です。30日で割って、7日分にしています。`
+            : "月の金額を入れると、1週間の食費に直します。"}
+        </p>
+
+        <label htmlFor="budget" className="mt-4 block text-base font-bold">
           今週の食費
         </label>
         <div className="mt-1 flex items-end gap-2">
@@ -82,9 +153,9 @@ export function MealsScreen() {
         </div>
         <Slider
           min={2000}
-          max={15000}
+          max={20000}
           step={100}
-          value={[Math.min(15000, Math.max(2000, app.state.budget))]}
+            value={[Math.min(20000, Math.max(2000, app.state.budget))]}
           onValueChange={(value) => {
             const next = Array.isArray(value) ? value[0] : value;
             app.setBudget(next);
@@ -107,22 +178,23 @@ export function MealsScreen() {
             </button>
           ))}
         </div>
-        <p className="mt-2 text-xs leading-5 text-muted-foreground">
-          {app.state.people}人・{MODE_LABEL[app.state.mode]}の目安は {yen(hint)}。{modeHint(app.state.mode)}
+        <p className="mt-2 text-base leading-7">
+          {describeHousehold(app.state.adults, app.state.children)}・{MODE_LABEL[app.state.mode]}の目安は {yen(hint)}。
+          {modeHint(app.state.mode)}
+          {tome ? " 朝と夜だと、月8万円の中に収まりやすいです。" : ""}
         </p>
 
-        <div className="mt-4 flex items-center justify-between">
-          <span className="text-sm font-bold">人数</span>
-          <span className="flex items-center gap-2">
-            <Button type="button" variant="outline" className="size-9" onClick={() => app.setPeople(app.state.people - 1)}>
-              −
-            </Button>
-            <span className="w-10 text-center font-bold">{app.state.people}人</span>
-            <Button type="button" variant="outline" className="size-9" onClick={() => app.setPeople(app.state.people + 1)}>
-              ＋
-            </Button>
-          </span>
-        </div>
+        <HouseholdStepper
+          label="大人"
+          value={app.state.adults}
+          onChange={app.setAdults}
+        />
+        <HouseholdStepper
+          label="子ども"
+          value={app.state.children}
+          hint="子どもは大人の0.6人分です。"
+          onChange={app.setChildren}
+        />
         <div className="mt-3 grid grid-cols-3 gap-2">
           {MODES.map((mode) => (
             <button
@@ -153,6 +225,37 @@ export function MealsScreen() {
             </button>
           ))}
         </div>
+        <div className="mt-3 grid grid-cols-1 gap-2">
+          <button
+            type="button"
+            onClick={() => app.togglePref("lessFat")}
+            className={cn(
+              "min-h-14 rounded-2xl px-4 py-3 text-left",
+              app.state.prefs.lessFat ? "bg-primary text-primary-foreground" : "bg-muted",
+            )}
+          >
+            <span className="block text-base font-bold">{app.state.prefs.lessFat ? "脂身ひかえめ" : "脂身ひかえめにする"}</span>
+            <span className={cn("text-sm leading-6", app.state.prefs.lessFat ? "text-primary-foreground/80" : "text-muted-foreground")}>
+              豚こま、豚ひき肉、鶏ももを外します。鶏むねと鶏ひき肉は残します。
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => app.togglePref("noMilk")}
+            className={cn(
+              "min-h-14 rounded-2xl px-4 py-3 text-left",
+              app.state.prefs.noMilk ? "bg-primary text-primary-foreground" : "bg-muted",
+            )}
+          >
+            <span className="block text-base font-bold">{app.state.prefs.noMilk ? "牛乳なし" : "牛乳なしにする"}</span>
+            <span className={cn("text-sm leading-6", app.state.prefs.noMilk ? "text-primary-foreground/80" : "text-muted-foreground")}>
+              牛乳を使う皿を外します。今のレシピと、鶏と豆腐のハンバーグに牛乳はありません。
+            </span>
+          </button>
+        </div>
+        <Link href="/stock" className="mt-3 flex min-h-12 items-center justify-center rounded-2xl bg-muted text-base font-bold">
+          冷蔵庫・冷凍庫を入れる
+        </Link>
         <div className="mt-2 flex flex-wrap gap-2">
           {EXCLUSIONS.map((group) => {
             const on = group.ids.every((id) => app.state.excludes.includes(id));
@@ -255,7 +358,14 @@ export function MealsScreen() {
                             </div>
                             <Yen value={slot.cost} className="text-2xl" />
                           </div>
-                          <p className="mt-1 text-sm leading-6 text-foreground">{recipe.summary}</p>
+                          <p className="mt-1 text-base leading-7 text-foreground">{recipe.summary}</p>
+                          {recipe.usesMilk === false ? (
+                            <p className="mt-1 text-sm font-bold text-primary">牛乳なし</p>
+                          ) : null}
+                          {recipe.items.some((item) => stocked.has(item.ingredientId)) ? (
+                            <p className="text-sm font-bold">在庫を使います</p>
+                          ) : null}
+                          <YouTubeCookButton name={recipe.name} />
                           <RecipeVideoButton recipeId={recipe.id} />
                           <button
                             type="button"
@@ -282,27 +392,29 @@ export function MealsScreen() {
           </SheetHeader>
           <ul className="space-y-2 overflow-y-auto px-4 pb-6">
             {swap && plan
-              ? optionsFor(swap.meal, app.state.excludes, plan, app.book.priceOf).map((option) => (
-                  <li key={option.recipe.id}>
+              ? optionsFor(swap.meal, app.state.prefs, app.state.excludes, plan, app.book.priceOf, stocked).map((option) => (
+                  <li key={option.recipe.id} className="rounded-2xl bg-muted px-3 py-3">
                     <button
                       type="button"
                       onClick={() => {
                         app.replaceSlot(swap.dayIndex, swap.meal, option.recipe.id);
                         setSwap(null);
                       }}
-                      className="flex w-full items-center justify-between rounded-2xl bg-muted px-3 py-3 text-left"
+                      className="flex w-full items-center justify-between text-left"
                     >
                       <span>
-                        <span className="block font-bold">
+                        <span className="block text-base font-bold">
                           {option.recipe.name}
                           {option.recipe.id === swap.recipeId ? " · 今" : ""}
+                          {option.usesStock ? " · 在庫" : ""}
                         </span>
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-sm text-muted-foreground">
                           {option.recipe.minutes}分 · たんぱく質 {Math.round(option.protein)}g
                         </span>
                       </span>
                       <Yen value={option.cost} className="text-xl" />
                     </button>
+                    <YouTubeCookButton name={option.recipe.name} />
                   </li>
                 ))
               : null}
@@ -315,21 +427,56 @@ export function MealsScreen() {
 
 function optionsFor(
   meal: MealType,
+  prefs: Prefs,
   excludes: string[],
   plan: Plan,
   priceOf: (id: string) => number,
+  stocked: Set<string>,
 ) {
   return recipes
-    .filter(
-      (recipe) =>
-        recipe.meals.includes(meal) && recipe.items.every((item) => !excludes.includes(item.ingredientId)),
-    )
+    .filter((recipe) => isRecipeAllowed(recipe, meal, prefs, excludes))
     .map((recipe) => ({
       recipe,
       cost: recipeCost(recipe, plan.people, priceOf, plan.portion),
       protein: recipeNutrition(recipe, plan.people, plan.portion).protein,
+      usesStock: recipe.items.some((item) => stocked.has(item.ingredientId)),
     }))
-    .sort((a, b) => a.cost - b.cost || a.recipe.name.localeCompare(b.recipe.name, "ja"));
+    .sort(
+      (a, b) =>
+        Number(b.usesStock) - Number(a.usesStock) ||
+        a.cost - b.cost ||
+        a.recipe.name.localeCompare(b.recipe.name, "ja"),
+    );
+}
+
+function HouseholdStepper({
+  label,
+  value,
+  hint,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  hint?: string;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <div className="mt-4">
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-base font-bold">{label}</span>
+        <span className="flex items-center gap-2">
+          <Button type="button" variant="outline" className="size-12 text-xl" onClick={() => onChange(value - 1)} aria-label={`${label}を減らす`}>
+            −
+          </Button>
+          <span className="w-12 text-center text-xl font-bold">{value}</span>
+          <Button type="button" variant="outline" className="size-12 text-xl" onClick={() => onChange(value + 1)} aria-label={`${label}を増やす`}>
+            ＋
+          </Button>
+        </span>
+      </div>
+      {hint ? <p className="mt-1 text-base leading-7 text-muted-foreground">{hint}</p> : null}
+    </div>
+  );
 }
 
 function FocusCard({

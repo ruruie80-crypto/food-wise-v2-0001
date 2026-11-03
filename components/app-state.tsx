@@ -4,9 +4,10 @@ import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useSy
 import { areas } from "@/lib/catalog";
 import { tokyoHour, tokyoToday } from "@/lib/dates";
 import { buildAlerts } from "@/lib/alerts";
+import { householdServings, MAX_WEEKLY_BUDGET, TOME_PRESET, weeklyFromMonthly } from "@/lib/household";
 import { buildPlan, replacePlanSlot, type PlanResult } from "@/lib/optimizer";
 import { createPriceBook, type PriceBook } from "@/lib/prices";
-import { isSkin, skinThemeColor, type SkinId } from "@/lib/skins";
+import { isBrightSkin, isSkin, skinThemeColor, type SkinId } from "@/lib/skins";
 import type {
   AlertItem,
   MealMode,
@@ -15,6 +16,8 @@ import type {
   Plan,
   PlanFocus,
   Prefs,
+  StockItem,
+  StockPlace,
 } from "@/lib/types";
 
 const STORAGE_KEY = "sokone-gohan-v1";
@@ -68,6 +71,10 @@ export type Persisted = {
   mode: MealMode;
   prefs: Prefs;
   excludes: string[];
+  adults: number;
+  children: number;
+  monthlyBudget: number | null;
+  stock: StockItem[];
   observations: Observation[];
   balanced: Plan | null;
   cheap: Plan | null;
@@ -97,9 +104,14 @@ type AppContextValue = {
   alerts: AlertItem[];
   unreadCount: number;
   setBudget: (value: number) => void;
+  setMonthlyBudget: (value: number | null) => void;
   setPeople: (value: number) => void;
+  setAdults: (value: number) => void;
+  setChildren: (value: number) => void;
+  applyTomePreset: () => void;
   setMode: (mode: MealMode) => void;
   setArea: (areaId: string) => void;
+  setStock: (ingredientId: string, place: StockPlace, units: number) => void;
   togglePref: (key: keyof Prefs) => void;
   toggleExclusion: (ids: string[]) => void;
   setFocus: (focus: PlanFocus) => void;
@@ -124,8 +136,12 @@ function defaultState(): Persisted {
     people: 1,
     budget: 5000,
     mode: "dinner_breakfast",
-    prefs: { quick: false, moreVeg: false, highProtein: false, washoku: false },
+    prefs: { quick: false, moreVeg: false, highProtein: false, washoku: false, lessFat: false, noMilk: false },
     excludes: [],
+    adults: 1,
+    children: 0,
+    monthlyBudget: null,
+    stock: [],
     observations: [],
     balanced: null,
     cheap: null,
@@ -153,17 +169,35 @@ function sanitize(raw: unknown): Persisted {
     data.mode === "dinner" || data.mode === "full" || data.mode === "dinner_breakfast"
       ? data.mode
       : base.mode;
-  const people = typeof data.people === "number" ? Math.min(4, Math.max(1, Math.round(data.people))) : 1;
-  const budget = typeof data.budget === "number" ? Math.min(20000, Math.max(500, Math.round(data.budget))) : 5000;
-  const prefs = { ...base.prefs, ...(data.prefs ?? {}) };
+  const legacyPeople = clampCount(data.people, 1, 4, 1);
+  const adults = clampCount(data.adults, 1, 4, legacyPeople);
+  const children = clampCount(data.children, 0, 4, 0);
+  const people = householdServings(adults, children);
+  const budget = typeof data.budget === "number" ? Math.min(MAX_WEEKLY_BUDGET, Math.max(500, Math.round(data.budget))) : 5000;
+  const monthlyBudget =
+    typeof data.monthlyBudget === "number" && data.monthlyBudget > 0
+      ? Math.min(300_000, Math.round(data.monthlyBudget))
+      : null;
+  const prefs = {
+    ...base.prefs,
+    ...(data.prefs ?? {}),
+    lessFat: Boolean(data.prefs?.lessFat),
+    noMilk: Boolean(data.prefs?.noMilk),
+  };
+  let skin = isSkin(data.skin) ? data.skin : base.skin;
+  if (areaId === "tome" && !isBrightSkin(skin)) skin = "kami";
   return {
     ...base,
     areaId,
     people,
+    adults,
+    children,
     budget,
+    monthlyBudget,
     mode,
     prefs,
     excludes: Array.isArray(data.excludes) ? data.excludes.filter((id) => typeof id === "string") : [],
+    stock: Array.isArray(data.stock) ? data.stock.filter(isStockItem) : [],
     observations: Array.isArray(data.observations) ? data.observations.filter(isObservation) : [],
     balanced: isPlan(data.balanced) ? data.balanced : null,
     cheap: isPlan(data.cheap) ? data.cheap : null,
@@ -172,8 +206,26 @@ function sanitize(raw: unknown): Persisted {
     onboarded: Boolean(data.onboarded),
     readAlertIds: Array.isArray(data.readAlertIds) ? data.readAlertIds.filter((id) => typeof id === "string") : [],
     premiumPreview: Boolean(data.premiumPreview),
-    skin: isSkin(data.skin) ? data.skin : base.skin,
+    skin,
   };
+}
+
+function clampCount(value: unknown, min: number, max: number, fallback: number): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
+  return Math.min(max, Math.max(min, Math.round(value)));
+}
+
+function isStockItem(value: unknown): value is StockItem {
+  if (!value || typeof value !== "object") return false;
+  const row = value as StockItem;
+  return (
+    typeof row.ingredientId === "string" &&
+    (row.place === "fridge" || row.place === "freezer") &&
+    typeof row.units === "number" &&
+    Number.isFinite(row.units) &&
+    row.units > 0 &&
+    row.units <= 80
+  );
 }
 
 function isObservation(value: unknown): value is Observation {
@@ -191,14 +243,23 @@ function isObservation(value: unknown): value is Observation {
 export function sourceKey(state: Persisted): string {
   return [
     state.areaId,
+    state.adults,
+    state.children,
     state.people,
     state.budget,
+    state.monthlyBudget ?? "",
     state.mode,
     state.prefs.quick,
     state.prefs.moreVeg,
     state.prefs.highProtein,
     state.prefs.washoku,
+    state.prefs.lessFat,
+    state.prefs.noMilk,
     state.excludes.slice().sort().join(","),
+    state.stock
+      .map((item) => `${item.place}:${item.ingredientId}:${item.units}`)
+      .sort()
+      .join(","),
     state.observations.map((row) => row.id).join(","),
   ].join("|");
 }
@@ -250,11 +311,12 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     const result = buildPlan(
       {
         budget: state.budget,
-        people: state.people,
+        people: householdServings(state.adults, state.children),
         days: 7,
         mode: state.mode,
         prefs: state.prefs,
         excludes: state.excludes,
+        stock: state.stock,
         sourceKey: key,
       },
       lookup,
@@ -281,10 +343,59 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     stale,
     alerts,
     unreadCount,
-    setBudget: (budget) => patch({ budget: Math.min(20000, Math.max(0, Math.round(Number.isFinite(budget) ? budget : 0))) }),
-    setPeople: (people) => patch({ people: Math.min(4, Math.max(1, people)) }),
+    setBudget: (budget) =>
+      patch({
+        budget: Math.min(MAX_WEEKLY_BUDGET, Math.max(0, Math.round(Number.isFinite(budget) ? budget : 0))),
+      }),
+    setMonthlyBudget: (monthly) => {
+      if (monthly == null || !Number.isFinite(monthly) || monthly <= 0) {
+        patch({ monthlyBudget: null });
+        return;
+      }
+      const rounded = Math.min(300_000, Math.round(monthly));
+      const weekly = weeklyFromMonthly(rounded);
+      patch({
+        monthlyBudget: rounded,
+        budget: Math.min(MAX_WEEKLY_BUDGET, Math.max(500, weekly)),
+      });
+    },
+    setPeople: (people) => {
+      const adults = Math.min(4, Math.max(1, Math.round(people)));
+      patch({ adults, children: 0, people: adults });
+    },
+    setAdults: (adults) =>
+      update((current) => {
+        const next = Math.min(4, Math.max(1, Math.round(adults)));
+        return { ...current, adults: next, people: householdServings(next, current.children) };
+      }),
+    setChildren: (children) =>
+      update((current) => {
+        const next = Math.min(4, Math.max(0, Math.round(children)));
+        return { ...current, children: next, people: householdServings(current.adults, next) };
+      }),
+    applyTomePreset: () =>
+      patch({
+        adults: TOME_PRESET.adults,
+        children: TOME_PRESET.children,
+        people: householdServings(TOME_PRESET.adults, TOME_PRESET.children),
+        monthlyBudget: TOME_PRESET.monthlyBudget,
+        budget: TOME_PRESET.budget,
+        mode: TOME_PRESET.mode,
+      }),
     setMode: (mode) => patch({ mode }),
-    setArea: (areaId) => patch({ areaId }),
+    setArea: (areaId) =>
+      update((current) => ({
+        ...current,
+        areaId,
+        skin: areaId === "tome" && !isBrightSkin(current.skin) ? "kami" : current.skin,
+      })),
+    setStock: (ingredientId, place, units) =>
+      update((current) => {
+        const nextUnits = Math.round(units * 10) / 10;
+        const stock = current.stock.filter((item) => !(item.ingredientId === ingredientId && item.place === place));
+        if (nextUnits > 0) stock.push({ ingredientId, place, units: Math.min(80, nextUnits) });
+        return { ...current, stock };
+      }),
     togglePref: (key) =>
       update((current) => ({ ...current, prefs: { ...current.prefs, [key]: !current.prefs[key] } })),
     toggleExclusion: (ids) =>

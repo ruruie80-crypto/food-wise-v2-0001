@@ -7,6 +7,7 @@ const METHODS: Record<string, string> = {
   "saba-daikon": "煮る",
   "iwashi-tomato": "煮て絡める",
   soboro: "炒り煮",
+  hamburg: "焼く",
   mapo: "煮る",
   niratama: "炒める",
   "komatsu-egg": "炒める",

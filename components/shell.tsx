@@ -3,7 +3,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, Camera, House, ShoppingBasket, Tag, Utensils } from "lucide-react";
+import { Bell, Camera, House, Refrigerator, ShoppingBasket, Tag, Utensils } from "lucide-react";
 import { Onboarding } from "@/components/onboarding";
 import { InsightRail } from "@/components/insight-rail";
 import { useApp } from "@/components/app-state";
@@ -76,6 +76,17 @@ function SideNav() {
           </Link>
         );
       })}
+      <Link
+        href="/stock"
+        aria-current={isActive(pathname, "/stock") ? "page" : undefined}
+        className={cn(
+          "flex flex-col items-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-medium",
+          isActive(pathname, "/stock") ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-secondary",
+        )}
+      >
+        <Refrigerator className="size-5" />
+        在庫
+      </Link>
       <Link
         href="/alerts"
         className="mt-auto flex items-center justify-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-medium text-foreground hover:bg-secondary"

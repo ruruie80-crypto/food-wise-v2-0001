@@ -1,5 +1,6 @@
 import { getIngredient, getRecipe, recipes } from "./catalog";
 import { percent, yen } from "./format";
+import { FATTY_MEAT_IDS } from "./household";
 import type {
   MealMode,
   MealType,
@@ -8,6 +9,7 @@ import type {
   PlanSlot,
   Prefs,
   Recipe,
+  StockItem,
 } from "./types";
 
 export type PriceLookup = {
@@ -23,6 +25,8 @@ export type PlanInput = {
   prefs: Prefs;
   excludes: string[];
   sourceKey?: string;
+  /** 冷蔵庫・冷凍庫。空なら献立の選び方はこれまでと同じ。 */
+  stock?: StockItem[];
 };
 
 const ZERO: Nutrition = {
@@ -143,12 +147,26 @@ export function dayTarget(mode: MealMode, people = 1): Nutrition {
   );
 }
 
+export function isRecipeAllowed(
+  recipe: Recipe,
+  meal: MealType,
+  prefs: Prefs,
+  excludes: string[],
+): boolean {
+  if (!recipe.meals.includes(meal)) return false;
+  if (recipe.items.some((item) => excludes.includes(item.ingredientId))) return false;
+  if (prefs.lessFat && recipe.items.some((item) => FATTY_MEAT_IDS.includes(item.ingredientId))) return false;
+  if (
+    prefs.noMilk &&
+    (recipe.usesMilk === true || recipe.items.some((item) => item.ingredientId === "milk"))
+  ) {
+    return false;
+  }
+  return true;
+}
+
 function allowedRecipes(meal: MealType, prefs: Prefs, excludes: string[]): Recipe[] {
-  let list = recipes.filter(
-    (recipe) =>
-      recipe.meals.includes(meal) &&
-      recipe.items.every((item) => !excludes.includes(item.ingredientId)),
-  );
+  let list = recipes.filter((recipe) => isRecipeAllowed(recipe, meal, prefs, excludes));
   if (prefs.quick && meal === "dinner") {
     const quick = list.filter((recipe) => recipe.minutes <= 20);
     if (quick.length >= 4) list = quick;
@@ -187,6 +205,29 @@ function nutritionPoints(nutrition: Nutrition, meal: MealType, prefs: Prefs): nu
   return score;
 }
 
+function stockOf(items: StockItem[] | undefined): Map<string, number> {
+  const stock = new Map<string, number>();
+  for (const item of items ?? []) {
+    if (item.units <= 0) continue;
+    stock.set(item.ingredientId, (stock.get(item.ingredientId) ?? 0) + item.units);
+  }
+  return stock;
+}
+
+function stockPoints(recipe: Recipe, stock: Map<string, number>): number {
+  if (stock.size === 0) return 0;
+  let points = 0;
+  for (const item of recipe.items) {
+    const have = stock.get(item.ingredientId) ?? 0;
+    if (have <= 0) continue;
+    const ingredient = getIngredient(item.ingredientId);
+    if (!ingredient || ingredient.category === "seasoning") continue;
+    const cover = Math.min(1, have / Math.max(item.units, 0.01));
+    points += 28 * cover;
+  }
+  return points;
+}
+
 function marginalScore(
   recipe: Recipe,
   nutrition: Nutrition,
@@ -196,12 +237,14 @@ function marginalScore(
   prefs: Prefs,
   isBuy: PriceLookup["isBuy"],
   coeff: number,
+  stock: Map<string, number>,
 ): number {
+  const fromStock = stockPoints(recipe, stock);
   if (goal === "cheap") {
     const floor = meal === "breakfast" ? 250 : meal === "lunch" ? 380 : 420;
-    return -cost - (nutrition.kcal < floor ? 400 : 0);
+    return -cost - (nutrition.kcal < floor ? 400 : 0) + fromStock;
   }
-  let score = nutritionPoints(nutrition, meal, prefs) - cost * coeff;
+  let score = nutritionPoints(nutrition, meal, prefs) - cost * coeff + fromStock;
   if (prefs.washoku && recipe.tags.includes("washoku")) score += 8;
   if (prefs.quick && recipe.minutes <= 15) score += 8;
   const buyCount = recipe.items.filter((item) => isBuy(item.ingredientId)).length;
@@ -219,6 +262,7 @@ function search(
   goal: "balanced" | "cheap",
   portion: number,
   coeff: number,
+  stock: Map<string, number>,
 ): { picks: string[]; cost: number } | null {
   const pools = new Map<MealType, Recipe[]>();
   for (const meal of new Set(slots.map((slot) => slot.meal))) {
@@ -267,7 +311,7 @@ function search(
           used: { ...state.used, [recipe.id]: times + 1 },
           score:
             state.score +
-            marginalScore(recipe, nutrition, cost, slot.meal, goal, prefs, lookup.isBuy, coeff) -
+            marginalScore(recipe, nutrition, cost, slot.meal, goal, prefs, lookup.isBuy, coeff, stock) -
             (goal === "balanced" && sameAsPrevious ? 18 : 0),
         });
       }
@@ -428,6 +472,7 @@ export function buildPlan(input: PlanInput, lookup: PriceLookup): PlanResult {
   const portion = portionFor(input.budget, input.people, input.mode);
   const slack = input.budget / anchorBudget(input.people, input.mode);
   const coeff = slack >= 1.05 ? 0.012 : 0.02 + (1.05 - slack) * 0.55;
+  const stock = stockOf(input.stock);
   const balancedSearch = search(
     slots,
     input.budget,
@@ -438,6 +483,7 @@ export function buildPlan(input: PlanInput, lookup: PriceLookup): PlanResult {
     "balanced",
     portion,
     coeff,
+    stock,
   );
   const cheapSearch = search(
     slots,
@@ -449,6 +495,7 @@ export function buildPlan(input: PlanInput, lookup: PriceLookup): PlanResult {
     "cheap",
     portion,
     coeff,
+    stock,
   );
   if (!balancedSearch || !cheapSearch) {
     return {
@@ -479,6 +526,24 @@ export function buildPlan(input: PlanInput, lookup: PriceLookup): PlanResult {
   const balanced = materialize(balancedPicks, slots, input, lookup, "balanced", targets, portion);
   const cheap = materialize(cheapPicks, slots, input, lookup, "cheap", targets, portion);
   const notes = buildNotes(balanced, cheap, lookup);
+  if (stock.size > 0) {
+    const used = new Set<string>();
+    for (const slot of balanced.slots) {
+      const recipe = getRecipe(slot.recipeId);
+      if (!recipe) continue;
+      for (const item of recipe.items) {
+        if ((stock.get(item.ingredientId) ?? 0) > 0) used.add(item.ingredientId);
+      }
+    }
+    const names = [...used]
+      .map((id) => getIngredient(id)?.name)
+      .filter((name): name is string => Boolean(name));
+    if (names.length > 0) {
+      notes.unshift(
+        `冷蔵庫・冷凍庫の${names.slice(0, 3).join("、")}を先に使う献立です。足りない分だけ買い物に出します。`,
+      );
+    }
+  }
   balanced.notes = notes;
   cheap.notes = notes;
   return { ok: true, balanced, cheap };

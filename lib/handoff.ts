@@ -4,7 +4,7 @@ import { addDays, formatWithWeekday, weekRangeLabel } from "./dates";
 import { formatUnits, mealLabel, yen } from "./format";
 import { createPriceBook } from "./prices";
 import { buildShoppingList } from "./shopping";
-import type { MealMode, Observation, Plan, PlanFocus, Prefs } from "./types";
+import type { MealMode, Observation, Plan, PlanFocus, Prefs, StockItem } from "./types";
 
 export const HANDOFF_KIND = "sokone-gohan-handoff";
 const MAX_BYTES = 200_000;
@@ -36,6 +36,10 @@ export type HandoffRecord = {
   onboarded: boolean;
   readAlertIds: string[];
   premiumPreview: boolean;
+  adults?: number;
+  children?: number;
+  monthlyBudget?: number | null;
+  stock?: StockItem[];
 };
 
 export type HandoffFile = {
@@ -135,7 +139,10 @@ function renderText(record: HandoffRecord, today: string, stale: boolean): strin
       : "入っている相場は見本と、書き出した端末で読んだ値札です。実在の店の本日の売価ではありません。",
     "",
     `生活圏: ${area.prefecture} ${area.name}`,
-    `人数: ${record.people}人`,
+    typeof record.adults === "number" && (record.children ?? 0) > 0
+      ? `家族: 大人${record.adults}人・子ども${record.children}人（子どもは大人の0.6人分、合わせて${record.people}人分）`
+      : `人数: ${record.people}人`,
+    ...(typeof record.monthlyBudget === "number" ? [`1か月の食費: ${yen(record.monthlyBudget)}`] : []),
     `今週の食費: ${yen(record.budget)}`,
     weekRangeLabel(today),
   ];
@@ -156,8 +163,17 @@ function renderText(record: HandoffRecord, today: string, stale: boolean): strin
       }
     }
     const book = createPriceBook(record.areaId, today, record.observations);
-    const shop = buildShoppingList(plan, book);
+    const shop = buildShoppingList(plan, book, record.stock ?? []);
     lines.push("", "【買い物】");
+    if (shop.covered.length > 0) {
+      lines.push("冷蔵庫・冷凍庫にあるので買わないもの:");
+      for (const row of shop.covered) {
+        const ingredient = getIngredient(row.ingredientId);
+        const name = ingredient?.name ?? row.ingredientId;
+        const qty = ingredient ? formatUnits(row.units, ingredient) : "";
+        lines.push(`- ${name} ${qty}`.replace(/\s+/g, " "));
+      }
+    }
     for (const group of shop.groups) {
       const store = getStore(group.storeId);
       lines.push(store?.name ?? group.storeId);

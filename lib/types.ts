@@ -57,6 +57,8 @@ export type Recipe = {
   items: { ingredientId: string; units: number }[];
   extraYen: number;
   extraSalt: number;
+  /** 牛乳を材料に使う皿。無いときは使わない。 */
+  usesMilk?: boolean;
 };
 
 export type Store = {
@@ -75,6 +77,18 @@ export type Store = {
   address?: string;
   phone?: string;
   sourceUrl?: string;
+  /** ユーザーが自分で開く公式のチラシページ。アプリは中身を取らない。 */
+  flyerUrl?: string;
+  flyerLabel?: string;
+  flyerNote?: string;
+};
+
+export type StockPlace = "fridge" | "freezer";
+
+export type StockItem = {
+  ingredientId: string;
+  place: StockPlace;
+  units: number;
 };
 
 export type Area = {
@@ -103,6 +117,10 @@ export type Prefs = {
   moreVeg: boolean;
   highProtein: boolean;
   washoku: boolean;
+  /** 豚こま・豚ひき肉・鶏ももを献立から外す。未設定はオフ。 */
+  lessFat?: boolean;
+  /** 牛乳を使う皿を外す。未設定はオフ。 */
+  noMilk?: boolean;
 };
 
 export type PlanSlot = {
@@ -167,6 +185,8 @@ export type ShopList = {
   multiTotal: number;
   single: { storeId: string; total: number } | null;
   savings: number;
+  /** 冷蔵庫・冷凍庫でまかなう量。買い物リストには出さない。 */
+  covered: { ingredientId: string; units: number }[];
 };
 
 export type AlertItem = {

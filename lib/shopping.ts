@@ -1,12 +1,17 @@
 import { getRecipe, getStore } from "./catalog";
 import type { PriceLookup } from "./optimizer";
-import type { Plan, ShopLine, ShopList } from "./types";
+import type { Plan, ShopLine, ShopList, StockItem } from "./types";
 
 type Lookup = Pick<PriceLookup, "priceOf"> & {
   quote(ingredientId: string): { byStore: { storeId: string; price: number }[] } | null;
 };
 
-export function buildShoppingList(plan: Plan, lookup: Lookup): ShopList {
+export function buildShoppingList(plan: Plan, lookup: Lookup, stock: StockItem[] = []): ShopList {
+  const have = new Map<string, number>();
+  for (const item of stock) {
+    if (item.units <= 0) continue;
+    have.set(item.ingredientId, (have.get(item.ingredientId) ?? 0) + item.units);
+  }
   const totals = new Map<string, number>();
   let seasoningYen = 0;
   for (const slot of plan.slots) {
@@ -21,8 +26,13 @@ export function buildShoppingList(plan: Plan, lookup: Lookup): ShopList {
     }
   }
 
+  const covered: { ingredientId: string; units: number }[] = [];
   const lines: ShopLine[] = [];
-  for (const [ingredientId, units] of totals) {
+  for (const [ingredientId, needed] of totals) {
+    const fromStock = Math.min(have.get(ingredientId) ?? 0, needed);
+    if (fromStock > 0.05) covered.push({ ingredientId, units: fromStock });
+    const units = needed - fromStock;
+    if (units <= 0.05) continue;
     const quote = lookup.quote(ingredientId);
     if (!quote || quote.byStore.length === 0) continue;
     const best = quote.byStore[0];
@@ -34,6 +44,7 @@ export function buildShoppingList(plan: Plan, lookup: Lookup): ShopList {
       linePrice: Math.round(units * best.price),
     });
   }
+  covered.sort((a, b) => a.ingredientId.localeCompare(b.ingredientId));
 
   const groups = new Map<string, ShopLine[]>();
   for (const line of lines) {
@@ -77,5 +88,5 @@ export function buildShoppingList(plan: Plan, lookup: Lookup): ShopList {
   }
 
   const savings = single ? Math.max(0, single.total - multiTotal) : 0;
-  return { groups: groupList, seasoningYen, multiTotal, single, savings };
+  return { groups: groupList, seasoningYen, multiTotal, single, savings, covered };
 }

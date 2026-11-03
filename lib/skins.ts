@@ -116,4 +116,10 @@ export function skinThemeColor(id: SkinId): string {
 }
 
 /** Runs before paint so a saved skin does not flash the paper ledger. */
-export const SKIN_BOOT = `(function(){try{var raw=localStorage.getItem("sokone-gohan-v1");if(!raw)return;var skin=JSON.parse(raw).skin;if(skin==="kami"||skin==="yoru"||skin==="akari"||skin==="yaoya")document.documentElement.dataset.skin=skin;}catch(e){}})();`;
+export const BRIGHT_SKIN_IDS: readonly SkinId[] = ["kami", "yaoya"];
+
+export function isBrightSkin(id: SkinId): boolean {
+  return id === "kami" || id === "yaoya";
+}
+
+export const SKIN_BOOT = `(function(){try{var raw=localStorage.getItem("sokone-gohan-v1");if(!raw)return;var data=JSON.parse(raw);var skin=data.skin;if(data.areaId==="tome"&&(skin==="yoru"||skin==="akari"))skin="kami";if(skin==="kami"||skin==="yoru"||skin==="akari"||skin==="yaoya")document.documentElement.dataset.skin=skin;}catch(e){}})();`;
