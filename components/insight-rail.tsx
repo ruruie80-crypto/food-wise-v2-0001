@@ -7,7 +7,7 @@ import { SignalMark, Yen } from "@/components/bits";
 import { balanceScore, mealLabel, modeHint, percent } from "@/lib/format";
 import { daysBetween } from "@/lib/dates";
 import { avoidsFish, displayRecipeName } from "@/lib/household";
-import { buildShoppingList, cookedDaysOn, stockAside } from "@/lib/shopping";
+import { buildShoppingList, cookedDaysOn, cookedMealsOn, stockAside } from "@/lib/shopping";
 import { ingredients } from "@/lib/catalog";
 
 export function InsightRail() {
@@ -29,6 +29,7 @@ export function InsightRail() {
         stockAside(app.state.stock, app.state.packAdded),
         app.state.preferredStoreId,
         cookedDaysOn(app.state.cookedKeys, planStart),
+        cookedMealsOn(app.state.cookedKeys, planStart),
       )
     : null;
   const dinner =

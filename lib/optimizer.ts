@@ -13,6 +13,7 @@ import {
   withHomeMisoCheck,
   avoidsFish,
 } from "./household";
+import { mealIsLocked, type CookedMeal } from "./cooked";
 import type {
   MealMode,
   MealType,
@@ -937,11 +938,12 @@ export function keepCookedDays(
   previous: Plan | null,
   dayIndexes: number[],
   priceOf: PriceLookup["priceOf"],
+  meals: CookedMeal[] = [],
 ): Plan {
   const previousEggs = planningEggs;
   planningEggs = plan.allowOptionalEggs === true;
   try {
-    return keepCookedDaysNow(plan, previous, dayIndexes, priceOf);
+    return keepCookedDaysNow(plan, previous, dayIndexes, priceOf, meals);
   } finally {
     planningEggs = previousEggs;
   }
@@ -952,12 +954,12 @@ function keepCookedDaysNow(
   previous: Plan | null,
   dayIndexes: number[],
   priceOf: PriceLookup["priceOf"],
+  meals: CookedMeal[] = [],
 ): Plan {
-  if (!previous || dayIndexes.length === 0) return plan;
-  const locked = new Set(dayIndexes);
+  if (!previous || (dayIndexes.length === 0 && meals.length === 0)) return plan;
   let changed = false;
   const slots = plan.slots.map((slot) => {
-    if (!locked.has(slot.dayIndex)) return slot;
+    if (!mealIsLocked(slot.dayIndex, slot.meal, dayIndexes, meals)) return slot;
     const prev = previous.slots.find((item) => item.dayIndex === slot.dayIndex && item.meal === slot.meal);
     if (!prev) return slot;
     const recipe = getRecipe(prev.recipeId);
@@ -993,11 +995,12 @@ export function dropDuplicateCookedDishes(
   priceOf: PriceLookup["priceOf"],
   prefs?: Prefs,
   excludes: string[] = [],
+  meals: CookedMeal[] = [],
 ): Plan {
   const previousEggs = planningEggs;
   planningEggs = plan.allowOptionalEggs === true;
   try {
-    return dropDuplicateCookedDishesNow(plan, cookedDays, dishIds, priceOf, prefs, excludes);
+    return dropDuplicateCookedDishesNow(plan, cookedDays, dishIds, priceOf, prefs, excludes, meals);
   } finally {
     planningEggs = previousEggs;
   }
@@ -1010,21 +1013,23 @@ function dropDuplicateCookedDishesNow(
   priceOf: PriceLookup["priceOf"],
   prefs?: Prefs,
   excludes: string[] = [],
+  meals: CookedMeal[] = [],
 ): Plan {
   const cooked = new Set(cookedDays);
-  if (cooked.size === 0) return plan;
+  const dinnerLocked = (day: number) => mealIsLocked(day, "dinner", cookedDays, meals);
+  if (cooked.size === 0 && !meals.some((item) => item.meal === "dinner")) return plan;
   const capFor = (id: string) => {
     if (dishIds.includes(id)) return 1;
     return TWICE_A_WEEK_DISHES.includes(id) ? 2 : 1;
   };
   const counts = new Map<string, number>();
   for (const slot of plan.slots) {
-    if (slot.meal !== "dinner" || !cooked.has(slot.dayIndex)) continue;
+    if (slot.meal !== "dinner" || !dinnerLocked(slot.dayIndex)) continue;
     counts.set(slot.recipeId, (counts.get(slot.recipeId) ?? 0) + 1);
   }
   let changed = false;
   const slots = plan.slots.map((slot) => {
-    if (slot.meal !== "dinner" || cooked.has(slot.dayIndex)) return slot;
+    if (slot.meal !== "dinner" || dinnerLocked(slot.dayIndex)) return slot;
     const seen = counts.get(slot.recipeId) ?? 0;
     if (seen < capFor(slot.recipeId)) {
       counts.set(slot.recipeId, seen + 1);
@@ -1064,11 +1069,12 @@ export function ensureWeeklyDishes(
   priceOf: PriceLookup["priceOf"],
   prefs?: Prefs,
   excludes: string[] = [],
+  meals: CookedMeal[] = [],
 ): Plan {
   const previousEggs = planningEggs;
   planningEggs = plan.allowOptionalEggs === true;
   try {
-    return ensureWeeklyDishesNow(plan, dishIds, cookedDays, priceOf, prefs, excludes);
+    return ensureWeeklyDishesNow(plan, dishIds, cookedDays, priceOf, prefs, excludes, meals);
   } finally {
     planningEggs = previousEggs;
   }
@@ -1081,8 +1087,9 @@ function ensureWeeklyDishesNow(
   priceOf: PriceLookup["priceOf"],
   prefs?: Prefs,
   excludes: string[] = [],
+  meals: CookedMeal[] = [],
 ): Plan {
-  const cooked = new Set(cookedDays);
+  const dinnerLocked = (day: number) => mealIsLocked(day, "dinner", cookedDays, meals);
   const slots = plan.slots.map((slot) => ({ ...slot }));
   const present = new Set(slots.map((slot) => slot.recipeId));
   let changed = false;
@@ -1092,7 +1099,7 @@ function ensureWeeklyDishesNow(
     if (!recipe) continue;
     if (prefs && !isRecipeAllowed(recipe, "dinner", prefs, excludes)) continue;
     const target = slots.find(
-      (slot) => slot.meal === "dinner" && !cooked.has(slot.dayIndex) && !dishIds.includes(slot.recipeId),
+      (slot) => slot.meal === "dinner" && !dinnerLocked(slot.dayIndex) && !dishIds.includes(slot.recipeId),
     );
     if (!target) continue;
     target.recipeId = dishId;

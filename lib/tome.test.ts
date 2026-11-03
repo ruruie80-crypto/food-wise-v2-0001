@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { getIngredient, getRecipe, getStore, ingredients, recipes, storesIn } from "./catalog";
-import { expenseRangeLabel, homePlanStatus, lunchMoneyHint, planDayLabel, resolvePlanStart, weekIsOver, weekRangeLabel } from "./dates";
-import { CHEAP_EGG_DISHES, CHILD_PORTION, displayRecipeName, EGGS_PER_PACK, HOME_MISO_CHECK, householdServings, MAX_WEEKLY_EGG_PACKS, PLAIN_MISO_DISH_NAME, plainMisoText, recipeCopy, TOME_PRESET, TWICE_A_WEEK_DISHES, usedItems, weeklyFromMonthly, withHomeMisoCheck } from "./household";
+import { expenseRangeLabel, homePlanStatus, lunchMoneyHint, planDayLabel, resolvePlanStart, todayCardBody, todayCardTitle, weekIsOver, weekRangeLabel } from "./dates";
+import { cookedKeysAfterRebuild, cookedMealsOn, isMealCooked, keysAfterUndo, readCookedKeys, restoreStock, stockTaken } from "./cooked";
+import { CHEAP_EGG_DISHES, CHILD_PORTION, displayRecipeName, EGGS_PER_PACK, HOME_MISO_CHECK, householdServings, MAX_WEEKLY_EGG_PACKS, PLAIN_MISO_DISH_NAME, plainMisoText, recipeCopy, showChildAgeNotice, TOME_PRESET, TWICE_A_WEEK_DISHES, usedItems, weeklyFromMonthly, withHomeMisoCheck } from "./household";
 import { formatUnits, marketHeading, seasonHeading } from "./format";
 import { consumeStock, MAX_STOCK_UNITS, readRiceKg, riceUnitsFromKg } from "./stock";
 import { buildPlan, dropDuplicateCookedDishes, ensureWeeklyDishes, isRecipeAllowed, keepCookedDays, recipeCost, syncLeftoverNote } from "./optimizer";
@@ -993,9 +994,10 @@ test("today's meal sits under the budget and above the week list", () => {
   assert.equal(homePlanStatus("2026-11-03", "2026-11-03"), "during");
   assert.equal(homePlanStatus("2026-11-03", "2026-11-09"), "during");
   assert.equal(homePlanStatus("2026-11-03", "2026-11-10"), "after");
-  assert.match(home, /からの献立ができています/);
-  assert.match(home, /次の1週間の献立を作ると、ここに出ます/);
+  assert.match(home, /todayCardBody\(planStatus, planStart\)/);
+  assert.match(home, /todayCardTitle\(/);
   assert.match(home, /作った・減らすは献立の画面で/);
+  assert.match(home, /\/meals#plan-day-/);
 });
 
 test("YouTube button is a search for the dish name", () => {
@@ -1007,4 +1009,120 @@ test("YouTube button is a search for the dish name", () => {
   assert.equal(misoUrl.includes("（"), false);
   assert.equal(url.includes("key="), false);
   assert.ok(getIngredient("chicken_hiki"));
+});
+
+test("the today card names the plan before, during, and after the week", () => {
+  const start = "2026-11-03";
+  assert.equal(homePlanStatus(undefined, "2026-11-02"), "none");
+  assert.equal(homePlanStatus(start, "2026-11-02"), "before");
+  assert.equal(homePlanStatus(start, "2026-11-03"), "during");
+  assert.equal(homePlanStatus(start, "2026-11-09"), "during");
+  assert.equal(homePlanStatus(start, "2026-11-10"), "after");
+  assert.equal(todayCardTitle("before", start), "11/3から始まります");
+  assert.equal(todayCardBody("before", start), "11/3からの献立ができています。");
+  assert.equal(todayCardTitle("during", start, "朝は豆腐と味噌汁"), "朝は豆腐と味噌汁");
+  assert.equal(todayCardBody("during", start), "");
+  assert.equal(todayCardTitle("after", start), "この1週間は終わりました");
+  assert.equal(todayCardBody("after", start), "次の1週間の献立を作ると、ここに出ます。");
+  assert.equal(todayCardTitle("none", start), "献立はまだありません");
+  assert.match(todayCardBody("none", start), /予算を入れると/);
+  const home = readFileSync(new URL("../components/screens/home-screen.tsx", import.meta.url), "utf8");
+  assert.match(home, /todayCardTitle\(/);
+  assert.match(home, /todayCardBody\(planStatus, planStart\)/);
+});
+
+test("a cooked mark stays on that meal, and a new week clears it", () => {
+  const start = "2026-11-03";
+  const breakfast = `${start}:1:breakfast`;
+  const legacy = readCookedKeys([`${start}:0`, "壊れた記録", 12]);
+  assert.deepEqual(legacy, [`${start}:0`]);
+  assert.equal(isMealCooked(legacy, start, 0, "breakfast"), true);
+  assert.equal(isMealCooked(legacy, start, 0, "dinner"), true);
+  assert.equal(isMealCooked([breakfast], start, 1, "breakfast"), true);
+  assert.equal(isMealCooked([breakfast], start, 1, "dinner"), false);
+  assert.equal(isMealCooked([breakfast], "2026-11-10", 1, "breakfast"), false);
+  assert.deepEqual(cookedMealsOn([breakfast], start), [{ dayIndex: 1, meal: "breakfast" }]);
+  assert.deepEqual(cookedDaysOn([breakfast], start), []);
+  assert.equal(resolvePlanStart(start, "2026-11-09").continueWeek, true);
+  assert.deepEqual(cookedKeysAfterRebuild([breakfast], true), [breakfast]);
+  assert.equal(resolvePlanStart(start, "2026-11-10").continueWeek, false);
+  assert.deepEqual(cookedKeysAfterRebuild([breakfast], false), []);
+  const undone = keysAfterUndo([`${start}:0`], start, 0, "dinner", ["breakfast"]);
+  assert.equal(undone.keys.includes(`${start}:0:breakfast`), true);
+  assert.equal(undone.keys.includes(`${start}:0:dinner`), false);
+  assert.equal(isMealCooked(undone.keys, start, 0, "dinner"), false);
+
+  const book = createPriceBook("tome", start, []);
+  const base = {
+    focus: "balanced" as const,
+    budget: 1000,
+    people: 1,
+    days: 1,
+    mode: "dinner_breakfast" as const,
+    cost: 0,
+    overBy: 0,
+    portion: 1,
+    nutrition: emptyNutrition,
+    targets: emptyNutrition,
+    notes: [] as string[],
+    sourceKey: "",
+    startedOn: start,
+  };
+  const previous = {
+    ...base,
+    slots: [
+      { dayIndex: 0, meal: "breakfast" as const, recipeId: "natto-set", cost: 10 },
+      { dayIndex: 0, meal: "dinner" as const, recipeId: "hamburg", cost: 20 },
+    ],
+  };
+  const fresh = {
+    ...base,
+    slots: [
+      { dayIndex: 0, meal: "breakfast" as const, recipeId: "tofu-morning", cost: 5 },
+      { dayIndex: 0, meal: "dinner" as const, recipeId: "shio-dare", cost: 8 },
+    ],
+  };
+  const locked = keepCookedDays(fresh, previous, [], book.priceOf, [{ dayIndex: 0, meal: "breakfast" }]);
+  assert.equal(locked.slots.find((slot) => slot.meal === "breakfast")?.recipeId, "natto-set");
+  assert.equal(locked.slots.find((slot) => slot.meal === "dinner")?.recipeId, "shio-dare");
+  const stock = [{ ingredientId: "egg", place: "fridge" as const, units: 2 }];
+  const after = consumeStock(stock, previous, 0, {}, "breakfast");
+  const taken = stockTaken(stock, after);
+  assert.ok(taken.every((item) => item.units > 0));
+  assert.ok(restoreStock(after, taken).some((item) => item.ingredientId === "egg" && item.units === 2));
+});
+
+test("the bottom nav stays 14px on one line and the page clears it", () => {
+  const shell = readFileSync(new URL("../components/shell.tsx", import.meta.url), "utf8");
+  const bottom = shell.slice(shell.indexOf("function BottomNav"));
+  assert.match(bottom, /whitespace-nowrap/);
+  assert.match(bottom, /text-sm/);
+  assert.doesNotMatch(bottom, /text-xs|text-\[12px\]|text-\[11px\]/);
+  assert.match(shell, /pb-28/);
+  const pageClearance = 7 * 16;
+  const navHeight = 44 + 16 + 14;
+  assert.ok(pageClearance > navHeight);
+});
+
+test("the child age notice shows only after the Tome preset changes", () => {
+  const preset = {
+    areaId: "tome",
+    adults: TOME_PRESET.adults,
+    children: TOME_PRESET.children,
+    childStage: TOME_PRESET.childStage,
+    monthlyBudget: TOME_PRESET.monthlyBudget,
+    mode: TOME_PRESET.mode,
+  };
+  assert.equal(showChildAgeNotice(preset), false);
+  assert.equal(showChildAgeNotice({ ...preset, areaId: "nakano" }), false);
+  assert.equal(showChildAgeNotice({ ...preset, children: 1 }), true);
+  assert.equal(showChildAgeNotice({ ...preset, adults: 1 }), true);
+  assert.equal(showChildAgeNotice({ ...preset, childStage: "young" }), true);
+  assert.equal(showChildAgeNotice({ ...preset, monthlyBudget: 70_000 }), true);
+  assert.equal(showChildAgeNotice({ ...preset, mode: "dinner" }), true);
+  const home = readFileSync(new URL("../components/screens/home-screen.tsx", import.meta.url), "utf8");
+  const today = home.indexOf('className="home-today');
+  const age = home.indexOf("showChildAgeNotice(app.state)");
+  const skin = home.indexOf("<SkinPicker />");
+  assert.ok(today > 0 && age > today && skin > age);
 });

@@ -1,19 +1,11 @@
 import { getIngredient, getRecipe, getStore } from "./catalog";
 import { usedItems } from "./household";
 import { formatUnits, yen } from "./format";
+import type { CookedMeal } from "./cooked";
 import type { PriceLookup } from "./optimizer";
 import type { Plan, ShopLine, ShopList, StockItem } from "./types";
 
-export function cookedDaysOn(keys: string[], start: string): number[] {
-  const days: number[] = [];
-  for (const key of keys) {
-    const [date, index] = key.split(":");
-    if (date !== start) continue;
-    const day = Number(index);
-    if (Number.isInteger(day)) days.push(day);
-  }
-  return days;
-}
+export { cookedDaysOn, cookedMealsOn } from "./cooked";
 
 function sellByWeight(ingredientId: string, units: number): { chargeUnits: number; label: string } | null {
   const ingredient = getIngredient(ingredientId);
@@ -102,6 +94,7 @@ export function buildShoppingList(
   stock: StockItem[] = [],
   preferredStoreId?: string | null,
   cookedDayIndexes: number[] = [],
+  cookedMeals: CookedMeal[] = [],
 ): ShopList {
   const have = new Map<string, number>();
   for (const item of stock) {
@@ -113,6 +106,7 @@ export function buildShoppingList(
   let seasoningYen = 0;
   for (const slot of plan.slots) {
     if (skipDays.has(slot.dayIndex)) continue;
+    if (cookedMeals.some((item) => item.dayIndex === slot.dayIndex && item.meal === slot.meal)) continue;
     const recipe = getRecipe(slot.recipeId);
     if (!recipe) continue;
     seasoningYen += Math.round(recipe.extraYen * plan.people * plan.portion);

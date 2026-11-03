@@ -1,6 +1,6 @@
 import { getIngredient, getRecipe } from "./catalog";
 import { usedItems } from "./household";
-import type { Ingredient, Plan, StockItem } from "./types";
+import type { Ingredient, MealType, Plan, StockItem } from "./types";
 
 /** 在庫の上限。米は1単位が75gなので、400単位で30kg。読み込みも保存もこの数。 */
 export const MAX_STOCK_UNITS = 400;
@@ -60,9 +60,14 @@ export function consumeStock(
   plan: Plan,
   dayIndex?: number,
   reserved: Record<string, { units: number; place: StockItem["place"] }> = {},
+  meal?: MealType,
 ): StockItem[] {
   const need = new Map<string, number>();
-  const slots = dayIndex == null ? plan.slots : plan.slots.filter((slot) => slot.dayIndex === dayIndex);
+  const slots = plan.slots.filter((slot) => {
+    if (dayIndex != null && slot.dayIndex !== dayIndex) return false;
+    if (meal && slot.meal !== meal) return false;
+    return true;
+  });
   for (const slot of slots) {
     const recipe = getRecipe(slot.recipeId);
     if (!recipe) continue;

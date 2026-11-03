@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import Link from "next/link";
 import { BudgetAdvice } from "@/components/budget-advice";
@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Slider } from "@/components/ui/slider";
+import { isMealCooked } from "@/lib/cooked";
 import { addDays, planDayLabel, weekIsOver } from "@/lib/dates";
 import {
   MODE_LABEL,
@@ -61,7 +62,13 @@ export function MealsScreen() {
   const [swap, setSwap] = useState<PlanSlot | null>(null);
   const [monthlyFocus, setMonthlyFocus] = useState(false);
   const [budgetFocus, setBudgetFocus] = useState(false);
-  const [cookDay, setCookDay] = useState<number | null>(null);
+  const [cookTarget, setCookTarget] = useState<{ day: number; meal: MealType } | null>(null);
+  const planForScroll = app.activePlan;
+  useEffect(() => {
+    const id = window.location.hash.slice(1);
+    if (!id.startsWith("plan-day-")) return;
+    document.getElementById(id)?.scrollIntoView({ block: "start" });
+  }, [planForScroll?.startedOn, app.today]);
   if (!app.ready || !app.book || !app.today) return <BootScreen />;
 
   const plan = app.activePlan;
@@ -474,10 +481,9 @@ export function MealsScreen() {
             {Array.from({ length: plan.days }, (_, day) => {
               const start = plan.startedOn ?? app.today;
               const date = addDays(start, day);
-              const cookedKey = `${start}:${day}`;
               const slots = plan.slots.filter((slot) => slot.dayIndex === day);
               return (
-                <li key={date} className="rounded-3xl bg-card p-4">
+                <li id={`plan-day-${day}`} key={date} className="scroll-mt-4 rounded-3xl bg-card p-4">
                   <p className="text-base font-black">{planDayLabel(start, day, app.today)}</p>
                   <ul className="mt-2 space-y-3">
                     {slots.map((slot) => {
@@ -529,22 +535,17 @@ export function MealsScreen() {
                           >
                             別の皿に変える
                           </button>
+                          <CookButton
+                            cooked={isMealCooked(app.state.cookedKeys, start, day, slot.meal)}
+                            passed={weekIsOver(start, app.today) && date < app.today}
+                            meal={slot.meal}
+                            onCook={() => setCookTarget({ day, meal: slot.meal })}
+                            onUndo={() => app.undoCookedMeal(day, slot.meal)}
+                          />
                         </li>
                       );
                     })}
                   </ul>
-                  <button
-                    type="button"
-                    disabled={app.state.cookedKeys.includes(cookedKey) || (weekIsOver(start, app.today) && date < app.today)}
-                    onClick={() => setCookDay(day)}
-                    className="mt-3 flex min-h-11 w-full items-center justify-center rounded-2xl bg-muted text-base font-bold disabled:opacity-60"
-                  >
-                    {app.state.cookedKeys.includes(cookedKey)
-                      ? "この日は作った"
-                      : weekIsOver(start, app.today) && date < app.today
-                        ? "この日は過ぎました"
-                        : "この日を作った"}
-                  </button>
                 </li>
               );
             })}
@@ -598,20 +599,52 @@ export function MealsScreen() {
       </Sheet>
       <StockUseDialog
         fishAside={fishAside}
-        open={cookDay != null}
+        open={cookTarget != null}
         onOpenChange={(open) => {
-          if (!open) setCookDay(null);
+          if (!open) setCookTarget(null);
         }}
         onKeep={() => {
-          if (cookDay != null) app.keepCookedDay(cookDay);
+          if (cookTarget) app.keepCookedMeal(cookTarget.day, cookTarget.meal);
         }}
         onUse={() => {
-          if (cookDay != null) app.consumeCookedDay(cookDay);
+          if (cookTarget) app.consumeCookedMeal(cookTarget.day, cookTarget.meal);
         }}
       />
       <OpenChoices />
     </div>
   );
+}
+
+function CookButton({
+  cooked,
+  passed,
+  meal,
+  onCook,
+  onUndo,
+}: {
+  cooked: boolean;
+  passed: boolean;
+  meal: MealType;
+  onCook: () => void;
+  onUndo: () => void;
+}) {
+  const label = cooked ? "作ったを取り消す" : passed ? "この食事は過ぎました" : cookActionLabel(meal);
+  return (
+    <button
+      type="button"
+      disabled={!cooked && passed}
+      onClick={cooked ? onUndo : onCook}
+      className="mt-2 flex min-h-11 w-full items-center justify-center rounded-2xl bg-muted text-base font-bold text-primary disabled:opacity-60"
+    >
+      {label}
+    </button>
+  );
+}
+
+function cookActionLabel(meal: MealType): string {
+  if (meal === "breakfast") return "この朝を作った";
+  if (meal === "lunch") return "この昼を作った";
+  return "この夜を作った";
 }
 
 function trimPeople(people: number): string {

@@ -501,6 +501,75 @@ body [data-sonner-toast] [data-description] {
   line-height: 1.45 !important;
 }
 
+/* 高さが足りない画面だけ、説明文を今日カードの下へずらす。390×844 や 402×874 はこの外。 */
+@media (max-height: 700px) {
+  .home-screen {
+    display: flex;
+    flex-direction: column;
+    padding-top: 0.5rem;
+  }
+
+  .home-screen .home-budget,
+  .home-screen .home-budget-face {
+    display: contents;
+  }
+
+  .home-screen .home-budget-top,
+  .home-screen .home-budget-go {
+    order: 1;
+    background-color: var(--card);
+    padding-right: 1rem;
+    padding-left: 1rem;
+  }
+
+  .home-screen .home-budget-top {
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    background-image: radial-gradient(circle at 12px 0, transparent 9px, var(--card) 9.5px);
+    background-size: 24px 14px;
+    background-repeat: repeat-x;
+  }
+
+  .home-screen .home-budget-go {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom-left-radius: 1.5rem;
+    border-bottom-right-radius: 1.5rem;
+    box-shadow: 0 10px 30px rgba(28, 25, 21, 0.05);
+  }
+
+  .home-screen .home-budget-go > * {
+    margin-top: 0.5rem !important;
+  }
+
+  .home-screen .home-budget-go > *:first-child {
+    margin-top: 0 !important;
+  }
+
+  .home-screen .home-today {
+    order: 2;
+    margin-top: 0.5rem;
+  }
+
+  .home-screen .home-notice,
+  .home-screen .home-actions {
+    order: 3;
+  }
+
+  .home-screen .home-blurb {
+    order: 4;
+    margin-top: 0.5rem;
+  }
+
+  .home-screen .home-after {
+    order: 5;
+  }
+
+  .home-screen .home-overlays {
+    order: 6;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .cook-bubble,
   .cook-pan,

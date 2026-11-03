@@ -78,11 +78,28 @@ export function weekIsOver(startedOn: string, today: string): boolean {
 }
 
 /** 献立がある日の、ホームの今日カード。ないときは none。 */
-export function homePlanStatus(startedOn: string | undefined, today: string): "none" | "before" | "during" | "after" {
+export type HomePlanStatus = "none" | "before" | "during" | "after";
+
+export function homePlanStatus(startedOn: string | undefined, today: string): HomePlanStatus {
   if (!startedOn) return "none";
   if (today < startedOn) return "before";
   if (weekIsOver(startedOn, today)) return "after";
   return "during";
+}
+
+/** 献立の中は料理名を出す。前後と、献立がないときだけこの文。 */
+export function todayCardTitle(status: HomePlanStatus, planStart: string, mealTitle?: string): string {
+  if (status === "during" && mealTitle) return mealTitle;
+  if (status === "before") return `${formatShort(planStart)}から始まります`;
+  if (status === "after") return "この1週間は終わりました";
+  return "献立はまだありません";
+}
+
+export function todayCardBody(status: HomePlanStatus, planStart: string): string {
+  if (status === "before") return `${formatShort(planStart)}からの献立ができています。`;
+  if (status === "after") return "次の1週間の献立を作ると、ここに出ます。";
+  if (status === "during") return "";
+  return "「今週の食費 5,000円」のように予算を入れると、朝と夜の献立と買い物リストが出ます。";
 }
 
 /** 前の献立が終わった日は出さない。新しい献立ができるまで、お昼代の案内は止める。 */

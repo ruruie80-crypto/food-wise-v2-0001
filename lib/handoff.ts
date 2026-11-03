@@ -4,7 +4,7 @@ import { avoidsFish, displayRecipeName, plainMisoText } from "./household";
 import { addDays, expenseRangeLabel, formatWithWeekday } from "./dates";
 import { formatUnits, mealLabel, yen } from "./format";
 import { createPriceBook } from "./prices";
-import { buildShoppingList, cookedDaysOn, stockAside } from "./shopping";
+import { buildShoppingList, cookedDaysOn, cookedMealsOn, stockAside } from "./shopping";
 import type { MealMode, Observation, Plan, PlanFocus, Prefs, StockItem } from "./types";
 
 export const HANDOFF_KIND = "sokone-gohan-handoff";
@@ -176,6 +176,7 @@ function renderText(record: HandoffRecord, today: string, stale: boolean): strin
       stockAside(record.stock ?? [], record.packAdded),
       null,
       cookedDaysOn(record.cookedKeys ?? [], start),
+      cookedMealsOn(record.cookedKeys ?? [], start),
     );
     lines.push("", "【買い物】");
     if (shop.covered.length > 0) {

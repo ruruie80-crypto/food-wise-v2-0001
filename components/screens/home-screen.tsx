@@ -21,12 +21,13 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { AreaStores } from "@/components/area-stores";
 import { YouTubeCookButton } from "@/components/youtube-button";
-import { avoidsFish, describeHousehold, displayRecipeName, recipeCopy } from "@/lib/household";
+import { avoidsFish, describeHousehold, displayRecipeName, recipeCopy, showChildAgeNotice } from "@/lib/household";
 import { BudgetAdvice } from "@/components/budget-advice";
 import { SkinPicker } from "@/components/skin-picker";
 import { StoreCheapest } from "@/components/store-cheapest";
 import { MarketCard, SeasonCard } from "@/components/today-panel";
-import { daysBetween, expenseRangeLabel, formatShort, formatWithWeekday, homePlanStatus, lunchMoneyHint, planDayLabel, weekIsOver } from "@/lib/dates";
+import { daysBetween, expenseRangeLabel, formatWithWeekday, homePlanStatus, lunchMoneyHint, planDayLabel, todayCardBody, todayCardTitle, weekIsOver } from "@/lib/dates";
+import { isMealCooked } from "@/lib/cooked";
 import { mealLabel, modeHint, yen } from "@/lib/format";
 
 export function HomeScreen() {
@@ -46,7 +47,9 @@ export function HomeScreen() {
   const recipe = spotlight ? getRecipe(spotlight.recipeId) : undefined;
   const planStatus = homePlanStatus(plan?.startedOn, app.today);
   const cookedToday = Boolean(
-    plan && spotlight && app.state.cookedKeys.includes(`${plan.startedOn ?? app.today}:${spotlight.dayIndex}`),
+    plan &&
+      spotlight &&
+      isMealCooked(app.state.cookedKeys, plan.startedOn ?? app.today, spotlight.dayIndex, spotlight.meal),
   );
   const fishAside = avoidsFish(app.state.excludes);
   const dishName = recipe ? displayRecipeName(recipe, fishAside) : "";
@@ -59,7 +62,7 @@ export function HomeScreen() {
   const remaining = plan ? plan.budget - plan.cost : app.state.budget;
 
   return (
-    <div className="px-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-8">
+    <div className="home-screen px-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-8">
       <header className="flex items-start justify-between gap-3">
         <div>
           <p className="text-[11px] font-bold tracking-[0.16em] text-primary">生活圏の底値</p>
@@ -80,7 +83,9 @@ export function HomeScreen() {
         </Link>
       </header>
 
-      <section className="receipt mt-3 rounded-b-3xl px-4 pt-3 pb-3 shadow-[0_10px_30px_rgba(28,25,21,0.05)]">
+      <section className="receipt home-budget mt-3 rounded-b-3xl px-4 pt-3 pb-3 shadow-[0_10px_30px_rgba(28,25,21,0.05)]">
+        <div className="home-budget-face">
+        <div className="home-budget-top">
         <p className="text-sm text-muted-foreground">{expenseRangeLabel(app.today, plan?.startedOn)} の食費</p>
         <div className="mt-1 flex items-end justify-between gap-3">
           <p className="font-price text-4xl leading-none font-semibold">{yen(app.state.budget)}</p>
@@ -97,16 +102,18 @@ export function HomeScreen() {
             }}
           />
         </div>
-        <p className="mt-2 text-base leading-6 text-muted-foreground">
+        </div>
+        <p className="home-blurb mt-2 text-base leading-6 text-muted-foreground">
           {describeHousehold(app.state.adults, app.state.children, app.state.childStage)}。{modeHint(app.state.mode)}
         </p>
-        <p className="mt-1 text-sm leading-6 text-muted-foreground">
+        <p className="home-blurb mt-1 text-sm leading-6 text-muted-foreground">
           {plan
             ? weekIsOver(plan.startedOn ?? app.today, app.today)
               ? "この表示は、前の献立の7日です。新しい献立を作ると、今日から7日になります。"
               : "献立は使う量の金額です。買い物は、袋の大きさや家にある分を数えた金額です。"
             : "献立を作ると、今日から7日で数えます。"}
         </p>
+        <div className="home-budget-go">
         {plan && lunchMoneyHint(plan.startedOn, app.today, plan.budget - plan.cost) ? (
           <p className="mt-2 text-sm leading-6">
             残りは週{yen(plan.budget - plan.cost)}（月にならすと約
@@ -128,23 +135,21 @@ export function HomeScreen() {
         >
           {plan ? "この予算で作り直す" : "今週の献立を作る"}
         </Button>
+        </div>
+        </div>
       </section>
 
-      <section className="mt-3">
+      <section className="home-today mt-3">
         <SectionTitle
           eyebrow={inPlanWeek ? "今日" : "献立"}
           title={
             spotlight && recipe
-              ? `${mealLabel(spotlight.meal)}は${dishName}`
-              : planStatus === "before"
-                ? `${formatShort(planStart)}から始まります`
-                : planStatus === "after"
-                  ? "この1週間は終わりました"
-                  : "献立はまだありません"
+              ? todayCardTitle(planStatus, planStart, `${mealLabel(spotlight.meal)}は${dishName}`)
+              : todayCardTitle(planStatus, planStart)
           }
         />
         {spotlight && recipe ? (
-          <div className="mt-2 rounded-3xl bg-card p-3">
+          <div className="home-today-card mt-2 rounded-3xl bg-card p-3">
             <Link href="/meals" className="block">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -161,30 +166,20 @@ export function HomeScreen() {
               </div>
             </Link>
             <YouTubeCookButton name={dishName} />
-            <Link href="/meals" className="inline-flex min-h-11 items-center text-base font-bold text-primary">
+            <Link
+              href={`/meals#plan-day-${spotlight.dayIndex}`}
+              className="inline-flex min-h-11 items-center text-base font-bold text-primary"
+            >
               作った・減らすは献立の画面で
             </Link>
           </div>
         ) : (
-          <p className="mt-2 rounded-3xl bg-card p-3 text-base leading-6">
-            {planStatus === "before"
-              ? `${formatShort(planStart)}からの献立ができています。`
-              : planStatus === "after"
-                ? "次の1週間の献立を作ると、ここに出ます。"
-                : "「今週の食費 5,000円」のように予算を入れると、朝と夜の献立と買い物リストが出ます。"}
-          </p>
+          <p className="mt-2 rounded-3xl bg-card p-3 text-base leading-6">{todayCardBody(planStatus, planStart)}</p>
         )}
       </section>
 
-      {app.state.areaId === "tome" &&
-      !(
-        app.state.adults === 2 &&
-        app.state.children === 2 &&
-        app.state.childStage === "teen" &&
-        app.state.monthlyBudget === 80000 &&
-        app.state.mode === "dinner_breakfast"
-      ) ? (
-        <Link href="/meals" className="mt-4 block rounded-3xl bg-card p-4">
+      {showChildAgeNotice(app.state) ? (
+        <Link href="/meals" className="home-notice mt-4 block rounded-3xl bg-card p-4">
           <p className="text-lg font-black">登米の家族設定</p>
           <p className="mt-1 text-base leading-7">
             仮の目安は大人2人と子ども2人、月8万円（1週間 約18,400円）、朝と夜です。子どもの年齢はまだ聞いていません。献立の画面で変えられます。
@@ -192,7 +187,7 @@ export function HomeScreen() {
         </Link>
       ) : null}
 
-      <div className="mt-3 grid gap-2">
+      <div className="home-actions mt-3 grid gap-2">
         <Button
           type="button"
           variant="outline"
@@ -213,6 +208,7 @@ export function HomeScreen() {
         </Link>
       </div>
 
+      <div className="home-after">
       <SkinPicker />
 
       <BudgetAdvice variant="compact" />
@@ -308,7 +304,9 @@ export function HomeScreen() {
           値段は目安です。記録はこのスマホの中だけで、お店のレジとはつながっていません。
         </p>
       </Link>
+      </div>
 
+      <div className="home-overlays">
       <HandoffSheet open={handoff} onOpenChange={setHandoff} />
 
       <Sheet open={settings} onOpenChange={setSettings}>
@@ -363,6 +361,7 @@ export function HomeScreen() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }

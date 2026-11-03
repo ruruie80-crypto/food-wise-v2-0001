@@ -158,6 +158,25 @@ export const TOME_PRESET: {
 
 TOME_PRESET.budget = weeklyFromMonthly(TOME_PRESET.monthlyBudget);
 
+/** 仮の人数のままのときは出さない。人数や年齢を変えたときだけ、今日カードの下に出す。 */
+export function showChildAgeNotice(input: {
+  areaId: string;
+  adults: number;
+  children: number;
+  childStage: ChildStage;
+  monthlyBudget: number | null;
+  mode: MealMode;
+}): boolean {
+  if (input.areaId !== "tome") return false;
+  return !(
+    input.adults === TOME_PRESET.adults &&
+    input.children === TOME_PRESET.children &&
+    input.childStage === TOME_PRESET.childStage &&
+    input.monthlyBudget === TOME_PRESET.monthlyBudget &&
+    input.mode === TOME_PRESET.mode
+  );
+}
+
 export function childPortion(stage: ChildStage): number {
   return stage === "teen" ? TEEN_CHILD_PORTION : YOUNG_CHILD_PORTION;
 }

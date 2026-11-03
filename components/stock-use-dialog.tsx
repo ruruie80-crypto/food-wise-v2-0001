@@ -29,7 +29,7 @@ export function StockUseDialog({
         <DialogHeader>
           <DialogTitle>使ったぶんを減らしますか</DialogTitle>
           <DialogDescription>
-            作った日の食材を、冷蔵庫から先に減らします。味噌やわかめは減らしません。
+            作った食事の食材を、冷蔵庫から先に減らします。味噌やわかめは減らしません。
             {fishAside ? "家の味噌がだし入りでないか確かめてね。" : ""}
             献立を作っただけでは減らしません。
           </DialogDescription>

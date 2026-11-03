@@ -13,7 +13,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { formatUnits, yen } from "@/lib/format";
 import { avoidsFish, plainMisoText } from "@/lib/household";
 import { formatWithWeekday, weekIsOver } from "@/lib/dates";
-import { buildShoppingList, cookedDaysOn, stockAside } from "@/lib/shopping";
+import { buildShoppingList, cookedDaysOn, cookedMealsOn, stockAside } from "@/lib/shopping";
 import { readRiceKg, riceUnitsFromKg } from "@/lib/stock";
 import { cn } from "@/lib/utils";
 import type { Store } from "@/lib/types";
@@ -47,6 +47,7 @@ export function ShopScreen() {
     stockAside(app.state.stock, app.state.packAdded),
     app.state.preferredStoreId,
     cookedDaysOn(app.state.cookedKeys, planStart),
+    cookedMealsOn(app.state.cookedKeys, planStart),
   );
   const foodSubtotal = list.multiTotal - list.seasoningYen;
   const area = getArea(app.state.areaId);

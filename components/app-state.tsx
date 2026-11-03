@@ -18,7 +18,18 @@ import {
   weeklyFromMonthly,
 } from "@/lib/household";
 import { consumeStock, MAX_STOCK_UNITS } from "@/lib/stock";
-import { buildShoppingList, cookedDaysOn, stockAside } from "@/lib/shopping";
+import {
+  cookedKeysAfterRebuild,
+  cookedMealKey,
+  keysAfterUndo,
+  mealIsLocked,
+  readCookedKeys,
+  readCookedUses,
+  restoreStock,
+  stockTaken,
+  type StockTake,
+} from "@/lib/cooked";
+import { buildShoppingList, cookedDaysOn, cookedMealsOn, stockAside } from "@/lib/shopping";
 import {
   buildPlan,
   dropDuplicateCookedDishes,
@@ -104,6 +115,7 @@ export type Persisted = {
   preferredStoreId: string | null;
   stock: StockItem[];
   cookedKeys: string[];
+  cookedUses: Record<string, StockTake[]>;
   packAdded: Record<string, { units: number; place: StockPlace }>;
   observations: Observation[];
   balanced: Plan | null;
@@ -148,8 +160,9 @@ type AppContextValue = {
   setMode: (mode: MealMode) => void;
   setArea: (areaId: string) => void;
   setStock: (ingredientId: string, place: StockPlace, units: number) => void;
-  consumeCookedDay: (dayIndex: number) => void;
-  keepCookedDay: (dayIndex: number) => void;
+  consumeCookedMeal: (dayIndex: number, meal: MealType) => void;
+  keepCookedMeal: (dayIndex: number, meal: MealType) => void;
+  undoCookedMeal: (dayIndex: number, meal: MealType) => void;
   togglePref: (key: keyof Prefs) => void;
   toggleExclusion: (ids: string[]) => void;
   setFocus: (focus: PlanFocus) => void;
@@ -187,6 +200,7 @@ function defaultState(): Persisted {
     preferredStoreId: null,
     stock: [],
     cookedKeys: [],
+    cookedUses: {},
     packAdded: {},
     observations: [],
     balanced: null,
@@ -258,7 +272,8 @@ function sanitize(raw: unknown): Persisted {
     prefs,
     excludes: Array.isArray(data.excludes) ? data.excludes.filter((id) => typeof id === "string") : [],
     stock: Array.isArray(data.stock) ? data.stock.filter(isStockItem) : [],
-    cookedKeys: Array.isArray(data.cookedKeys) ? data.cookedKeys.filter((id) => typeof id === "string") : [],
+    cookedKeys: readCookedKeys(data.cookedKeys),
+    cookedUses: readCookedUses(data.cookedUses),
     packAdded: sanitizePackAdded(data.packAdded),
     observations: Array.isArray(data.observations) ? data.observations.filter(isObservation) : [],
     balanced: isPlan(data.balanced) ? data.balanced : null,
@@ -465,8 +480,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     const previous = state.focus === "cheap" ? state.cheap : state.balanced;
     const { startedOn, continueWeek } = resolvePlanStart(previous?.startedOn, today);
     const cooked = continueWeek ? cookedDaysOn(state.cookedKeys, startedOn) : [];
+    const cookedMeals = continueWeek ? cookedMealsOn(state.cookedKeys, startedOn) : [];
     const cookedRecipes = new Set(
-      (previous?.slots ?? []).filter((slot) => cooked.includes(slot.dayIndex)).map((slot) => slot.recipeId),
+      (previous?.slots ?? [])
+        .filter((slot) => mealIsLocked(slot.dayIndex, slot.meal, cooked, cookedMeals))
+        .map((slot) => slot.recipeId),
     );
     const weekly = (state.areaId === "tome" ? WEEKLY_DISHES : []).filter((id) => !cookedRecipes.has(id));
     const prefs = { ...state.prefs, allowSkinlessThigh: state.thighPolicy === "allow" };
@@ -496,18 +514,26 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       syncLeftoverNote(
         ensureWeeklyDishes(
           dropDuplicateCookedDishes(
-            keepCookedDays({ ...plan, sourceKey: key, startedOn }, continueWeek ? previous : null, cooked, lookup.priceOf),
+            keepCookedDays(
+              { ...plan, sourceKey: key, startedOn },
+              continueWeek ? previous : null,
+              cooked,
+              lookup.priceOf,
+              cookedMeals,
+            ),
             cooked,
             WEEKLY_DISHES,
             lookup.priceOf,
             prefs,
             excludes,
+            cookedMeals,
           ),
           state.areaId === "tome" ? WEEKLY_DISHES : [],
           cooked,
           lookup.priceOf,
           prefs,
           excludes,
+          cookedMeals,
         ),
       );
     const balanced = lock(result.balanced);
@@ -519,7 +545,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       cheap,
       focus: "balanced",
       checks: {},
-      cookedKeys: continueWeek ? current.cookedKeys : [],
+      cookedKeys: cookedKeysAfterRebuild(current.cookedKeys, continueWeek),
+      cookedUses: continueWeek ? current.cookedUses : {},
       packAdded: continueWeek ? current.packAdded : {},
       onboarded: true,
     }));
@@ -602,25 +629,52 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         }
         return { ...current, areaId };
       }),
-    consumeCookedDay: (dayIndex) =>
+    consumeCookedMeal: (dayIndex, meal) =>
       update((current) => {
         const plan = current.focus === "cheap" ? current.cheap : current.balanced;
-        if (!plan) return current;
-        const key = `${plan.startedOn ?? today}:${dayIndex}`;
-        if (current.cookedKeys.includes(key)) return current;
+        if (!plan || !today) return current;
+        const start = plan.startedOn ?? today;
+        if (mealIsLocked(dayIndex, meal, cookedDaysOn(current.cookedKeys, start), cookedMealsOn(current.cookedKeys, start))) {
+          return current;
+        }
+        const key = cookedMealKey(start, dayIndex, meal);
+        const stock = consumeStock(current.stock, plan, dayIndex, current.packAdded, meal);
         return {
           ...current,
-          stock: consumeStock(current.stock, plan, dayIndex, current.packAdded),
+          stock,
           cookedKeys: [...current.cookedKeys, key],
+          cookedUses: { ...current.cookedUses, [key]: stockTaken(current.stock, stock) },
         };
       }),
-    keepCookedDay: (dayIndex) =>
+    keepCookedMeal: (dayIndex, meal) =>
       update((current) => {
         const plan = current.focus === "cheap" ? current.cheap : current.balanced;
-        if (!plan) return current;
-        const key = `${plan.startedOn ?? today}:${dayIndex}`;
-        if (current.cookedKeys.includes(key)) return current;
+        if (!plan || !today) return current;
+        const start = plan.startedOn ?? today;
+        if (mealIsLocked(dayIndex, meal, cookedDaysOn(current.cookedKeys, start), cookedMealsOn(current.cookedKeys, start))) {
+          return current;
+        }
+        const key = cookedMealKey(start, dayIndex, meal);
         return { ...current, cookedKeys: [...current.cookedKeys, key] };
+      }),
+    undoCookedMeal: (dayIndex, meal) =>
+      update((current) => {
+        const plan = current.focus === "cheap" ? current.cheap : current.balanced;
+        if (!plan || !today) return current;
+        const start = plan.startedOn ?? today;
+        const others = plan.slots
+          .filter((slot) => slot.dayIndex === dayIndex && slot.meal !== meal)
+          .map((slot) => slot.meal);
+        const undone = keysAfterUndo(current.cookedKeys, start, dayIndex, meal, others);
+        if (undone.removed.length === 0) return current;
+        let stock = current.stock;
+        const cookedUses = { ...current.cookedUses };
+        for (const key of undone.removed) {
+          const taken = cookedUses[key];
+          if (taken) stock = restoreStock(stock, taken);
+          delete cookedUses[key];
+        }
+        return { ...current, cookedKeys: undone.keys, cookedUses, stock };
       }),
     setStock: (ingredientId, place, units) =>
       update((current) => {
@@ -694,6 +748,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
             stockAside(current.stock, current.packAdded),
             current.preferredStoreId,
             cookedDaysOn(current.cookedKeys, start),
+            cookedMealsOn(current.cookedKeys, start),
           );
           const line = list.groups.flatMap((group) => group.lines).find((item) => item.ingredientId === ingredientId);
           const extra = line && line.neededUnits != null ? line.units - line.neededUnits : 0;
