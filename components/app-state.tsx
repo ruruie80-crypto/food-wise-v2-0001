@@ -339,6 +339,33 @@ export function sourceKey(state: Persisted): string {
   ].join("|");
 }
 
+const CHANGE_LABELS: { label: string; indexes: number[] }[] = [
+  { label: "地域", indexes: [0] },
+  { label: "人数", indexes: [1, 2, 3, 7] },
+  { label: "鶏ももの設定", indexes: [4] },
+  { label: "乳製品の設定", indexes: [5] },
+  { label: "納豆・冷奴の卵", indexes: [6] },
+  { label: "予算", indexes: [8, 9] },
+  { label: "朝と夜の範囲", indexes: [10] },
+  { label: "献立の好み", indexes: [11, 12, 13, 14, 15, 16] },
+  { label: "きらいな食べ物の設定", indexes: [17] },
+  { label: "値札", indexes: [18] },
+];
+
+/** 作り直す前に、何が変わったかを一文で返す。変わっていなければ空。 */
+export function planChangeNote(savedKey: string, currentKey: string): string {
+  if (!savedKey || savedKey === currentKey || samePlanAsideFromStock(savedKey, currentKey)) return "";
+  const saved = savedKey.split("|");
+  const current = currentKey.split("|");
+  if (saved.length !== current.length) return "条件が変わりました。献立を作り直してください。";
+  const reasons = CHANGE_LABELS.filter((item) => item.indexes.some((index) => saved[index] !== current[index])).map(
+    (item) => item.label,
+  );
+  if (reasons.length === 0) return "条件が変わりました。献立を作り直してください。";
+  if (reasons.length === 1) return `${reasons[0]}が変わりました。献立を作り直してください。`;
+  return `${reasons.slice(0, 2).join("と")}が変わりました。献立を作り直してください。`;
+}
+
 /** 保存済みの鍵が、在庫の欄だけ違うときは、予算や値札は変わっていない。 */
 export function samePlanAsideFromStock(savedKey: string, currentKey: string): boolean {
   if (savedKey === currentKey) return true;
@@ -456,7 +483,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         stock: stockAside(state.stock, continueWeek ? state.packAdded : {}),
         weeklyDishes: weekly,
         fullPortions: state.childStage === "teen" && state.children > 0,
-        allowOptionalEggs: eggToppingPolicy === "allow",
+        allowOptionalEggs: eggToppingPolicy === "allow" && !state.excludes.includes("egg"),
         sourceKey: key,
       },
       lookup,

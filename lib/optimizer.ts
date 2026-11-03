@@ -6,6 +6,7 @@ import {
   EGGS_PER_PACK,
   fattyIds,
   MAX_WEEKLY_EGG_PACKS,
+  OPTIONAL_EGG_RECIPES,
   QUIET_EGG_TARGET,
   TWICE_A_WEEK_DISHES,
   usedItems,
@@ -179,7 +180,15 @@ export function isRecipeAllowed(
   excludes: string[],
 ): boolean {
   if (!recipe.meals.includes(meal)) return false;
-  if (recipe.items.some((item) => excludes.includes(item.ingredientId))) return false;
+  if (
+    recipe.items.some(
+      (item) =>
+        excludes.includes(item.ingredientId) &&
+        !(item.ingredientId === "egg" && OPTIONAL_EGG_RECIPES.includes(recipe.id)),
+    )
+  ) {
+    return false;
+  }
   if (prefs.lessFat && recipe.items.some((item) => fattyIds(Boolean(prefs.allowSkinlessThigh)).includes(item.ingredientId))) {
     return false;
   }
@@ -202,6 +211,9 @@ function allowedRecipes(meal: MealType, prefs: Prefs, excludes: string[]): Recip
 }
 
 function repeatCap(meal: MealType, poolSize: number, goal: "balanced" | "cheap"): number {
+  if (poolSize <= 1) return 99;
+  // 朝が2品だけのとき、7日とも同じ皿にしない。3品以上のときの回数はこれまでと同じ。
+  if (meal === "breakfast" && poolSize === 2) return 4;
   if (poolSize <= 2) return 99;
   if (meal === "breakfast") return 2;
   if (goal === "cheap") return 3;
@@ -795,9 +807,34 @@ function planWithCurrentEggs(input: PlanInput, lookup: PriceLookup): PlanResult 
       );
     }
   }
+  const limitNote = menuLimitNote(balanced, input.prefs, input.excludes);
+  if (limitNote) notes.unshift(limitNote);
   balanced.notes = notes;
   cheap.notes = notes;
   return { ok: true, balanced, cheap };
+}
+
+function menuLimitNote(plan: Plan, prefs: Prefs, excludes: string[]): string | null {
+  const dinnerSlots = plan.slots.filter((slot) => slot.meal === "dinner");
+  const days = new Set(dinnerSlots.map((slot) => slot.dayIndex)).size;
+  const dinners = allowedRecipes("dinner", prefs, excludes);
+  const capacity = dinners.reduce((sum, recipe) => sum + (TWICE_A_WEEK_DISHES.includes(recipe.id) ? 2 : 1), 0);
+  const over = dinnerSlots.some((slot) => {
+    const count = dinnerSlots.filter((item) => item.recipeId === slot.recipeId).length;
+    return count > (TWICE_A_WEEK_DISHES.includes(slot.recipeId) ? 2 : 1);
+  });
+  const lines: string[] = [];
+  if (days > 0 && (capacity < days || over)) {
+    lines.push("晩ごはんの種類が足りません。同じ皿が続くことがあります。食べるものを少し戻すと、予算を使い切らずに済みやすいです。");
+  }
+  const breakfasts = plan.slots.filter((slot) => slot.meal === "breakfast");
+  if (breakfasts.length > 1) {
+    const kinds = new Set(breakfasts.map((slot) => slot.recipeId));
+    if (kinds.size === 1 && allowedRecipes("breakfast", prefs, excludes).length <= 1) {
+      lines.push("朝ごはんは、今の条件だと1種類だけです。");
+    }
+  }
+  return lines.length > 0 ? lines.join("") : null;
 }
 
 export function replacePlanSlot(

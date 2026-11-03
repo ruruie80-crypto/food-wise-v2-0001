@@ -6,7 +6,7 @@ import { Bell } from "lucide-react";
 import { toast } from "sonner";
 import { getArea, getIngredient, getRecipe, getStore, ingredients } from "@/lib/catalog";
 import { AreaPicker } from "@/components/area-picker";
-import { useApp } from "@/components/app-state";
+import { planChangeNote, sourceKey, useApp } from "@/components/app-state";
 import { BootScreen, PriceSticker, SectionTitle, SignalMark, Yen } from "@/components/bits";
 import { HandoffSheet, saveHandoffZip } from "@/components/handoff-sheet";
 import { Button } from "@/components/ui/button";
@@ -109,9 +109,9 @@ export function HomeScreen() {
             {yen(Math.round(((plan.budget - plan.cost) / 7) * 30.4 / 100) * 100)}）です。お昼ごはん代には少なめかもしれません。
           </p>
         ) : null}
-        {app.stale ? (
-          <p className="mt-2 rounded-xl bg-notice text-notice-foreground px-3 py-2 text-xs leading-5">
-            予算か値札が変わりました。献立を組み直すと、底値の計算が追いつきます。
+        {app.stale && plan ? (
+          <p className="mt-2 rounded-xl bg-notice px-3 py-2 text-base leading-7 text-notice-foreground">
+            {planChangeNote(plan.sourceKey, sourceKey(app.state))}
           </p>
         ) : null}
         <Button

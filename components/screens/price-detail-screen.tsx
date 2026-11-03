@@ -332,7 +332,7 @@ function HistoryChart({
         <g key={point.date}>
           <circle cx={x(index)} cy={y(point.price)} r={index === series.length - 1 ? 4 : 2.4} fill={index === series.length - 1 ? "var(--accent)" : "var(--primary)"} stroke="var(--foreground)" strokeWidth="1" />
           {index % 3 === 0 || index === series.length - 1 ? (
-            <text x={x(index)} y={height - 4} textAnchor="middle" fontSize="10" fill="var(--muted-foreground)">
+            <text x={x(index)} y={height - 2} textAnchor="middle" fontSize="14" fill="var(--muted-foreground)">
               {formatShort(point.date)}
             </text>
           ) : null}

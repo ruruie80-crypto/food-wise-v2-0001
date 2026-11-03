@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { getArea, getIngredient, getStore, storesIn } from "@/lib/catalog";
 import { AreaStores } from "@/components/area-stores";
 import { FlyerLink } from "@/components/flyer-link";
-import { useApp } from "@/components/app-state";
+import { planChangeNote, sourceKey, useApp } from "@/components/app-state";
 import { BootScreen, Yen } from "@/components/bits";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -36,6 +36,7 @@ export function ShopScreen() {
   }
 
   const planStart = plan.startedOn ?? app.today;
+  const changeNote = planChangeNote(plan.sourceKey, sourceKey(app.state));
   const finished = weekIsOver(planStart, app.today);
   const list = buildShoppingList(
     plan,
@@ -105,6 +106,9 @@ export function ShopScreen() {
       <p className="mt-1 text-sm leading-6 text-muted-foreground">
         買い物は、袋の大きさや家にある分を数えた金額です。献立の金額とは違います。
       </p>
+      {changeNote ? (
+        <p className="mt-3 rounded-2xl bg-notice px-3 py-3 text-base leading-7 text-notice-foreground">{changeNote}</p>
+      ) : null}
       {finished ? (
         <p className="mt-3 rounded-2xl bg-card px-3 py-3 text-base leading-7">
           {formatWithWeekday(planStart)}から始めた1週間は終わりました。新しい献立を作ると、来週の買い物になります。

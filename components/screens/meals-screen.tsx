@@ -7,7 +7,7 @@ import { BudgetAdvice } from "@/components/budget-advice";
 import { RecipeVideoButton } from "@/components/recipe-player";
 import { YouTubeCookButton } from "@/components/youtube-button";
 import { getRecipe, recipes } from "@/lib/catalog";
-import { useApp } from "@/components/app-state";
+import { planChangeNote, sourceKey, useApp } from "@/components/app-state";
 import { BootScreen, SectionTitle, Yen } from "@/components/bits";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -259,14 +259,14 @@ export function MealsScreen() {
           <p className="mt-1 text-base leading-7">初期は「しない」です。切り替えると、献立と買い物を作り直します。</p>
           {eggsAside ? (
             <p id="egg-aside-note" className="mt-1 text-base leading-7">
-              卵を除くが優先です。卵の入る皿は入りません。のせの設定は残してあり、卵を除くをやめると使います。
+              卵を除くが優先です。納豆と冷奴は卵なしで残します。のせのボタンは、卵を除くをやめると押せます。
             </p>
           ) : null}
           <div
             role="group"
             aria-label="納豆・冷奴に卵をのせる"
             aria-describedby={eggsAside ? "egg-aside-note" : undefined}
-            className={cn("mt-2 grid grid-cols-2 gap-2", eggsAside && "opacity-50")}
+            className="mt-2 grid grid-cols-2 gap-2"
           >
             {(
               [
@@ -278,8 +278,10 @@ export function MealsScreen() {
                 key={id}
                 type="button"
                 aria-pressed={app.state.eggToppingPolicy === id}
+                disabled={eggsAside}
+                aria-disabled={eggsAside}
                 onClick={() => {
-                  if (app.state.eggToppingPolicy === id) return;
+                  if (eggsAside || app.state.eggToppingPolicy === id) return;
                   const result = app.setEggTopping(id);
                   if (result && !result.ok) toast.error(result.error);
                   else if (result?.ok) {
@@ -290,7 +292,13 @@ export function MealsScreen() {
                 }}
                 className={cn(
                   "min-h-11 rounded-2xl px-2 text-base font-bold",
-                  app.state.eggToppingPolicy === id ? "bg-primary text-primary-foreground" : "bg-muted",
+                  eggsAside
+                    ? app.state.eggToppingPolicy === id
+                      ? "border-2 border-foreground bg-card text-foreground"
+                      : "border-2 border-dashed border-foreground/40 bg-card text-foreground"
+                    : app.state.eggToppingPolicy === id
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-foreground",
                 )}
               >
                 {label}
@@ -391,8 +399,8 @@ export function MealsScreen() {
       </section>
 
       {app.stale && plan ? (
-        <p className="mt-3 rounded-2xl bg-notice text-notice-foreground px-3 py-3 text-sm leading-6">
-          条件が変わっています。上のボタンで組み直すと、買い物リストも追いつきます。
+        <p className="mt-3 rounded-2xl bg-notice px-3 py-3 text-base leading-7 text-notice-foreground">
+          {planChangeNote(plan.sourceKey, sourceKey(app.state))}
         </p>
       ) : null}
 
