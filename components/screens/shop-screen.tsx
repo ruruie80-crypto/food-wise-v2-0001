@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { formatUnits, yen } from "@/lib/format";
+import { avoidsFish, plainMisoText } from "@/lib/household";
 import { formatWithWeekday, weekIsOver } from "@/lib/dates";
 import { buildShoppingList, cookedDaysOn, stockAside } from "@/lib/shopping";
 import { readRiceKg, riceUnitsFromKg } from "@/lib/stock";
@@ -37,6 +38,8 @@ export function ShopScreen() {
 
   const planStart = plan.startedOn ?? app.today;
   const changeNote = planChangeNote(plan.sourceKey, sourceKey(app.state));
+  const fishAside = avoidsFish(app.state.excludes);
+  const misoLabel = (text: string) => plainMisoText(text, fishAside);
   const finished = weekIsOver(planStart, app.today);
   const list = buildShoppingList(
     plan,
@@ -61,7 +64,7 @@ export function ShopScreen() {
         `【${store?.name ?? group.storeId}】`,
         ...group.lines.map((line) => {
           const ingredient = getIngredient(line.ingredientId);
-          const name = ingredient?.name ?? line.ingredientId;
+          const name = misoLabel(ingredient?.name ?? line.ingredientId);
           const qty = line.buyLabel ?? (ingredient ? formatUnits(line.units, ingredient) : "");
           return `- ${name} ${qty} ${yen(line.linePrice)}`;
         }),
@@ -71,7 +74,7 @@ export function ShopScreen() {
       lines.push("【在庫でまかなう】");
       for (const row of list.covered) {
         const ingredient = getIngredient(row.ingredientId);
-        const name = ingredient?.name ?? row.ingredientId;
+        const name = misoLabel(ingredient?.name ?? row.ingredientId);
         const qty = ingredient ? formatUnits(row.units, ingredient) : "";
         lines.push(`- ${name} ${qty}`);
       }
@@ -139,12 +142,12 @@ export function ShopScreen() {
         <section className="mt-4 rounded-3xl bg-card p-4">
           <p className="text-lg font-black">家にあれば不要</p>
           <p className="mt-1 text-base leading-7">
-            わかめは40g入りの袋で、ふつうのスーパーだと約¥200〜¥500です。味噌は750gのパックです。家にあれば買いません。在庫にあれば、ここにも出ません。
+            わかめは40g入りの袋で、ふつうのスーパーだと約¥200〜¥500です。{misoLabel("味噌")}は750gのパックです。家にあれば買いません。在庫にあれば、ここにも出ません。
           </p>
           <ul className="mt-2 space-y-1">
             {list.pantry.map((row) => (
               <li key={row.ingredientId} className="text-base font-bold">
-                {row.label}
+                {row.ingredientId === "miso" ? misoLabel(row.label) : row.label}
               </li>
             ))}
           </ul>
@@ -233,7 +236,7 @@ export function ShopScreen() {
                           className="size-6"
                         />
                         <span className={checked ? "flex-1 text-muted-foreground line-through" : "flex-1"}>
-                          <span className="font-bold">{ingredient?.name}</span>
+                          <span className="font-bold">{misoLabel(ingredient?.name ?? line.ingredientId)}</span>
                           <span className="ml-2 text-base text-muted-foreground">
                             {line.buyLabel ?? (ingredient ? formatUnits(line.units, ingredient) : "")}
                           </span>

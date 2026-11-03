@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { getIngredient, getRecipe, getStore, ingredients, recipes, storesIn } from "./catalog";
 import { expenseRangeLabel, lunchMoneyHint, planDayLabel, resolvePlanStart, weekIsOver, weekRangeLabel } from "./dates";
-import { CHEAP_EGG_DISHES, CHILD_PORTION, EGGS_PER_PACK, householdServings, MAX_WEEKLY_EGG_PACKS, recipeCopy, TOME_PRESET, TWICE_A_WEEK_DISHES, usedItems, weeklyFromMonthly } from "./household";
+import { CHEAP_EGG_DISHES, CHILD_PORTION, EGGS_PER_PACK, householdServings, MAX_WEEKLY_EGG_PACKS, plainMisoText, recipeCopy, TOME_PRESET, TWICE_A_WEEK_DISHES, usedItems, weeklyFromMonthly } from "./household";
 import { formatUnits, marketHeading, seasonHeading } from "./format";
 import { consumeStock, MAX_STOCK_UNITS, readRiceKg, riceUnitsFromKg } from "./stock";
 import { buildPlan, dropDuplicateCookedDishes, ensureWeeklyDishes, isRecipeAllowed, keepCookedDays, recipeCost, syncLeftoverNote } from "./optimizer";
@@ -878,6 +878,49 @@ test("excluding eggs and fish keeps the twice-a-week cap", () => {
   const detail = readFileSync(new URL("../components/screens/price-detail-screen.tsx", import.meta.url), "utf8");
   assert.match(detail, /底値帳へ戻る/);
   assert.match(detail, /min-h-11/);
+});
+
+test("excluding fish renames miso, and dropping chicken breast leaves free days", () => {
+  assert.equal(plainMisoText("味噌汁を添え、ご飯と並べる。", false), "味噌汁を添え、ご飯と並べる。");
+  assert.equal(plainMisoText("味噌汁を添え、ご飯と並べる。", true), "だし入りでない味噌の汁を添え、ご飯と並べる。");
+  assert.equal(plainMisoText("味噌汁とご飯を添える。", true), "だし入りでない味噌の汁とご飯を添える。");
+  assert.equal(plainMisoText("わかめと味噌で汁を作る。", true), "わかめとだし入りでない味噌で汁を作る。");
+  assert.equal(plainMisoText("わかめの味噌汁を添える。", true), "わかめのだし入りでない味噌の汁を添える。");
+  assert.equal(plainMisoText("ご飯と味噌汁を用意する。", true), "ご飯とだし入りでない味噌の汁を用意する。");
+  assert.equal(plainMisoText("わかめと味噌の汁に入れて温める。", true), "わかめとだし入りでない味噌の汁に入れて温める。");
+  assert.equal(plainMisoText("味噌 1パック", true), "だし入りでない味噌 1パック");
+  const morning = getRecipe("tofu-morning");
+  assert.ok(morning);
+  if (!morning) return;
+  assert.equal(recipeCopy(morning, false, false).name, "豆腐と味噌汁");
+  assert.equal(recipeCopy(morning, false, true).name, "豆腐とだし入りでない味噌の汁");
+  const book = createPriceBook("tome", TODAY, []);
+  const result = buildPlan(
+    {
+      budget: 18_400,
+      people: 4,
+      days: 7,
+      mode: "dinner_breakfast",
+      prefs: { ...prefs, lessFat: true, noMilk: true },
+      excludes: ["egg", "salmon", "aji", "sardine", "mackerel", "chicken_b"],
+      fullPortions: true,
+      weeklyDishes: ["hamburg", "soboro"],
+    },
+    book,
+  );
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  const free = result.balanced.slots.filter((slot) => slot.recipeId === "free-night");
+  assert.ok(free.length >= 1, result.balanced.slots.map((slot) => slot.recipeId).join(","));
+  assert.ok(free.every((slot) => slot.cost === 0));
+  assert.match(result.balanced.notes.join("\n"), /自由/);
+  assert.match(result.balanced.notes.join("\n"), /余ったお金/);
+  const cold = result.balanced.slots.filter((slot) => slot.recipeId === "hiyayakko").length;
+  assert.ok(cold <= 2, String(cold));
+  const shop = buildShoppingList(result.balanced, book);
+  const miso = shop.pantry.find((row) => row.ingredientId === "miso");
+  assert.ok(miso);
+  assert.equal(plainMisoText(miso?.label ?? "", true).includes("だし入りでない味噌"), true);
 });
 
 test("YouTube button is a search for the dish name", () => {

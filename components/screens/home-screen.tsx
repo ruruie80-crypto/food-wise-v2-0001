@@ -21,7 +21,7 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { AreaStores } from "@/components/area-stores";
 import { YouTubeCookButton } from "@/components/youtube-button";
-import { describeHousehold, recipeCopy } from "@/lib/household";
+import { avoidsFish, describeHousehold, recipeCopy } from "@/lib/household";
 import { BudgetAdvice } from "@/components/budget-advice";
 import { SkinPicker } from "@/components/skin-picker";
 import { StoreCheapest } from "@/components/store-cheapest";
@@ -187,7 +187,7 @@ export function HomeScreen() {
                   </p>
                   <p className="mt-1 text-xl font-black">{recipe.name}</p>
                   <p className="mt-1 text-base leading-7 text-muted-foreground">
-                    {recipeCopy(recipe, app.state.excludes.includes("egg")).summary}
+                    {recipeCopy(recipe, app.state.excludes.includes("egg"), avoidsFish(app.state.excludes)).summary}
                   </p>
                 </div>
                 <PriceSticker value={spotlight.cost} />

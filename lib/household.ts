@@ -60,14 +60,42 @@ export const OPTIONAL_EGG_RECIPES = ["natto-set", "hiyayakko"];
 
 const EGG_CHOICE_SENTENCE = "卵をのせるかは、献立の設定「納豆・冷奴に卵をのせる」で選びます。";
 
-/** 卵を除いているときは、おまけの卵を「設定で選ぶ」と書かない。 */
-export function recipeCopy<T extends { id: string; summary: string; steps: string[] }>(
+/** 献立の「魚を除く」が外す品。 */
+export const FISH_IDS = ["salmon", "aji", "sardine", "mackerel"];
+
+export function avoidsFish(excludes: string[]): boolean {
+  return FISH_IDS.some((id) => excludes.includes(id));
+}
+
+/** だし入り味噌には魚が入っていることがある。魚を除くときだけ言い換える。 */
+export function plainMisoText(text: string, fishAside: boolean): string {
+  if (!fishAside || !text.includes("味噌")) return text;
+  return text
+    .replaceAll("味噌汁", "\u0000汁")
+    .replaceAll("味噌", "だし入りでない味噌")
+    .replaceAll("\u0000汁", "だし入りでない味噌の汁");
+}
+
+/** 卵を除いているときは、おまけの卵を「設定で選ぶ」と書かない。魚を除くときは味噌の書き方を変える。 */
+export function recipeCopy<T extends { id: string; summary: string; steps: string[]; name?: string }>(
   recipe: T,
   eggsAside: boolean,
+  fishAside = false,
 ): T {
-  if (!eggsAside || !OPTIONAL_EGG_RECIPES.includes(recipe.id)) return recipe;
-  const swap = (text: string) => text.replaceAll(EGG_CHOICE_SENTENCE, "卵はのせません。");
-  return { ...recipe, summary: swap(recipe.summary), steps: recipe.steps.map(swap) };
+  let summary = recipe.summary;
+  let steps = recipe.steps;
+  let name = recipe.name;
+  if (eggsAside && OPTIONAL_EGG_RECIPES.includes(recipe.id)) {
+    const swap = (text: string) => text.replaceAll(EGG_CHOICE_SENTENCE, "卵はのせません。");
+    summary = swap(summary);
+    steps = steps.map(swap);
+  }
+  if (fishAside) {
+    summary = plainMisoText(summary, true);
+    steps = steps.map((step) => plainMisoText(step, true));
+    if (name != null) name = plainMisoText(name, true);
+  }
+  return { ...recipe, summary, steps, name };
 }
 
 export type EggToppingPolicy = "avoid" | "allow";

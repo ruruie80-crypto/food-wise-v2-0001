@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Pause, Play, RotateCcw } from "lucide-react";
 import { getRecipe } from "@/lib/catalog";
 import { useApp } from "@/components/app-state";
-import { recipeCopy } from "@/lib/household";
+import { avoidsFish, recipeCopy } from "@/lib/household";
 import { cookingMethod } from "@/lib/advice";
 import { YouTubeCookButton } from "@/components/youtube-button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -36,7 +36,9 @@ function RecipePlayer({
 }) {
   const app = useApp();
   const recipe = getRecipe(recipeId);
-  const steps = recipe ? recipeCopy(recipe, app.state.excludes.includes("egg")).steps : [];
+  const steps = recipe
+    ? recipeCopy(recipe, app.state.excludes.includes("egg"), avoidsFish(app.state.excludes)).steps
+    : [];
   const total = Math.max(steps.length, 1) * STEP_MS;
   const [elapsed, setElapsed] = useState(0);
   const [playing, setPlaying] = useState(true);

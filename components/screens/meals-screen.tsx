@@ -28,6 +28,7 @@ import {
   describeHousehold,
   householdServings,
   OPTIONAL_EGG_RECIPES,
+  avoidsFish,
   recipeCopy,
   TOME_PRESET,
   usedItems,
@@ -67,6 +68,7 @@ export function MealsScreen() {
   const hint = budgetHint(servings, app.state.mode);
   const tome = app.state.areaId === "tome";
   const eggsAside = app.state.excludes.includes("egg");
+  const fishAside = avoidsFish(app.state.excludes);
   const presetOn =
     app.state.adults === TOME_PRESET.adults &&
     app.state.children === TOME_PRESET.children &&
@@ -479,7 +481,7 @@ export function MealsScreen() {
                     {slots.map((slot) => {
                       const recipe = getRecipe(slot.recipeId);
                       if (!recipe) return null;
-                      const shown = recipeCopy(recipe, eggsAside);
+                      const shown = recipeCopy(recipe, eggsAside, fishAside);
                       const nutrition = recipeNutrition(
                         recipe,
                         plan.people,
@@ -491,7 +493,7 @@ export function MealsScreen() {
                           <div className="flex items-start justify-between gap-3">
                             <div>
                               <p className="text-[11px] font-bold text-primary">{mealLabel(slot.meal)}</p>
-                              <p className="font-bold">{recipe.name}</p>
+                              <p className="font-bold">{shown.name}</p>
                               <p className="text-xs text-muted-foreground">
                                 {cookingMethod(recipe.id)} · {recipe.minutes}分 · たんぱく質 {Math.round(nutrition.protein)}g · 野菜 {Math.round(nutrition.veg)}g
                               </p>
