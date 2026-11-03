@@ -49,7 +49,7 @@ export function PricesScreen() {
               key={item.name}
               type="button"
               onClick={() => setQuery(item.name)}
-              className="rounded-full bg-chip px-3 py-1 text-xs font-bold"
+              className="inline-flex min-h-11 items-center rounded-full bg-chip px-3 text-sm font-bold"
             >
               旬 · {item.name}
             </button>

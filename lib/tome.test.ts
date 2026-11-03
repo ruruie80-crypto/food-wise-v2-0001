@@ -242,6 +242,11 @@ test("the shop list uses packs and keeps pantry items out of the store total", (
   assert.equal(retailBuy("natto", 7.4).label, "8パック");
   assert.equal(retailBuy("wakame", 33.1).label, "乾燥わかめ 1袋");
   assert.equal(retailBuy("miso", 33.1).label, "味噌 1パック");
+  assert.equal(retailBuy("chicken_hiki", 15).label, "300g×5パック");
+  assert.equal(retailBuy("cabbage", 8.4).label, "1玉");
+  assert.equal(retailBuy("cabbage", 8.4).chargeUnits, 10);
+  assert.equal(retailBuy("rice", 56).label, "5kg袋");
+  assert.ok(retailBuy("rice", 56).chargeUnits * 60 > 56 * 60);
   const book = createPriceBook("tome", TODAY, []);
   const result = buildPlan(
     {
@@ -262,13 +267,42 @@ test("the shop list uses packs and keeps pantry items out of the store total", (
   assert.equal(result.balanced.notes.some((note) => note.includes("少なめに見積もって")), false);
   const withPantry = buildShoppingList(result.balanced, book);
   assert.ok(withPantry.groups.every((group) => group.lines.every((line) => line.ingredientId !== "wakame" && line.ingredientId !== "miso")));
-  assert.ok(withPantry.pantry.some((row) => row.label === "乾燥わかめ 1袋") || withPantry.covered.some((row) => row.ingredientId === "wakame") || !result.balanced.slots.some((slot) => getRecipe(slot.recipeId)?.items.some((item) => item.ingredientId === "wakame")));
+  assert.ok(withPantry.pantry.some((row) => row.label.startsWith("乾燥わかめ 1袋")) || withPantry.covered.some((row) => row.ingredientId === "wakame") || !result.balanced.slots.some((slot) => getRecipe(slot.recipeId)?.items.some((item) => item.ingredientId === "wakame")));
   const stocked = buildShoppingList(result.balanced, book, [
     { ingredientId: "wakame", place: "fridge", units: 100 },
     { ingredientId: "miso", place: "fridge", units: 100 },
   ]);
   assert.equal(stocked.pantry.some((row) => row.ingredientId === "wakame"), false);
   assert.equal(stocked.pantry.some((row) => row.ingredientId === "miso"), false);
+});
+
+test("cooking a day does not put that food back on the shopping list", () => {
+  const book = createPriceBook("tome", TODAY, []);
+  const result = buildPlan(
+    {
+      budget: 18_400,
+      people: 4,
+      days: 7,
+      mode: "dinner_breakfast",
+      prefs,
+      excludes: [],
+      fullPortions: true,
+    },
+    book,
+  );
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  const stock = [
+    { ingredientId: "cabbage", place: "fridge" as const, units: 10 },
+    { ingredientId: "chicken_hiki", place: "freezer" as const, units: 3 },
+  ];
+  const before = buildShoppingList(result.balanced, book, stock);
+  const after = buildShoppingList(result.balanced, book, consumeStock(stock, result.balanced, 0), null, [0]);
+  assert.ok(after.multiTotal <= before.multiTotal, `${after.multiTotal} vs ${before.multiTotal}`);
+  const unitsOf = (list: typeof before, id: string) =>
+    list.groups.flatMap((group) => group.lines).find((line) => line.ingredientId === id)?.units ?? 0;
+  assert.ok(unitsOf(after, "chicken_hiki") <= unitsOf(before, "chicken_hiki"));
+  assert.ok(unitsOf(after, "cabbage") <= unitsOf(before, "cabbage"));
 });
 
 test("YouTube button is a search for the dish name", () => {

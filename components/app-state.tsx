@@ -17,7 +17,8 @@ import {
   weeklyFromMonthly,
 } from "@/lib/household";
 import { consumeStock } from "@/lib/stock";
-import { buildPlan, replacePlanSlot, type PlanResult } from "@/lib/optimizer";
+import { cookedDaysOn } from "@/lib/shopping";
+import { buildPlan, keepCookedDays, replacePlanSlot, type PlanResult } from "@/lib/optimizer";
 import { createPriceBook, type PriceBook } from "@/lib/prices";
 import { isBrightSkin, isSkin, skinThemeColor, type SkinId } from "@/lib/skins";
 import type {
@@ -408,15 +409,19 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       lookup,
     );
     if (!result.ok) return result;
+    const cooked = cookedDaysOn(state.cookedKeys, today);
+    const previous = state.focus === "cheap" ? state.cheap : state.balanced;
+    const balanced = keepCookedDays({ ...result.balanced, sourceKey: key }, previous, cooked, lookup.priceOf);
+    const cheap = keepCookedDays({ ...result.cheap, sourceKey: key }, previous, cooked, lookup.priceOf);
     update((current) => ({
       ...current,
-      balanced: { ...result.balanced, sourceKey: key },
-      cheap: { ...result.cheap, sourceKey: key },
+      balanced,
+      cheap,
       focus: "balanced",
       checks: {},
       onboarded: true,
     }));
-    return result;
+    return { ok: true, balanced, cheap };
   };
 
   const value: AppContextValue = {
@@ -494,7 +499,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       update((current) => {
         const plan = current.focus === "cheap" ? current.cheap : current.balanced;
         if (!plan) return current;
-        const key = `${plan.sourceKey}:${dayIndex}`;
+        const key = `${today}:${dayIndex}`;
         if (current.cookedKeys.includes(key)) return current;
         return {
           ...current,
@@ -506,7 +511,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       update((current) => {
         const plan = current.focus === "cheap" ? current.cheap : current.balanced;
         if (!plan) return current;
-        const key = `${plan.sourceKey}:${dayIndex}`;
+        const key = `${today}:${dayIndex}`;
         if (current.cookedKeys.includes(key)) return current;
         return { ...current, cookedKeys: [...current.cookedKeys, key] };
       }),

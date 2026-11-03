@@ -1,7 +1,49 @@
 import { getIngredient, getRecipe, getStore } from "./catalog";
-import { formatUnits } from "./format";
+import { formatUnits, yen } from "./format";
 import type { PriceLookup } from "./optimizer";
 import type { Plan, ShopLine, ShopList, StockItem } from "./types";
+
+export function cookedDaysOn(keys: string[], start: string): number[] {
+  const days: number[] = [];
+  for (const key of keys) {
+    const [date, index] = key.split(":");
+    if (date !== start) continue;
+    const day = Number(index);
+    if (Number.isInteger(day)) days.push(day);
+  }
+  return days;
+}
+
+function sellByWeight(ingredientId: string, units: number): { chargeUnits: number; label: string } | null {
+  const ingredient = getIngredient(ingredientId);
+  if (!ingredient) return null;
+  if (ingredientId === "rice") {
+    const grams = units * ingredient.gramsPerUnit;
+    const bags = Math.max(1, Math.ceil(grams / 5000 - 1e-9));
+    return {
+      chargeUnits: bags * (5000 / ingredient.gramsPerUnit),
+      label: bags === 1 ? "5kg袋" : `5kg×${bags}袋`,
+    };
+  }
+  if (ingredient.unitKind !== "grams100") return null;
+  const packs: Record<string, { units: number; one: string; many: (count: number) => string }> = {
+    cabbage: { units: 10, one: "1玉", many: (count) => `1玉×${count}` },
+    hakusai: { units: 10, one: "1/4株", many: (count) => `1/4株×${count}` },
+    daikon: { units: 8, one: "1本", many: (count) => `1本×${count}` },
+    chicken_b: { units: 3, one: "300g×1パック", many: (count) => `300g×${count}パック` },
+    chicken_t: { units: 3, one: "300g×1パック", many: (count) => `300g×${count}パック` },
+    chicken_hiki: { units: 3, one: "300g×1パック", many: (count) => `300g×${count}パック` },
+    pork: { units: 2, one: "200g×1パック", many: (count) => `200g×${count}パック` },
+    pork_hiki: { units: 3, one: "300g×1パック", many: (count) => `300g×${count}パック` },
+  };
+  const pack = packs[ingredientId] ?? {
+    units: 3,
+    one: "300g×1パック",
+    many: (count: number) => `300g×${count}パック`,
+  };
+  const count = Math.max(1, Math.ceil(units / pack.units - 1e-9));
+  return { chargeUnits: count * pack.units, label: count === 1 ? pack.one : pack.many(count) };
+}
 
 const PANTRY_IDS = new Set(["wakame", "miso"]);
 
@@ -18,6 +60,8 @@ export function retailBuy(ingredientId: string, units: number): { chargeUnits: n
     const count = Math.max(1, Math.ceil(units - 1e-9));
     return { chargeUnits: count, label: `${count}${ingredient.unitSuffix}`, pantry: false };
   }
+  const weighed = sellByWeight(ingredientId, units);
+  if (weighed) return { ...weighed, pantry: false };
   return { chargeUnits: units, label: formatUnits(units, ingredient), pantry: false };
 }
 
@@ -30,15 +74,18 @@ export function buildShoppingList(
   lookup: Lookup,
   stock: StockItem[] = [],
   preferredStoreId?: string | null,
+  cookedDayIndexes: number[] = [],
 ): ShopList {
   const have = new Map<string, number>();
   for (const item of stock) {
     if (item.units <= 0) continue;
     have.set(item.ingredientId, (have.get(item.ingredientId) ?? 0) + item.units);
   }
+  const skipDays = new Set(cookedDayIndexes);
   const totals = new Map<string, number>();
   let seasoningYen = 0;
   for (const slot of plan.slots) {
+    if (skipDays.has(slot.dayIndex)) continue;
     const recipe = getRecipe(slot.recipeId);
     if (!recipe) continue;
     seasoningYen += Math.round(recipe.extraYen * plan.people * plan.portion);
@@ -51,7 +98,7 @@ export function buildShoppingList(
   }
 
   const covered: { ingredientId: string; units: number }[] = [];
-  const pantry: { ingredientId: string; label: string }[] = [];
+  const pantry: ShopList["pantry"] = [];
   const lines: ShopLine[] = [];
   for (const [ingredientId, needed] of totals) {
     const fromStock = Math.min(have.get(ingredientId) ?? 0, needed);
@@ -60,7 +107,15 @@ export function buildShoppingList(
     if (units <= 0.05) continue;
     const retail = retailBuy(ingredientId, units);
     if (retail.pantry || PANTRY_IDS.has(ingredientId)) {
-      pantry.push({ ingredientId, label: retail.label });
+      const quote = lookup.quote(ingredientId);
+      const unit = quote?.byStore[0]?.price ?? 0;
+      const grams = ingredientId === "miso" ? 750 : 100;
+      const perUnit = getIngredient(ingredientId)?.gramsPerUnit ?? 1;
+      pantry.push({
+        ingredientId,
+        label: `${retail.label}（ないときは約${yen(Math.round(unit * (grams / perUnit)))}）`,
+        approxYen: Math.round(unit * (grams / perUnit)),
+      });
       continue;
     }
     const quote = lookup.quote(ingredientId);

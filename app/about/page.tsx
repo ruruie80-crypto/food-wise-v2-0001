@@ -77,7 +77,7 @@ export default function AboutPage() {
         </ol>
       </section>
 
-      <Link href="/" className="mt-6 inline-block text-sm font-bold text-primary">
+      <Link href="/" className="mt-6 inline-flex min-h-11 items-center text-base font-bold text-primary">
         ホームへ戻る
       </Link>
     </div>

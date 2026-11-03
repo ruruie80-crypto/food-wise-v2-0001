@@ -192,7 +192,7 @@ export type ShopList = {
   /** 冷蔵庫・冷凍庫でまかなう量。買い物リストには出さない。 */
   covered: { ingredientId: string; units: number }[];
   /** わかめ・味噌。家にあれば買わない。店の合計には入れない。 */
-  pantry: { ingredientId: string; label: string }[];
+  pantry: { ingredientId: string; label: string; approxYen: number }[];
 };
 
 export type AlertItem = {

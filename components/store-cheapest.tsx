@@ -42,7 +42,7 @@ export function StoreCheapest() {
       {identical ? (
         <ul className="mt-3 flex flex-wrap gap-2">
           {stores.map((store) => (
-            <li key={store.id} className="rounded-full bg-card px-3 py-1.5 text-xs font-bold">
+            <li key={store.id} className="inline-flex min-h-11 items-center rounded-full bg-card px-3 text-sm font-bold">
               {store.name}
             </li>
           ))}
@@ -59,7 +59,7 @@ export function StoreCheapest() {
                 aria-pressed={active}
                 onClick={() => setPicked(board.store.id)}
                 className={cn(
-                  "shrink-0 rounded-full px-3 py-1.5 text-sm font-bold",
+                  "inline-flex min-h-11 shrink-0 items-center rounded-full px-3 text-sm font-bold",
                   active ? "bg-primary text-primary-foreground" : "bg-card",
                 )}
               >

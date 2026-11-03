@@ -76,7 +76,7 @@ function RecipePlayer({
             value={elapsed}
             aria-label="手順の位置"
             onChange={(event) => setElapsed(Number(event.target.value))}
-            className="w-full accent-accent"
+            className="h-11 w-full accent-accent"
           />
           <div className="flex flex-wrap gap-2">
             {steps.map((text, index) => (

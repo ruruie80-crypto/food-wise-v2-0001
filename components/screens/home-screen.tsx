@@ -55,7 +55,7 @@ export function HomeScreen() {
         <div>
           <p className="text-[11px] font-bold tracking-[0.16em] text-primary">生活圏の底値</p>
           <h1 className="text-[1.7rem] leading-none font-black tracking-tight">底値ごはん</h1>
-          <button type="button" onClick={() => setSettings(true)} className="mt-2 text-left text-sm text-muted-foreground">
+          <button type="button" onClick={() => setSettings(true)} className="mt-2 min-h-11 text-left text-base text-muted-foreground">
             {greeting}。{area.prefecture} {area.name} · {formatWithWeekday(app.today)}
           </button>
         </div>
@@ -181,7 +181,7 @@ export function HomeScreen() {
       <section className="mt-6">
         <div className="flex items-end justify-between">
           <SectionTitle eyebrow="値札" title="今日の買い時" />
-          <Link href="/prices" className="text-sm font-bold text-primary">
+          <Link href="/prices" className="inline-flex min-h-11 items-center text-base font-bold text-primary">
             底値帳
           </Link>
         </div>

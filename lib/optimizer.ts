@@ -642,6 +642,45 @@ export function replacePlanSlot(
   };
 }
 
+export function keepCookedDays(
+  plan: Plan,
+  previous: Plan | null,
+  dayIndexes: number[],
+  priceOf: PriceLookup["priceOf"],
+): Plan {
+  if (!previous || dayIndexes.length === 0) return plan;
+  const locked = new Set(dayIndexes);
+  let changed = false;
+  const slots = plan.slots.map((slot) => {
+    if (!locked.has(slot.dayIndex)) return slot;
+    const prev = previous.slots.find((item) => item.dayIndex === slot.dayIndex && item.meal === slot.meal);
+    if (!prev) return slot;
+    const recipe = getRecipe(prev.recipeId);
+    if (!recipe) return slot;
+    changed = true;
+    return {
+      ...slot,
+      recipeId: prev.recipeId,
+      cost: recipeCost(recipe, plan.people, priceOf, plan.portion),
+    };
+  });
+  if (!changed) return plan;
+  const nutrition = slots.reduce((total, slot) => {
+    const recipe = getRecipe(slot.recipeId);
+    return recipe ? add(total, recipeNutrition(recipe, plan.people, plan.portion)) : total;
+  }, zeroNutrition());
+  const cost = slots.reduce((sum, slot) => sum + slot.cost, 0);
+  const note = "作った日はそのままにして、まだ作っていない日だけ組み直しています。";
+  return {
+    ...plan,
+    slots,
+    nutrition,
+    cost,
+    overBy: Math.max(0, cost - plan.budget),
+    notes: [note, ...plan.notes.filter((item) => item !== note)],
+  };
+}
+
 export function dinnerRepeats(plan: Plan): Record<string, number> {
   const counts: Record<string, number> = {};
   for (const slot of plan.slots) {

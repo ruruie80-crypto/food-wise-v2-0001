@@ -57,7 +57,7 @@ export function BudgetAdvice({ variant }: { variant: "compact" | "full" }) {
             );
           })}
         </ol>
-        <Link href="/meals" className="mt-3 inline-block text-sm font-bold text-primary">
+        <Link href="/meals" className="mt-3 inline-flex min-h-11 items-center text-base font-bold text-primary">
           食材と7日分を見る
         </Link>
       </section>

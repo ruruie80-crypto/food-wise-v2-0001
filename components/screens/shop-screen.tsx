@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { formatUnits, yen } from "@/lib/format";
-import { buildShoppingList } from "@/lib/shopping";
+import { buildShoppingList, cookedDaysOn } from "@/lib/shopping";
 import { cn } from "@/lib/utils";
 import type { Store } from "@/lib/types";
 
@@ -32,7 +32,13 @@ export function ShopScreen() {
     );
   }
 
-  const list = buildShoppingList(plan, app.book, app.state.stock, app.state.preferredStoreId);
+  const list = buildShoppingList(
+    plan,
+    app.book,
+    app.state.stock,
+    app.state.preferredStoreId,
+    cookedDaysOn(app.state.cookedKeys, app.today),
+  );
   const area = getArea(app.state.areaId);
   const openStore = storeId ? getStore(storeId) : undefined;
   const localStores = storesIn(app.state.areaId);
@@ -210,7 +216,7 @@ export function ShopScreen() {
                   );
                 })}
               </ul>
-              <button type="button" className="mt-3 text-sm font-bold text-primary" onClick={() => setStoreId(group.storeId)}>
+              <button type="button" className="mt-3 inline-flex min-h-11 items-center text-base font-bold text-primary" onClick={() => setStoreId(group.storeId)}>
                 この店の情報
               </button>
             </section>
@@ -230,7 +236,7 @@ export function ShopScreen() {
           <ul className="mt-2 divide-y divide-border">
             {localStores.map((store) => (
               <li key={store.id}>
-                <button type="button" className="w-full py-3 text-left" onClick={() => setStoreId(store.id)}>
+                <button type="button" className="min-h-11 w-full py-3 text-left text-base" onClick={() => setStoreId(store.id)}>
                   <span className="block font-bold">{store.name}</span>
                   <span className="text-xs leading-5 text-muted-foreground">
                     {store.branches[app.state.areaId]} · {store.hours}

@@ -3,7 +3,7 @@ import { getArea, getIngredient, getRecipe, getStore } from "./catalog";
 import { addDays, formatWithWeekday, weekRangeLabel } from "./dates";
 import { formatUnits, mealLabel, yen } from "./format";
 import { createPriceBook } from "./prices";
-import { buildShoppingList } from "./shopping";
+import { buildShoppingList, cookedDaysOn } from "./shopping";
 import type { MealMode, Observation, Plan, PlanFocus, Prefs, StockItem } from "./types";
 
 export const HANDOFF_KIND = "sokone-gohan-handoff";
@@ -40,6 +40,7 @@ export type HandoffRecord = {
   children?: number;
   monthlyBudget?: number | null;
   stock?: StockItem[];
+  cookedKeys?: string[];
 };
 
 export type HandoffFile = {
@@ -163,7 +164,7 @@ function renderText(record: HandoffRecord, today: string, stale: boolean): strin
       }
     }
     const book = createPriceBook(record.areaId, today, record.observations);
-    const shop = buildShoppingList(plan, book, record.stock ?? []);
+    const shop = buildShoppingList(plan, book, record.stock ?? [], null, cookedDaysOn(record.cookedKeys ?? [], today));
     lines.push("", "【買い物】");
     if (shop.covered.length > 0) {
       lines.push("冷蔵庫・冷凍庫にあるので買わないもの:");

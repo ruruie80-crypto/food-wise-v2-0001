@@ -36,7 +36,7 @@ export function AreaStores({ areaId }: { areaId: string }) {
                 target="_blank"
                 rel="noopener noreferrer"
                 referrerPolicy="no-referrer"
-                className="mt-2 block text-base font-bold text-primary"
+                className="mt-2 inline-flex min-h-11 items-center text-base font-bold text-primary"
               >
                 店舗の案内を開く
               </a>
