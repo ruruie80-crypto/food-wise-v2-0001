@@ -192,6 +192,38 @@ export function applyCookUndo(input: CookUndoState): CookUndoState & { modes: Re
   return { ...input, keys: undone.keys, uses, stock, modes };
 }
 
+/** 献立画面の「取り消す」と同じ手順。印がなければ何もしない。 */
+export function undoCookedMealState(input: {
+  plan: Plan | null;
+  today: string;
+  dayIndex: number;
+  meal: MealType;
+  keys: string[];
+  uses: Record<string, StockTake[]>;
+  modes?: Record<string, CookedMode>;
+  stock: StockItem[];
+}): { keys: string[]; uses: Record<string, StockTake[]>; modes: Record<string, CookedMode>; stock: StockItem[] } | null {
+  if (!input.plan || !input.today) return null;
+  const start = input.plan.startedOn ?? input.today;
+  const others = input.plan.slots
+    .filter((slot) => slot.dayIndex === input.dayIndex && slot.meal !== input.meal)
+    .map((slot) => slot.meal);
+  const undone = applyCookUndo({
+    keys: input.keys,
+    uses: input.uses,
+    stock: input.stock,
+    modes: input.modes,
+    start,
+    dayIndex: input.dayIndex,
+    meal: input.meal,
+    otherMeals: others,
+    mealNeed: mealStockNeed(input.plan, input.dayIndex, input.meal),
+    otherNeeds: others.map((other) => mealStockNeed(input.plan as Plan, input.dayIndex, other)),
+  });
+  if (undone.keys === input.keys) return null;
+  return { keys: undone.keys, uses: undone.uses, modes: undone.modes, stock: undone.stock };
+}
+
 export const LEGACY_UNDO_NOTE = "前の版で付けた印なので、在庫は戻りません。";
 export const KEPT_UNDO_NOTE = "在庫を減らさずに付けた印なので、在庫は変わりません。";
 

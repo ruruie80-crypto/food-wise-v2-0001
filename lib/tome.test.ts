@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { getIngredient, getRecipe, getStore, ingredients, recipes, storesIn } from "./catalog";
 import { bottomNavHeightPx, compactHomeLayout, expenseRangeLabel, homePlanStatus, lunchMoneyHint, mealsDayHref, pageClearsNav, planDayDomId, planDayLabel, resolvePlanStart, todayCardBody, todayCardTitle, weekIsOver, weekRangeLabel } from "./dates";
-import { applyCookUndo, cookedKeysAfterRebuild, cookedMealsOn, isMealCooked, KEPT_UNDO_NOTE, keysAfterUndo, LEGACY_UNDO_NOTE, mealStockNeed, readCookedKeys, resolveUndo, restoreStock, stockTaken, undoConfirmDetail, undoStockKind } from "./cooked";
+import { applyCookUndo, cookedKeysAfterRebuild, cookedMealsOn, isMealCooked, KEPT_UNDO_NOTE, keysAfterUndo, LEGACY_UNDO_NOTE, mealStockNeed, readCookedKeys, readCookedModes, resolveUndo, restoreStock, stockTaken, undoConfirmDetail, undoCookedMealState, undoStockKind } from "./cooked";
 import { CHEAP_EGG_DISHES, CHILD_PORTION, displayRecipeName, EGGS_PER_PACK, HOME_MISO_CHECK, householdServings, MAX_WEEKLY_EGG_PACKS, PLAIN_MISO_DISH_NAME, plainMisoText, recipeCopy, showChildAgeNotice, showUnaskedAge, todayDishTitle, TOME_PRESET, TWICE_A_WEEK_DISHES, usedItems, weeklyFromMonthly, withHomeMisoCheck } from "./household";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createElement } from "react";
@@ -16,6 +16,8 @@ import { createPriceBook } from "./prices";
 import { buildShoppingList, cookedDaysOn, retailBuy, stockAside } from "./shopping";
 import { surveyUnitYen } from "./survey";
 import { youtubeCookUrl } from "./youtube";
+import type { Plan } from "./types";
+import { HomeDishTitle } from "../components/home-dish-title";
 import type { Prefs } from "./types";
 
 const TODAY = "2026-10-07";
@@ -1351,4 +1353,67 @@ test("the home card shortens the fish-free miso name", () => {
   assert.match(home, /todayDishTitle\(dishName\)/);
   assert.match(home, /dishTitle\.title/);
   assert.match(home, /dishTitle\.note/);
+});
+
+test("undoCookedMeal restores only the meal that used stock", () => {
+  const start = "2026-11-03";
+  const breakfast = `${start}:1:breakfast`;
+  const dinner = `${start}:1:dinner`;
+  const plan = {
+    startedOn: start,
+    people: 1,
+    portion: 1,
+    slots: [
+      { dayIndex: 1, meal: "breakfast", recipeId: "natto-set", cost: 1 },
+      { dayIndex: 1, meal: "dinner", recipeId: "hamburg", cost: 1 },
+    ],
+  } as Plan;
+  const stock = [{ ingredientId: "egg", place: "fridge" as const, units: 1 }];
+  const modes = readCookedModes({
+    [breakfast]: "used",
+    [dinner]: "kept",
+    "壊れた": "kept",
+    [`${start}:2:lunch`]: "nope",
+  });
+  assert.deepEqual(modes, { [breakfast]: "used", [dinner]: "kept" });
+  assert.equal(undoStockKind([breakfast, dinner], { [breakfast]: stock }, modes, start, 1, "breakfast"), "used");
+  assert.equal(undoStockKind([breakfast, dinner], { [breakfast]: stock }, modes, start, 1, "dinner"), "kept");
+  const afterBreakfast = undoCookedMealState({
+    plan,
+    today: "2026-11-04",
+    dayIndex: 1,
+    meal: "breakfast",
+    keys: [breakfast, dinner],
+    uses: { [breakfast]: [{ ingredientId: "egg", place: "fridge", units: 1 }] },
+    modes,
+    stock: [],
+  });
+  assert.ok(afterBreakfast);
+  assert.equal(afterBreakfast?.keys.includes(breakfast), false);
+  assert.equal(afterBreakfast?.keys.includes(dinner), true);
+  assert.equal(afterBreakfast?.stock.find((item) => item.ingredientId === "egg")?.units, 1);
+  assert.equal(afterBreakfast?.modes[dinner], "kept");
+  const afterDinner = undoCookedMealState({
+    plan,
+    today: "2026-11-04",
+    dayIndex: 1,
+    meal: "dinner",
+    keys: afterBreakfast?.keys ?? [],
+    uses: afterBreakfast?.uses ?? {},
+    modes: afterBreakfast?.modes,
+    stock: afterBreakfast?.stock ?? [],
+  });
+  assert.equal(afterDinner?.keys.includes(dinner), false);
+  assert.equal(afterDinner?.stock.find((item) => item.ingredientId === "egg")?.units, 1);
+  const shown = todayDishTitle(PLAIN_MISO_DISH_NAME);
+  const html = renderToStaticMarkup(createElement(HomeDishTitle, shown));
+  assert.match(html, />豆腐の味噌汁</);
+  assert.equal(html.includes("（"), false);
+  assert.match(html, />だし入りでない味噌</);
+  const url = youtubeCookUrl(shown.title);
+  assert.equal(decodeURIComponent(url.split("search_query=")[1] ?? ""), "豆腐の味噌汁 作り方");
+  const home = readFileSync(new URL("../components/screens/home-screen.tsx", import.meta.url), "utf8");
+  const week = readFileSync(new URL("../components/budget-advice.tsx", import.meta.url), "utf8");
+  assert.match(home, /YouTubeCookButton name=\{dishTitle\.title\}/);
+  assert.equal(week.includes("todayDishTitle"), false);
 });

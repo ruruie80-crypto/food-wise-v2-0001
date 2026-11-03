@@ -28,6 +28,7 @@ import { StoreCheapest } from "@/components/store-cheapest";
 import { MarketCard, SeasonCard } from "@/components/today-panel";
 import { daysBetween, expenseRangeLabel, formatWithWeekday, homePlanStatus, lunchMoneyHint, mealsDayHref, planDayLabel, todayCardBody, todayCardTitle, weekIsOver } from "@/lib/dates";
 import { CookedMark } from "@/components/cooked-mark";
+import { HomeDishTitle } from "@/components/home-dish-title";
 import { isMealCooked } from "@/lib/cooked";
 import { mealLabel, modeHint, yen } from "@/lib/format";
 
@@ -151,8 +152,7 @@ export function HomeScreen() {
                     {planDayLabel(planStart, spotlight.dayIndex, app.today)}の{mealLabel(spotlight.meal)} · {recipe.minutes}分
                     <CookedMark cooked={cookedToday} />
                   </p>
-                  <p className="mt-1 text-xl font-black">{dishTitle.title}</p>
-                  {dishTitle.note ? <p className="text-sm leading-5 text-muted-foreground">{dishTitle.note}</p> : null}
+                  <HomeDishTitle title={dishTitle.title} note={dishTitle.note} />
                   <p className="mt-1 text-base leading-6 text-muted-foreground">
                     {recipeCopy(recipe, app.state.excludes.includes("egg"), fishAside).summary}
                   </p>
@@ -160,7 +160,7 @@ export function HomeScreen() {
                 <PriceSticker value={spotlight.cost} />
               </div>
             </Link>
-            <YouTubeCookButton name={dishName} />
+            <YouTubeCookButton name={dishTitle.title} />
             <Link
               href={mealsDayHref(spotlight.dayIndex)}
               className="inline-flex min-h-11 items-center text-base font-bold text-primary"

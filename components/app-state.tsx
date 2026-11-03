@@ -19,15 +19,14 @@ import {
 } from "@/lib/household";
 import { consumeStock, MAX_STOCK_UNITS } from "@/lib/stock";
 import {
-  applyCookUndo,
   cookedKeysAfterRebuild,
   cookedMealKey,
   mealIsLocked,
-  mealStockNeed,
   readCookedKeys,
   readCookedModes,
   readCookedUses,
   stockTaken,
+  undoCookedMealState,
   type CookedMode,
   type StockTake,
 } from "@/lib/cooked";
@@ -676,30 +675,23 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     undoCookedMeal: (dayIndex, meal) =>
       update((current) => {
         const plan = current.focus === "cheap" ? current.cheap : current.balanced;
-        if (!plan || !today) return current;
-        const start = plan.startedOn ?? today;
-        const others = plan.slots
-          .filter((slot) => slot.dayIndex === dayIndex && slot.meal !== meal)
-          .map((slot) => slot.meal);
-        const undone = applyCookUndo({
-          keys: current.cookedKeys,
-          uses: current.cookedUses,
-          stock: current.stock,
-          modes: current.cookedModes,
-          start,
+        const next = undoCookedMealState({
+          plan,
+          today,
           dayIndex,
           meal,
-          otherMeals: others,
-          mealNeed: mealStockNeed(plan, dayIndex, meal),
-          otherNeeds: others.map((other) => mealStockNeed(plan, dayIndex, other)),
+          keys: current.cookedKeys,
+          uses: current.cookedUses,
+          modes: current.cookedModes,
+          stock: current.stock,
         });
-        if (undone.keys === current.cookedKeys) return current;
+        if (!next) return current;
         return {
           ...current,
-          cookedKeys: undone.keys,
-          cookedUses: undone.uses,
-          cookedModes: undone.modes,
-          stock: undone.stock,
+          cookedKeys: next.keys,
+          cookedUses: next.uses,
+          cookedModes: next.modes,
+          stock: next.stock,
         };
       }),
     setStock: (ingredientId, place, units) =>

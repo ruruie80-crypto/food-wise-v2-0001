@@ -22,7 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Slider } from "@/components/ui/slider";
 import { CookedMark, cookControl } from "@/components/cooked-mark";
-import { isMealCooked, resolveUndo, undoConfirmDetail, undoStockKind } from "@/lib/cooked";
+import { isMealCooked, undoConfirmDetail, undoStockKind } from "@/lib/cooked";
 import { addDays, planDayDomId, planDayLabel, weekIsOver } from "@/lib/dates";
 import {
   MODE_LABEL,
@@ -649,32 +649,7 @@ export function MealsScreen() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              className="min-h-11"
-              onClick={() => {
-                if (undoTarget && plan) {
-                  const start = plan.startedOn ?? app.today;
-                  const next = resolveUndo("cancel", {
-                    keys: app.state.cookedKeys,
-                    uses: app.state.cookedUses,
-                    stock: app.state.stock,
-                    modes: app.state.cookedModes,
-                    start,
-                    dayIndex: undoTarget.day,
-                    meal: undoTarget.meal,
-                    otherMeals: [],
-                    mealNeed: [],
-                    otherNeeds: [],
-                  });
-                  if (next.keys !== app.state.cookedKeys || next.stock !== app.state.stock) {
-                    app.undoCookedMeal(undoTarget.day, undoTarget.meal);
-                  }
-                }
-                setUndoTarget(null);
-              }}
-            >
+            <Button type="button" variant="outline" className="min-h-11" onClick={() => setUndoTarget(null)}>
               やめる
             </Button>
             <Button
