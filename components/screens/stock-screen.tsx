@@ -6,7 +6,7 @@ import { categoryLabel, getIngredient, ingredients } from "@/lib/catalog";
 import { useApp } from "@/components/app-state";
 import { BootScreen } from "@/components/bits";
 import { formatUnits, trimNum } from "@/lib/format";
-import { stockChoices } from "@/lib/stock";
+import { MAX_RICE_KG, stockChoices } from "@/lib/stock";
 import type { Category, StockPlace } from "@/lib/types";
 
 const PLACES: { id: StockPlace; label: string; hint: string }[] = [
@@ -106,6 +106,9 @@ export function StockScreen() {
 
       <section className="mt-4">
         <h2 className="text-xl font-black">食材を入れる</h2>
+        <p className="mt-1 text-sm leading-6 text-muted-foreground">
+          卵も肉も、米と同じ上限です。米なら{MAX_RICE_KG}kgまで入れられます。
+        </p>
         <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
           {GROUPS.map((id) => (
             <button

@@ -348,13 +348,18 @@ function RiceAtHome({
   onSave: (kg: number) => void;
 }) {
   const parsed = readRiceKg(value);
+  const [notice, setNotice] = useState(parsed.hint);
   return (
     <div className="mt-1 pl-9 text-base leading-7">
       <p>米は家にありますか。何kgあるか入れてください。</p>
       <div className="mt-1 flex flex-wrap items-center gap-2">
         <input
           value={parsed.text}
-          onChange={(event) => onChange(readRiceKg(event.target.value).text)}
+          onChange={(event) => {
+            const next = readRiceKg(event.target.value);
+            onChange(next.text);
+            setNotice(next.hint);
+          }}
           inputMode="decimal"
           aria-label="家にある米（kg）"
           placeholder="例 5"
@@ -372,7 +377,7 @@ function RiceAtHome({
           家にあります
         </button>
       </div>
-      {parsed.hint ? <p className="mt-1 text-sm leading-6 text-muted-foreground">{parsed.hint}</p> : null}
+      {notice ? <p className="mt-1 text-sm leading-6 text-muted-foreground">{notice}</p> : null}
     </div>
   );
 }

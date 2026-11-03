@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { getIngredient, getRecipe, ingredients, recipes, storesIn } from "./catalog";
 import { expenseRangeLabel, planDayLabel, resolvePlanStart, weekIsOver, weekRangeLabel } from "./dates";
-import { CHILD_PORTION, householdServings, TOME_PRESET, weeklyFromMonthly } from "./household";
+import { CHILD_PORTION, EGGS_PER_PACK, householdServings, MAX_WEEKLY_EGG_PACKS, TOME_PRESET, TWICE_A_WEEK_DISHES, weeklyFromMonthly } from "./household";
 import { consumeStock, MAX_STOCK_UNITS, readRiceKg, riceUnitsFromKg } from "./stock";
 import { buildPlan, dropDuplicateCookedDishes, ensureWeeklyDishes, isRecipeAllowed, keepCookedDays, syncLeftoverNote } from "./optimizer";
 import { samePlanAsideFromStock } from "../components/app-state";
@@ -115,7 +115,20 @@ test("a Tome family plan stays inside budget and includes the home dishes", () =
   assert.ok(dinners.includes("soboro"), dinners.join(","));
   const dinnerCounts: Record<string, number> = {};
   for (const id of dinners) dinnerCounts[id] = (dinnerCounts[id] ?? 0) + 1;
-  assert.ok(Object.values(dinnerCounts).every((count) => count === 1), JSON.stringify(dinnerCounts));
+  assert.equal(dinnerCounts.hamburg, 1);
+  for (const [id, count] of Object.entries(dinnerCounts)) {
+    assert.ok(count <= (TWICE_A_WEEK_DISHES.includes(id) ? 2 : 1), `${id}:${count}`);
+  }
+  const eggs = result.balanced.slots.reduce((sum, slot) => {
+    const units = getRecipe(slot.recipeId)?.items.find((item) => item.ingredientId === "egg")?.units ?? 0;
+    return sum + units * result.balanced.people * result.balanced.portion;
+  }, 0);
+  assert.ok(eggs <= MAX_WEEKLY_EGG_PACKS * EGGS_PER_PACK, String(eggs));
+  const eggLine = buildShoppingList(result.balanced, createPriceBook("tome", TODAY, [])).groups
+    .flatMap((group) => group.lines)
+    .find((line) => line.ingredientId === "egg");
+  const packs = eggLine ? eggLine.units / EGGS_PER_PACK : 0;
+  assert.ok(packs <= MAX_WEEKLY_EGG_PACKS, eggLine?.buyLabel ?? "no eggs");
   assert.equal(getRecipe("soboro")?.name, "そぼろご飯");
   const veg = result.balanced.nutrition.veg / result.balanced.targets.veg;
   assert.ok(veg >= 0.4, `veg ${veg}`);
@@ -153,7 +166,9 @@ test("a new week with rice at home still serves each dinner once", () => {
   }
   assert.equal(counts.hamburg, 1);
   assert.equal(counts.soboro, 1);
-  assert.ok(Object.values(counts).every((count) => count === 1), JSON.stringify(counts));
+  for (const [id, count] of Object.entries(counts)) {
+    assert.ok(count <= (TWICE_A_WEEK_DISHES.includes(id) ? 2 : 1), `${id}:${count}`);
+  }
 });
 
 test("shopping list drops what is already in the fridge and keeps the store groups", () => {
@@ -520,6 +535,11 @@ test("a bought pack's leftover is not eaten when a day is cooked", () => {
   assert.equal(readRiceKg("0.01").hint, "0.5kg以上にしてください。");
   assert.match(readRiceKg("abc").hint, /半角の数字/);
   assert.equal(readRiceKg("30").kg, 30);
+  assert.equal(readRiceKg("40").text, "30");
+  assert.equal(readRiceKg("40").kg, 30);
+  assert.equal(riceUnitsFromKg(30), MAX_STOCK_UNITS);
+  assert.equal(Math.min(MAX_STOCK_UNITS, 500), MAX_STOCK_UNITS);
+  assert.equal(Math.min(MAX_STOCK_UNITS, 80), 80);
 });
 
 test("the expense week follows the plan start, and stock alone is not a new plan", () => {

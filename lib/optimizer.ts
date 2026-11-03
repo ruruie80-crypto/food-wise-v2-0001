@@ -1,6 +1,6 @@
 import { getIngredient, getRecipe, recipes } from "./catalog";
 import { percent, yen } from "./format";
-import { fattyIds } from "./household";
+import { EGG_FREE_MEAL_CAP, EGGS_PER_PACK, fattyIds, MAX_WEEKLY_EGG_PACKS, TWICE_A_WEEK_DISHES } from "./household";
 import type {
   MealMode,
   MealType,
@@ -199,7 +199,8 @@ function capDinnerRepeats(
   budget: number,
 ): string[] {
   const next = [...picks];
-  const seen = new Set<string>();
+  const counts = new Map<string, number>();
+  const capFor = (id: string) => (TWICE_A_WEEK_DISHES.includes(id) ? 2 : 1);
   const costOf = (id: string) => {
     const recipe = getRecipe(id);
     return recipe ? recipeCost(recipe, people, priceOf, portion) : 0;
@@ -210,20 +211,88 @@ function capDinnerRepeats(
   );
   for (let index = 0; index < next.length; index += 1) {
     if (slots[index].meal !== "dinner") continue;
-    if (!seen.has(next[index])) {
-      seen.add(next[index]);
+    const count = counts.get(next[index]) ?? 0;
+    if (count < capFor(next[index])) {
+      counts.set(next[index], count + 1);
       continue;
     }
     const currentCost = costOf(next[index]);
     const replacement = pool.find((recipe) => {
-      if (seen.has(recipe.id)) return false;
+      if ((counts.get(recipe.id) ?? 0) >= capFor(recipe.id)) return false;
       const nextCost = cost - currentCost + recipeCost(recipe, people, priceOf, portion);
       return nextCost <= budget + 0.5;
     });
     if (!replacement) continue;
     cost = cost - currentCost + recipeCost(replacement, people, priceOf, portion);
+    counts.set(replacement.id, (counts.get(replacement.id) ?? 0) + 1);
     next[index] = replacement.id;
-    seen.add(replacement.id);
+  }
+  return next;
+}
+
+function ingredientUnits(recipeId: string, ingredientId: string): number {
+  return getRecipe(recipeId)?.items.find((item) => item.ingredientId === ingredientId)?.units ?? 0;
+}
+
+function trimWeeklyEggs(
+  picks: string[],
+  slots: Slot[],
+  prefs: Prefs,
+  excludes: string[],
+  people: number,
+  priceOf: PriceLookup["priceOf"],
+  portion: number,
+  budget: number,
+): string[] {
+  const next = [...picks];
+  const maxEggs = MAX_WEEKLY_EGG_PACKS * EGGS_PER_PACK;
+  const eggsOf = (id: string) => ingredientUnits(id, "egg") * people * portion;
+  const costOf = (id: string) => {
+    const recipe = getRecipe(id);
+    return recipe ? recipeCost(recipe, people, priceOf, portion) : 0;
+  };
+  let cost = next.reduce((sum, id) => sum + costOf(id), 0);
+  const eggTotal = () => next.reduce((sum, id) => sum + eggsOf(id), 0);
+  for (let guard = 0; guard < 24 && eggTotal() > maxEggs + 0.05; guard += 1) {
+    let worst = -1;
+    let worstEggs = 0;
+    for (let index = 0; index < next.length; index += 1) {
+      const eggs = eggsOf(next[index]);
+      if (eggs > worstEggs) {
+        worstEggs = eggs;
+        worst = index;
+      }
+    }
+    if (worst < 0) break;
+    const meal = slots[worst].meal;
+    const pool = allowedRecipes(meal, prefs, excludes)
+      .map((recipe) => ({
+        recipe,
+        eggs: eggsOf(recipe.id),
+        tofu: ingredientUnits(recipe.id, "tofu"),
+      }))
+      .filter((choice) => choice.eggs < worstEggs)
+      .sort((a, b) => b.tofu - a.tofu || a.eggs - b.eggs || recipeCost(a.recipe, people, priceOf, portion) - recipeCost(b.recipe, people, priceOf, portion));
+    let placed = false;
+    for (const choice of pool) {
+      const copies = next.filter((id) => id === choice.recipe.id).length;
+      const cap =
+        meal === "breakfast" && choice.eggs <= 0
+          ? EGG_FREE_MEAL_CAP
+          : TWICE_A_WEEK_DISHES.includes(choice.recipe.id)
+            ? 2
+            : meal === "dinner"
+              ? 1
+              : 2;
+      if (copies >= cap) continue;
+      const nextCost = cost - costOf(next[worst]) + recipeCost(choice.recipe, people, priceOf, portion);
+      if (nextCost > budget + 0.5) continue;
+      cost = nextCost;
+      next[worst] = choice.recipe.id;
+      placed = true;
+      break;
+    }
+    if (!placed) break;
   }
   return next;
 }
@@ -294,6 +363,12 @@ function marginalScore(
   let score = nutritionPoints(nutrition, meal, prefs) - cost * coeff + fromStock;
   if (prefs.washoku && recipe.tags.includes("washoku")) score += 8;
   if (prefs.quick && recipe.minutes <= 15) score += 8;
+  if (goal === "balanced") {
+    const eggUnits = recipe.items.find((item) => item.ingredientId === "egg")?.units ?? 0;
+    const tofuUnits = recipe.items.find((item) => item.ingredientId === "tofu")?.units ?? 0;
+    if (tofuUnits > eggUnits) score += 8;
+    else if (eggUnits > 0 && tofuUnits === 0) score -= 6;
+  }
   const buyCount = recipe.items.filter((item) => isBuy(item.ingredientId)).length;
   score += buyCount * 11;
   return score;
@@ -617,8 +692,17 @@ export function buildPlan(input: PlanInput, lookup: PriceLookup): PlanResult {
     input.prefs,
     input.excludes,
   );
-  const balancedPicks = capDinnerRepeats(
-    balancedPlaced.picks,
+  const balancedPicks = trimWeeklyEggs(
+    capDinnerRepeats(
+      balancedPlaced.picks,
+      slots,
+      input.prefs,
+      input.excludes,
+      input.people,
+      lookup.priceOf,
+      portion,
+      input.budget,
+    ),
     slots,
     input.prefs,
     input.excludes,

@@ -49,7 +49,7 @@ export function readRiceKg(raw: string): { text: string; kg: number | null; hint
   const kg = Number(trimmed);
   if (!Number.isFinite(kg)) return { text, kg: null, hint: "半角の数字で入れてください。" };
   if (kg < MIN_RICE_KG) return { text, kg: null, hint: "0.5kg以上にしてください。" };
-  if (kg > MAX_RICE_KG) return { text, kg: MAX_RICE_KG, hint: "30kgまでです。30kgで入れます。" };
+  if (kg > MAX_RICE_KG) return { text: String(MAX_RICE_KG), kg: MAX_RICE_KG, hint: "30kgまでです。30kgで入れます。" };
   return { text, kg, hint: "" };
 }
 

@@ -29,8 +29,21 @@ export const MAX_WEEKLY_BUDGET = 40_000;
 
 export const FATTY_MEAT_IDS = ["pork", "pork_hiki", "chicken_t"];
 
-/** 週に1回は入れたい料理。登米の献立だけで使う。 */
+/** 週に1回は入れたい料理。登米の献立だけで使う。ハンバーグはここだけ。 */
 export const WEEKLY_DISHES = ["hamburg", "soboro"];
+
+/**
+ * 同じ夜の皿は週1回。この配列だけ週2回まで。
+ * 今は冷奴のような、安い豆腐の定番。お姉さんの答えで、この配列だけ変える。
+ */
+export const TWICE_A_WEEK_DISHES = ["hiyayakko"];
+
+/** 卵は10個入り。買い物がこのパック数を超えないようにする。 */
+export const EGGS_PER_PACK = 10;
+export const MAX_WEEKLY_EGG_PACKS = 3;
+
+/** 卵を減らすとき、卵のない朝（豆腐と味噌汁）はここまで繰り返してよい。 */
+export const EGG_FREE_MEAL_CAP = 4;
 
 export const TOME_PRESET: {
   adults: number;
