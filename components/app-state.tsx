@@ -19,13 +19,13 @@ import {
 } from "@/lib/household";
 import { consumeStock, MAX_STOCK_UNITS } from "@/lib/stock";
 import {
+  applyCookUndo,
   cookedKeysAfterRebuild,
   cookedMealKey,
-  keysAfterUndo,
   mealIsLocked,
+  mealStockNeed,
   readCookedKeys,
   readCookedUses,
-  restoreStock,
   stockTaken,
   type StockTake,
 } from "@/lib/cooked";
@@ -107,6 +107,7 @@ export type Persisted = {
   adults: number;
   children: number;
   childStage: ChildStage;
+  childAgeSet: boolean;
   monthlyBudget: number | null;
   budgetScope: BudgetScope;
   thighPolicy: ThighPolicy;
@@ -192,6 +193,7 @@ function defaultState(): Persisted {
     adults: 1,
     children: 0,
     childStage: "young",
+    childAgeSet: false,
     monthlyBudget: null,
     budgetScope: "unset",
     thighPolicy: "unset",
@@ -258,6 +260,7 @@ function sanitize(raw: unknown): Persisted {
     adults,
     children,
     childStage,
+    childAgeSet: Boolean(data.childAgeSet),
     budget,
     monthlyBudget,
     budgetScope: data.budgetScope === "food" || data.budgetScope === "all" ? data.budgetScope : "unset",
@@ -408,6 +411,7 @@ function tomeHousehold(current: Persisted): Partial<Persisted> {
     adults: TOME_PRESET.adults,
     children: TOME_PRESET.children,
     childStage: TOME_PRESET.childStage,
+    childAgeSet: false,
     people: householdServings(TOME_PRESET.adults, TOME_PRESET.children, TOME_PRESET.childStage),
     monthlyBudget: TOME_PRESET.monthlyBudget,
     budget: TOME_PRESET.budget,
@@ -597,6 +601,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       update((current) => ({
         ...current,
         childStage,
+        childAgeSet: true,
         people: householdServings(current.adults, current.children, childStage),
       })),
     setBudgetScope: (budgetScope) => patch({ budgetScope }),
@@ -665,16 +670,19 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         const others = plan.slots
           .filter((slot) => slot.dayIndex === dayIndex && slot.meal !== meal)
           .map((slot) => slot.meal);
-        const undone = keysAfterUndo(current.cookedKeys, start, dayIndex, meal, others);
-        if (undone.removed.length === 0) return current;
-        let stock = current.stock;
-        const cookedUses = { ...current.cookedUses };
-        for (const key of undone.removed) {
-          const taken = cookedUses[key];
-          if (taken) stock = restoreStock(stock, taken);
-          delete cookedUses[key];
-        }
-        return { ...current, cookedKeys: undone.keys, cookedUses, stock };
+        const undone = applyCookUndo({
+          keys: current.cookedKeys,
+          uses: current.cookedUses,
+          stock: current.stock,
+          start,
+          dayIndex,
+          meal,
+          otherMeals: others,
+          mealNeed: mealStockNeed(plan, dayIndex, meal),
+          otherNeeds: others.map((other) => mealStockNeed(plan, dayIndex, other)),
+        });
+        if (undone.keys === current.cookedKeys) return current;
+        return { ...current, cookedKeys: undone.keys, cookedUses: undone.uses, stock: undone.stock };
       }),
     setStock: (ingredientId, place, units) =>
       update((current) => {

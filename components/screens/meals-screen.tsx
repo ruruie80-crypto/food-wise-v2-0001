@@ -10,11 +10,20 @@ import { getRecipe, recipes } from "@/lib/catalog";
 import { planChangeNote, sourceKey, useApp } from "@/components/app-state";
 import { BootScreen, SectionTitle, Yen } from "@/components/bits";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Slider } from "@/components/ui/slider";
+import { CookedMark, cookControl } from "@/components/cooked-mark";
 import { isMealCooked } from "@/lib/cooked";
-import { addDays, planDayLabel, weekIsOver } from "@/lib/dates";
+import { addDays, planDayDomId, planDayLabel, weekIsOver } from "@/lib/dates";
 import {
   MODE_LABEL,
   budgetHint,
@@ -27,6 +36,7 @@ import { cookingMethod } from "@/lib/advice";
 import { StockUseDialog } from "@/components/stock-use-dialog";
 import {
   describeHousehold,
+  showUnaskedAge,
   householdServings,
   OPTIONAL_EGG_RECIPES,
   avoidsFish,
@@ -63,6 +73,7 @@ export function MealsScreen() {
   const [monthlyFocus, setMonthlyFocus] = useState(false);
   const [budgetFocus, setBudgetFocus] = useState(false);
   const [cookTarget, setCookTarget] = useState<{ day: number; meal: MealType } | null>(null);
+  const [undoTarget, setUndoTarget] = useState<{ day: number; meal: MealType } | null>(null);
   const planForScroll = app.activePlan;
   useEffect(() => {
     const id = window.location.hash.slice(1);
@@ -112,7 +123,9 @@ export function MealsScreen() {
             {describeHousehold(app.state.adults, app.state.children, app.state.childStage)}。月8万円を週にならすと約
             {yen(TOME_PRESET.budget)}。はじめは朝と夜で、脂身ひかえめと牛乳なしも入ります。
           </p>
-          <p className="mt-2 text-base leading-7">子どもの年齢はまだ聞いていません。違ったらここで変えてください。</p>
+          {showUnaskedAge(app.state.areaId, app.state.childAgeSet) ? (
+            <p className="mt-2 text-base leading-7">子どもの年齢はまだ聞いていません。違ったらここで変えてください。</p>
+          ) : null}
           {presetOn ? (
             <p className="mt-3 text-base font-bold">この目安を入れています。</p>
           ) : (
@@ -483,7 +496,7 @@ export function MealsScreen() {
               const date = addDays(start, day);
               const slots = plan.slots.filter((slot) => slot.dayIndex === day);
               return (
-                <li id={`plan-day-${day}`} key={date} className="scroll-mt-4 rounded-3xl bg-card p-4">
+                <li id={planDayDomId(day)} key={date} className="scroll-mt-4 rounded-3xl bg-card p-4">
                   <p className="text-base font-black">{planDayLabel(start, day, app.today)}</p>
                   <ul className="mt-2 space-y-3">
                     {slots.map((slot) => {
@@ -496,11 +509,16 @@ export function MealsScreen() {
                         plan.portion,
                         app.state.eggToppingPolicy === "allow" && !eggsAside,
                       );
+                      const cooked = isMealCooked(app.state.cookedKeys, start, day, slot.meal);
+                      const control = cookControl(cooked, slot.meal);
                       return (
                         <li key={`${slot.meal}-${slot.recipeId}`} className="border-t border-track pt-3 first:border-0 first:pt-0">
                           <div className="flex items-start justify-between gap-3">
                             <div>
-                              <p className="text-[11px] font-bold text-primary">{mealLabel(slot.meal)}</p>
+                              <p className="text-[11px] font-bold text-primary">
+                                {mealLabel(slot.meal)}
+                                <CookedMark cooked={cooked} />
+                              </p>
                               <p className="font-bold">{shown.name}</p>
                               <p className="text-xs text-muted-foreground">
                                 {cookingMethod(recipe.id)} · {recipe.minutes}分 · たんぱく質 {Math.round(nutrition.protein)}g · 野菜 {Math.round(nutrition.veg)}g
@@ -535,13 +553,14 @@ export function MealsScreen() {
                           >
                             別の皿に変える
                           </button>
-                          <CookButton
-                            cooked={isMealCooked(app.state.cookedKeys, start, day, slot.meal)}
-                            passed={weekIsOver(start, app.today) && date < app.today}
-                            meal={slot.meal}
-                            onCook={() => setCookTarget({ day, meal: slot.meal })}
-                            onUndo={() => app.undoCookedMeal(day, slot.meal)}
-                          />
+                          <button
+                            type="button"
+                            disabled={control.disabled}
+                            onClick={() => (cooked ? setUndoTarget({ day, meal: slot.meal }) : setCookTarget({ day, meal: slot.meal }))}
+                            className="mt-2 flex min-h-11 w-full items-center justify-center rounded-2xl bg-muted text-base font-bold text-primary disabled:opacity-60"
+                          >
+                            {control.label}
+                          </button>
                         </li>
                       );
                     })}
@@ -610,41 +629,32 @@ export function MealsScreen() {
           if (cookTarget) app.consumeCookedMeal(cookTarget.day, cookTarget.meal);
         }}
       />
+      <Dialog open={undoTarget != null} onOpenChange={(open) => !open && setUndoTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>作ったを取り消しますか</DialogTitle>
+            <DialogDescription>印を外します。在庫を減らしていたときは、その分だけ戻します。</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" className="min-h-11" onClick={() => setUndoTarget(null)}>
+              やめる
+            </Button>
+            <Button
+              type="button"
+              className="min-h-11"
+              onClick={() => {
+                if (undoTarget) app.undoCookedMeal(undoTarget.day, undoTarget.meal);
+                setUndoTarget(null);
+              }}
+            >
+              取り消す
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <OpenChoices />
     </div>
   );
-}
-
-function CookButton({
-  cooked,
-  passed,
-  meal,
-  onCook,
-  onUndo,
-}: {
-  cooked: boolean;
-  passed: boolean;
-  meal: MealType;
-  onCook: () => void;
-  onUndo: () => void;
-}) {
-  const label = cooked ? "作ったを取り消す" : passed ? "この食事は過ぎました" : cookActionLabel(meal);
-  return (
-    <button
-      type="button"
-      disabled={!cooked && passed}
-      onClick={cooked ? onUndo : onCook}
-      className="mt-2 flex min-h-11 w-full items-center justify-center rounded-2xl bg-muted text-base font-bold text-primary disabled:opacity-60"
-    >
-      {label}
-    </button>
-  );
-}
-
-function cookActionLabel(meal: MealType): string {
-  if (meal === "breakfast") return "この朝を作った";
-  if (meal === "lunch") return "この昼を作った";
-  return "この夜を作った";
 }
 
 function trimPeople(people: number): string {

@@ -1,4 +1,7 @@
-import type { MealType, StockItem, StockPlace } from "./types";
+import { getIngredient, getRecipe } from "./catalog";
+import { usedItems } from "./household";
+import { MAX_STOCK_UNITS } from "./stock";
+import type { MealType, Plan, StockItem, StockPlace } from "./types";
 
 const MEALS = new Set<MealType>(["breakfast", "lunch", "dinner"]);
 
@@ -25,7 +28,7 @@ export function readCookedUses(raw: unknown): Record<string, StockTake[]> {
   if (!raw || typeof raw !== "object") return {};
   const uses: Record<string, StockTake[]> = {};
   for (const [key, value] of Object.entries(raw)) {
-    if (!parseCookedKey(key) || parseCookedKey(key)?.meal == null) continue;
+    if (!parseCookedKey(key)) continue;
     if (!Array.isArray(value)) continue;
     const takes = value.filter(isStockTake);
     if (takes.length > 0) uses[key] = takes;
@@ -87,10 +90,96 @@ export function restoreStock(stock: StockItem[], takes: StockTake[]): StockItem[
   const next = stock.map((item) => ({ ...item }));
   for (const take of takes) {
     const row = next.find((item) => item.ingredientId === take.ingredientId && item.place === take.place);
-    if (row) row.units = Math.round((row.units + take.units) * 10) / 10;
-    else next.push({ ingredientId: take.ingredientId, place: take.place, units: take.units });
+    const added = Math.min(MAX_STOCK_UNITS, take.units);
+    if (row) row.units = Math.min(MAX_STOCK_UNITS, Math.round((row.units + added) * 10) / 10);
+    else next.push({ ingredientId: take.ingredientId, place: take.place, units: added });
   }
   return next.filter((item) => item.units > 0.05);
+}
+
+/** その食事で減らす量。調味料は家にある前提なので入れない。 */
+export function mealStockNeed(plan: Plan, dayIndex: number, meal: MealType): StockTake[] {
+  const slot = plan.slots.find((item) => item.dayIndex === dayIndex && item.meal === meal);
+  if (!slot) return [];
+  const recipe = getRecipe(slot.recipeId);
+  if (!recipe) return [];
+  const takes: StockTake[] = [];
+  for (const item of usedItems(recipe.id, recipe.items, plan.allowOptionalEggs === true)) {
+    const ingredient = getIngredient(item.ingredientId);
+    if (!ingredient || ingredient.category === "seasoning") continue;
+    const units = Math.round(item.units * plan.people * plan.portion * 10) / 10;
+    if (units <= 0.05) continue;
+    const place: StockPlace = ingredient.category === "meat" || ingredient.category === "fish" ? "freezer" : "fridge";
+    const existing = takes.find((take) => take.ingredientId === item.ingredientId && take.place === place);
+    if (existing) existing.units = Math.round((existing.units + units) * 10) / 10;
+    else takes.push({ ingredientId: item.ingredientId, place, units });
+  }
+  return takes;
+}
+
+/** 1日まとめの減らし分を、取り消す食事と残りの食事に分ける。 */
+export function splitDayTakes(
+  takes: StockTake[],
+  mineNeed: StockTake[],
+  restNeed: StockTake[],
+): { mine: StockTake[]; rest: StockTake[] } {
+  const want = new Map(mineNeed.map((take) => [`${take.ingredientId}:${take.place}`, take.units]));
+  const later = new Map(restNeed.map((take) => [`${take.ingredientId}:${take.place}`, take.units]));
+  const mine: StockTake[] = [];
+  const rest: StockTake[] = [];
+  for (const take of takes) {
+    const key = `${take.ingredientId}:${take.place}`;
+    const give = Math.min(take.units, want.get(key) ?? 0);
+    const left = Math.round((take.units - give) * 10) / 10;
+    if (give > 0.05) mine.push({ ...take, units: Math.round(give * 10) / 10 });
+    if (left > 0.05 && (later.get(key) ?? 0) > 0) rest.push({ ...take, units: Math.min(left, later.get(key) ?? left) });
+  }
+  return { mine, rest };
+}
+
+export function applyCookUndo(input: {
+  keys: string[];
+  uses: Record<string, StockTake[]>;
+  stock: StockItem[];
+  start: string;
+  dayIndex: number;
+  meal: MealType;
+  otherMeals: MealType[];
+  mealNeed: StockTake[];
+  otherNeeds: StockTake[][];
+}): { keys: string[]; uses: Record<string, StockTake[]>; stock: StockItem[] } {
+  const undone = keysAfterUndo(input.keys, input.start, input.dayIndex, input.meal, input.otherMeals);
+  if (undone.removed.length === 0) return { keys: input.keys, uses: input.uses, stock: input.stock };
+  let stock = input.stock;
+  const uses = { ...input.uses };
+  const mealKey = cookedMealKey(input.start, input.dayIndex, input.meal);
+  const dayKey = `${input.start}:${input.dayIndex}`;
+  if (undone.removed.includes(mealKey)) {
+    const taken = uses[mealKey];
+    if (taken) stock = restoreStock(stock, taken);
+    delete uses[mealKey];
+  }
+  if (undone.removed.includes(dayKey)) {
+    const taken = uses[dayKey];
+    delete uses[dayKey];
+    if (taken && taken.length > 0) {
+      const { mine, rest } = splitDayTakes(taken, input.mealNeed, input.otherNeeds.flat());
+      if (mine.length > 0) stock = restoreStock(stock, mine);
+      let leftover = rest;
+      input.otherMeals.forEach((other, index) => {
+        const part = splitDayTakes(leftover, input.otherNeeds[index] ?? [], []);
+        if (part.mine.length > 0) uses[cookedMealKey(input.start, input.dayIndex, other)] = part.mine;
+        leftover = part.rest;
+      });
+    } else if (input.mealNeed.length > 0) {
+      stock = restoreStock(stock, input.mealNeed);
+      input.otherMeals.forEach((other, index) => {
+        const need = input.otherNeeds[index] ?? [];
+        if (need.length > 0) uses[cookedMealKey(input.start, input.dayIndex, other)] = need;
+      });
+    }
+  }
+  return { keys: undone.keys, uses, stock };
 }
 
 /** 1日まとめの印を外すときは、取り消した食事以外の印を残す。 */

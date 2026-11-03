@@ -158,7 +158,12 @@ export const TOME_PRESET: {
 
 TOME_PRESET.budget = weeklyFromMonthly(TOME_PRESET.monthlyBudget);
 
-/** 仮の人数のままのときは出さない。人数や年齢を変えたときだけ、今日カードの下に出す。 */
+/** 年齢のボタンを押すまでは、まだ聞いていないと出す。 */
+export function showUnaskedAge(areaId: string, childAgeSet: boolean): boolean {
+  return areaId === "tome" && !childAgeSet;
+}
+
+/** 仮の人数のままのときは出さない。人数や予算を変えたときだけ、今日カードの下に出す。 */
 export function showChildAgeNotice(input: {
   areaId: string;
   adults: number;

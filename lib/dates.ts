@@ -55,6 +55,28 @@ export function formatMonthDay(iso: string): string {
   return `${month}月${day}日`;
 }
 
+export function planDayDomId(dayIndex: number): string {
+  return `plan-day-${dayIndex}`;
+}
+
+export function mealsDayHref(dayIndex: number): string {
+  return `/meals#${planDayDomId(dayIndex)}`;
+}
+
+/** 下メニューの実寸。上の余白4px、高さ44pxの列、下の余白4px、上の線1px。前回の画面では57pxだった。 */
+export function bottomNavHeightPx(): number {
+  return 4 + 44 + 4 + 1 + 4;
+}
+
+export function pageClearsNav(clearancePx: number, navPx = bottomNavHeightPx()): boolean {
+  return clearancePx > navPx;
+}
+
+/** 844pxと874pxは今の並び。740px（Safariのバーあり）以下は説明文を下に回す。 */
+export function compactHomeLayout(viewportHeight: number): boolean {
+  return viewportHeight <= 780;
+}
+
 export function formatShort(iso: string): string {
   const [, month, day] = iso.split("-").map(Number);
   return `${month}/${day}`;

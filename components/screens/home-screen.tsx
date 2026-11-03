@@ -21,12 +21,13 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { AreaStores } from "@/components/area-stores";
 import { YouTubeCookButton } from "@/components/youtube-button";
-import { avoidsFish, describeHousehold, displayRecipeName, recipeCopy, showChildAgeNotice } from "@/lib/household";
+import { avoidsFish, describeHousehold, displayRecipeName, recipeCopy, showChildAgeNotice, showUnaskedAge } from "@/lib/household";
 import { BudgetAdvice } from "@/components/budget-advice";
 import { SkinPicker } from "@/components/skin-picker";
 import { StoreCheapest } from "@/components/store-cheapest";
 import { MarketCard, SeasonCard } from "@/components/today-panel";
-import { daysBetween, expenseRangeLabel, formatWithWeekday, homePlanStatus, lunchMoneyHint, planDayLabel, todayCardBody, todayCardTitle, weekIsOver } from "@/lib/dates";
+import { daysBetween, expenseRangeLabel, formatWithWeekday, homePlanStatus, lunchMoneyHint, mealsDayHref, planDayLabel, todayCardBody, todayCardTitle, weekIsOver } from "@/lib/dates";
+import { CookedMark } from "@/components/cooked-mark";
 import { isMealCooked } from "@/lib/cooked";
 import { mealLabel, modeHint, yen } from "@/lib/format";
 
@@ -103,6 +104,7 @@ export function HomeScreen() {
           />
         </div>
         </div>
+        <p className="home-blurb-title mt-3 text-base font-black">{yen(app.state.budget)}の食費について</p>
         <p className="home-blurb mt-2 text-base leading-6 text-muted-foreground">
           {describeHousehold(app.state.adults, app.state.children, app.state.childStage)}。{modeHint(app.state.mode)}
         </p>
@@ -115,16 +117,17 @@ export function HomeScreen() {
         </p>
         <div className="home-budget-go">
         {plan && lunchMoneyHint(plan.startedOn, app.today, plan.budget - plan.cost) ? (
-          <p className="mt-2 text-sm leading-6">
+          <p className="home-aside mt-2 text-sm leading-6">
             残りは週{yen(plan.budget - plan.cost)}（月にならすと約
             {yen(Math.round(((plan.budget - plan.cost) / 7) * 30.4 / 100) * 100)}）です。お昼ごはん代には少なめかもしれません。
           </p>
         ) : null}
         {app.stale && plan ? (
-          <p className="mt-2 rounded-xl bg-notice px-3 py-2 text-base leading-7 text-notice-foreground">
+          <p className="home-aside mt-2 rounded-xl bg-notice px-3 py-2 text-base leading-7 text-notice-foreground">
             {planChangeNote(plan.sourceKey, sourceKey(app.state))}
           </p>
         ) : null}
+        <div className="home-regen">
         <Button
           className="mt-2 h-11 w-full text-base"
           onClick={() => {
@@ -135,6 +138,7 @@ export function HomeScreen() {
         >
           {plan ? "この予算で作り直す" : "今週の献立を作る"}
         </Button>
+        </div>
         </div>
         </div>
       </section>
@@ -155,7 +159,7 @@ export function HomeScreen() {
                 <div>
                   <p className="text-sm text-muted-foreground">
                     {planDayLabel(planStart, spotlight.dayIndex, app.today)}の{mealLabel(spotlight.meal)} · {recipe.minutes}分
-                    {cookedToday ? <span className="ml-2 font-bold text-primary">作った</span> : null}
+                    <CookedMark cooked={cookedToday} />
                   </p>
                   <p className="mt-1 text-xl font-black">{dishName}</p>
                   <p className="mt-1 text-base leading-6 text-muted-foreground">
@@ -167,7 +171,7 @@ export function HomeScreen() {
             </Link>
             <YouTubeCookButton name={dishName} />
             <Link
-              href={`/meals#plan-day-${spotlight.dayIndex}`}
+              href={mealsDayHref(spotlight.dayIndex)}
               className="inline-flex min-h-11 items-center text-base font-bold text-primary"
             >
               作った・減らすは献立の画面で
@@ -182,7 +186,11 @@ export function HomeScreen() {
         <Link href="/meals" className="home-notice mt-4 block rounded-3xl bg-card p-4">
           <p className="text-lg font-black">登米の家族設定</p>
           <p className="mt-1 text-base leading-7">
-            仮の目安は大人2人と子ども2人、月8万円（1週間 約18,400円）、朝と夜です。子どもの年齢はまだ聞いていません。献立の画面で変えられます。
+            仮の目安は大人2人と子ども2人、月8万円（1週間 約18,400円）、朝と夜です。
+            {showUnaskedAge(app.state.areaId, app.state.childAgeSet)
+              ? "子どもの年齢はまだ聞いていません。"
+              : ""}
+            献立の画面で変えられます。
           </p>
         </Link>
       ) : null}

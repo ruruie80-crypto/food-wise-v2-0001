@@ -501,8 +501,12 @@ body [data-sonner-toast] [data-description] {
   line-height: 1.45 !important;
 }
 
-/* 高さが足りない画面だけ、説明文を今日カードの下へずらす。390×844 や 402×874 はこの外。 */
-@media (max-height: 700px) {
+.home-blurb-title {
+  display: none;
+}
+
+/* 740px（Safariのバーあり）まで説明文を今日カードの下へ。844pxと874pxはこの外。 */
+@media (max-height: 780px) {
   .home-screen {
     display: flex;
     flex-direction: column;
@@ -510,12 +514,13 @@ body [data-sonner-toast] [data-description] {
   }
 
   .home-screen .home-budget,
-  .home-screen .home-budget-face {
+  .home-screen .home-budget-face,
+  .home-screen .home-budget-go {
     display: contents;
   }
 
   .home-screen .home-budget-top,
-  .home-screen .home-budget-go {
+  .home-screen .home-regen {
     order: 1;
     background-color: var(--card);
     padding-right: 1rem;
@@ -530,7 +535,7 @@ body [data-sonner-toast] [data-description] {
     background-repeat: repeat-x;
   }
 
-  .home-screen .home-budget-go {
+  .home-screen .home-regen {
     padding-top: 0.5rem;
     padding-bottom: 0.5rem;
     border-bottom-left-radius: 1.5rem;
@@ -538,11 +543,7 @@ body [data-sonner-toast] [data-description] {
     box-shadow: 0 10px 30px rgba(28, 25, 21, 0.05);
   }
 
-  .home-screen .home-budget-go > * {
-    margin-top: 0.5rem !important;
-  }
-
-  .home-screen .home-budget-go > *:first-child {
+  .home-screen .home-regen > * {
     margin-top: 0 !important;
   }
 
@@ -556,9 +557,15 @@ body [data-sonner-toast] [data-description] {
     order: 3;
   }
 
-  .home-screen .home-blurb {
+  .home-screen .home-blurb,
+  .home-screen .home-blurb-title,
+  .home-screen .home-aside {
     order: 4;
     margin-top: 0.5rem;
+  }
+
+  .home-screen .home-blurb-title {
+    display: block;
   }
 
   .home-screen .home-after {
@@ -567,6 +574,42 @@ body [data-sonner-toast] [data-description] {
 
   .home-screen .home-overlays {
     order: 6;
+  }
+
+  @media (max-height: 600px) {
+    .home-screen {
+      padding-top: 0.25rem;
+    }
+
+    .home-screen header h1 {
+      font-size: 1.4rem;
+    }
+
+    .home-screen header button {
+      margin-top: 0;
+    }
+
+    .home-screen .font-price {
+      font-size: 1.75rem;
+    }
+
+    .home-screen .home-budget-top {
+      padding-bottom: 0.5rem;
+      border-bottom-right-radius: 1.5rem;
+      border-bottom-left-radius: 1.5rem;
+      box-shadow: 0 10px 30px rgba(28, 25, 21, 0.05);
+    }
+
+    .home-screen .home-regen {
+      order: 3;
+      background: transparent;
+      box-shadow: none;
+      padding: 0.5rem 0 0;
+    }
+
+    .home-screen .home-today-card {
+      padding: 0.5rem;
+    }
   }
 }
 

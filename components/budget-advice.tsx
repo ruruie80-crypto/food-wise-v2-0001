@@ -9,6 +9,7 @@ import { cookingMethod, methodsInPlan, plannedFoods } from "@/lib/advice";
 import { ingredientTargetPercents, nutrientRows } from "@/lib/nutrients";
 import { formatWithWeekday, planDayLabel } from "@/lib/dates";
 import { formatUnits, mealLabel, trimNum, yen } from "@/lib/format";
+import { CookedMark } from "@/components/cooked-mark";
 import { isMealCooked } from "@/lib/cooked";
 import { avoidsFish, plainMisoText, recipeCopy } from "@/lib/household";
 import type { Plan } from "@/lib/types";
@@ -55,9 +56,7 @@ export function BudgetAdvice({ variant }: { variant: "compact" | "full" }) {
                         <p className="break-keep text-base leading-7">
                           <span className="text-muted-foreground">{mealLabel(slot.meal)}</span>{" "}
                           {recipe ? dishName(recipe) : slot.recipeId}
-                          {isMealCooked(app.state.cookedKeys, plan.startedOn ?? app.today, day, slot.meal) ? (
-                            <span className="ml-2 text-sm font-bold text-primary">作った</span>
-                          ) : null}
+                          <CookedMark cooked={isMealCooked(app.state.cookedKeys, plan.startedOn ?? app.today, day, slot.meal)} />
                         </p>
                         <p className="text-sm text-muted-foreground">{cookingMethod(slot.recipeId)}</p>
                         <RecipeVideoButton recipeId={slot.recipeId} />
