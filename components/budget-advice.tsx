@@ -54,6 +54,9 @@ export function BudgetAdvice({ variant }: { variant: "compact" | "full" }) {
                         <p className="break-keep text-base leading-7">
                           <span className="text-muted-foreground">{mealLabel(slot.meal)}</span>{" "}
                           {recipe ? dishName(recipe) : slot.recipeId}
+                          {app.state.cookedKeys.includes(`${plan.startedOn ?? app.today}:${day}`) ? (
+                            <span className="ml-2 text-sm font-bold text-primary">作った</span>
+                          ) : null}
                         </p>
                         <p className="text-sm text-muted-foreground">{cookingMethod(slot.recipeId)}</p>
                         <RecipeVideoButton recipeId={slot.recipeId} />

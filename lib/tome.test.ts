@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { getIngredient, getRecipe, getStore, ingredients, recipes, storesIn } from "./catalog";
-import { expenseRangeLabel, lunchMoneyHint, planDayLabel, resolvePlanStart, weekIsOver, weekRangeLabel } from "./dates";
+import { expenseRangeLabel, homePlanStatus, lunchMoneyHint, planDayLabel, resolvePlanStart, weekIsOver, weekRangeLabel } from "./dates";
 import { CHEAP_EGG_DISHES, CHILD_PORTION, displayRecipeName, EGGS_PER_PACK, HOME_MISO_CHECK, householdServings, MAX_WEEKLY_EGG_PACKS, PLAIN_MISO_DISH_NAME, plainMisoText, recipeCopy, TOME_PRESET, TWICE_A_WEEK_DISHES, usedItems, weeklyFromMonthly, withHomeMisoCheck } from "./household";
 import { formatUnits, marketHeading, seasonHeading } from "./format";
 import { consumeStock, MAX_STOCK_UNITS, readRiceKg, riceUnitsFromKg } from "./stock";
@@ -984,8 +984,18 @@ test("today's meal sits under the budget and above the week list", () => {
   const home = readFileSync(new URL("../components/screens/home-screen.tsx", import.meta.url), "utf8");
   const budget = home.indexOf("の食費");
   const today = home.indexOf('inPlanWeek ? "今日"');
+  const age = home.indexOf("子どもの年齢はまだ聞いていません");
+  const skin = home.indexOf("<SkinPicker />");
   const week = home.indexOf('BudgetAdvice variant="compact"');
-  assert.ok(budget > 0 && today > budget && week > today);
+  assert.ok(budget > 0 && today > budget && age > today && skin > age && week > skin);
+  assert.equal(homePlanStatus(undefined, "2026-11-02"), "none");
+  assert.equal(homePlanStatus("2026-11-03", "2026-11-02"), "before");
+  assert.equal(homePlanStatus("2026-11-03", "2026-11-03"), "during");
+  assert.equal(homePlanStatus("2026-11-03", "2026-11-09"), "during");
+  assert.equal(homePlanStatus("2026-11-03", "2026-11-10"), "after");
+  assert.match(home, /からの献立ができています/);
+  assert.match(home, /次の1週間の献立を作ると、ここに出ます/);
+  assert.match(home, /作った・減らすは献立の画面で/);
 });
 
 test("YouTube button is a search for the dish name", () => {

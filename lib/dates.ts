@@ -77,6 +77,14 @@ export function weekIsOver(startedOn: string, today: string): boolean {
   return daysBetween(startedOn, today) > 6;
 }
 
+/** 献立がある日の、ホームの今日カード。ないときは none。 */
+export function homePlanStatus(startedOn: string | undefined, today: string): "none" | "before" | "during" | "after" {
+  if (!startedOn) return "none";
+  if (today < startedOn) return "before";
+  if (weekIsOver(startedOn, today)) return "after";
+  return "during";
+}
+
 /** 前の献立が終わった日は出さない。新しい献立ができるまで、お昼代の案内は止める。 */
 export function lunchMoneyHint(startedOn: string | undefined, today: string, leftover: number): boolean {
   if (leftover <= 0 || leftover > 4000) return false;
