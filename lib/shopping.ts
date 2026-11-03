@@ -47,6 +47,26 @@ function sellByWeight(ingredientId: string, units: number): { chargeUnits: numbe
 
 const PANTRY_IDS = new Set(["wakame", "miso"]);
 
+/** 家にある前提の品。統計の大袋ではなく、ふつうに買う大きさで示す。 */
+const PANTRY_BAGS: Record<string, { grams: number; name: string; surveyGrams: number; surveyYen: number }> = {
+  wakame: { grams: 40, name: "乾燥わかめ 40g入り1袋", surveyGrams: 100, surveyYen: 2431 },
+  miso: { grams: 750, name: "味噌 750g 1パック", surveyGrams: 750, surveyYen: 490 },
+};
+
+/** カゴに入れたパックの余りは、今週のリストからは引かない。来週の在庫として残す。 */
+export function stockAside(
+  stock: StockItem[],
+  packAdded: Record<string, { units: number; place: StockItem["place"] }> = {},
+): StockItem[] {
+  return stock
+    .map((item) => {
+      const added = packAdded[item.ingredientId];
+      if (!added || added.place !== item.place) return item;
+      return { ...item, units: Math.round((item.units - added.units) * 10) / 10 };
+    })
+    .filter((item) => item.units > 0.05);
+}
+
 export function retailBuy(ingredientId: string, units: number): { chargeUnits: number; label: string; pantry: boolean } {
   const ingredient = getIngredient(ingredientId);
   if (!ingredient) return { chargeUnits: units, label: String(units), pantry: false };
@@ -107,14 +127,23 @@ export function buildShoppingList(
     if (units <= 0.05) continue;
     const retail = retailBuy(ingredientId, units);
     if (retail.pantry || PANTRY_IDS.has(ingredientId)) {
+      const bag = PANTRY_BAGS[ingredientId] ?? {
+        grams: 40,
+        name: "1袋",
+        surveyGrams: 100,
+        surveyYen: 0,
+      };
       const quote = lookup.quote(ingredientId);
       const unit = quote?.byStore[0]?.price ?? 0;
-      const grams = ingredientId === "miso" ? 750 : 100;
       const perUnit = getIngredient(ingredientId)?.gramsPerUnit ?? 1;
+      const surveyUnit = bag.surveyGrams > 0 ? (bag.surveyYen * perUnit) / bag.surveyGrams : unit;
+      const bagYen = bag.surveyYen * (bag.grams / bag.surveyGrams);
+      const scale = surveyUnit > 0 ? unit / surveyUnit : 1;
+      const approxYen = Math.abs(unit - surveyUnit) < 0.51 ? Math.round(bagYen) : Math.round(bagYen * scale);
       pantry.push({
         ingredientId,
-        label: `${retail.label}（ないときは約${yen(Math.round(unit * (grams / perUnit)))}）`,
-        approxYen: Math.round(unit * (grams / perUnit)),
+        label: `${bag.name}（ないときは約${yen(approxYen)}）`,
+        approxYen,
       });
       continue;
     }
@@ -131,6 +160,7 @@ export function buildShoppingList(
       unitPrice: best.price,
       linePrice: Math.round(retail.chargeUnits * best.price),
       buyLabel: retail.label,
+      neededUnits: units,
     });
   }
   covered.sort((a, b) => a.ingredientId.localeCompare(b.ingredientId));

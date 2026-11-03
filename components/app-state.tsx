@@ -1,8 +1,8 @@
 "use client";
 
 import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useSyncExternalStore } from "react";
-import { areas } from "@/lib/catalog";
-import { tokyoHour, tokyoToday } from "@/lib/dates";
+import { areas, getIngredient } from "@/lib/catalog";
+import { resolvePlanStart, tokyoHour, tokyoToday } from "@/lib/dates";
 import { buildAlerts } from "@/lib/alerts";
 import {
   type BudgetScope,
@@ -17,8 +17,16 @@ import {
   weeklyFromMonthly,
 } from "@/lib/household";
 import { consumeStock } from "@/lib/stock";
-import { cookedDaysOn } from "@/lib/shopping";
-import { buildPlan, keepCookedDays, replacePlanSlot, type PlanResult } from "@/lib/optimizer";
+import { buildShoppingList, cookedDaysOn, stockAside } from "@/lib/shopping";
+import {
+  buildPlan,
+  dropDuplicateCookedDishes,
+  ensureWeeklyDishes,
+  keepCookedDays,
+  replacePlanSlot,
+  syncLeftoverNote,
+  type PlanResult,
+} from "@/lib/optimizer";
 import { createPriceBook, type PriceBook } from "@/lib/prices";
 import { isBrightSkin, isSkin, skinThemeColor, type SkinId } from "@/lib/skins";
 import type {
@@ -94,6 +102,7 @@ export type Persisted = {
   preferredStoreId: string | null;
   stock: StockItem[];
   cookedKeys: string[];
+  packAdded: Record<string, { units: number; place: StockPlace }>;
   observations: Observation[];
   balanced: Plan | null;
   cheap: Plan | null;
@@ -174,6 +183,7 @@ function defaultState(): Persisted {
     preferredStoreId: null,
     stock: [],
     cookedKeys: [],
+    packAdded: {},
     observations: [],
     balanced: null,
     cheap: null,
@@ -241,6 +251,7 @@ function sanitize(raw: unknown): Persisted {
     excludes: Array.isArray(data.excludes) ? data.excludes.filter((id) => typeof id === "string") : [],
     stock: Array.isArray(data.stock) ? data.stock.filter(isStockItem) : [],
     cookedKeys: Array.isArray(data.cookedKeys) ? data.cookedKeys.filter((id) => typeof id === "string") : [],
+    packAdded: sanitizePackAdded(data.packAdded),
     observations: Array.isArray(data.observations) ? data.observations.filter(isObservation) : [],
     balanced: isPlan(data.balanced) ? data.balanced : null,
     cheap: isPlan(data.cheap) ? data.cheap : null,
@@ -256,6 +267,19 @@ function sanitize(raw: unknown): Persisted {
 function clampCount(value: unknown, min: number, max: number, fallback: number): number {
   if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
   return Math.min(max, Math.max(min, Math.round(value)));
+}
+
+function sanitizePackAdded(value: unknown): Persisted["packAdded"] {
+  if (!value || typeof value !== "object") return {};
+  const out: Persisted["packAdded"] = {};
+  for (const [id, row] of Object.entries(value as Record<string, unknown>)) {
+    if (!row || typeof row !== "object") continue;
+    const item = row as { units?: unknown; place?: unknown };
+    if (typeof item.units !== "number" || (item.place !== "fridge" && item.place !== "freezer")) continue;
+    if (item.units <= 0) continue;
+    out[id] = { units: item.units, place: item.place };
+  }
+  return out;
 }
 
 function isStockItem(value: unknown): value is StockItem {
@@ -392,6 +416,13 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     if (!today) return { ok: false, error: "日付を取得しています。" };
     const lookup = createPriceBook(state.areaId, today, state.observations);
     const key = sourceKey(state);
+    const previous = state.focus === "cheap" ? state.cheap : state.balanced;
+    const { startedOn, continueWeek } = resolvePlanStart(previous?.startedOn, today);
+    const cooked = continueWeek ? cookedDaysOn(state.cookedKeys, startedOn) : [];
+    const cookedRecipes = new Set(
+      (previous?.slots ?? []).filter((slot) => cooked.includes(slot.dayIndex)).map((slot) => slot.recipeId),
+    );
+    const weekly = (state.areaId === "tome" ? WEEKLY_DISHES : []).filter((id) => !cookedRecipes.has(id));
     const result = buildPlan(
       {
         budget: state.budget,
@@ -401,24 +432,38 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         prefs: { ...state.prefs, allowSkinlessThigh: state.thighPolicy === "allow" },
         excludes:
           state.dairyPolicy === "allDairy" ? [...new Set([...state.excludes, ...OTHER_DAIRY_IDS])] : state.excludes,
-        stock: state.stock,
-        weeklyDishes: state.areaId === "tome" ? WEEKLY_DISHES : [],
+        stock: stockAside(state.stock, continueWeek ? state.packAdded : {}),
+        weeklyDishes: weekly,
         fullPortions: state.childStage === "teen" && state.children > 0,
         sourceKey: key,
       },
       lookup,
     );
     if (!result.ok) return result;
-    const cooked = cookedDaysOn(state.cookedKeys, today);
-    const previous = state.focus === "cheap" ? state.cheap : state.balanced;
-    const balanced = keepCookedDays({ ...result.balanced, sourceKey: key }, previous, cooked, lookup.priceOf);
-    const cheap = keepCookedDays({ ...result.cheap, sourceKey: key }, previous, cooked, lookup.priceOf);
+    const lock = (plan: Plan) =>
+      syncLeftoverNote(
+        ensureWeeklyDishes(
+          dropDuplicateCookedDishes(
+            keepCookedDays({ ...plan, sourceKey: key, startedOn }, continueWeek ? previous : null, cooked, lookup.priceOf),
+            cooked,
+            WEEKLY_DISHES,
+            lookup.priceOf,
+          ),
+          state.areaId === "tome" ? WEEKLY_DISHES : [],
+          cooked,
+          lookup.priceOf,
+        ),
+      );
+    const balanced = lock(result.balanced);
+    const cheap = lock(result.cheap);
     update((current) => ({
       ...current,
       balanced,
       cheap,
       focus: "balanced",
       checks: {},
+      cookedKeys: continueWeek ? current.cookedKeys : [],
+      packAdded: continueWeek ? current.packAdded : {},
       onboarded: true,
     }));
     return { ok: true, balanced, cheap };
@@ -499,7 +544,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       update((current) => {
         const plan = current.focus === "cheap" ? current.cheap : current.balanced;
         if (!plan) return current;
-        const key = `${today}:${dayIndex}`;
+        const key = `${plan.startedOn ?? today}:${dayIndex}`;
         if (current.cookedKeys.includes(key)) return current;
         return {
           ...current,
@@ -511,7 +556,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       update((current) => {
         const plan = current.focus === "cheap" ? current.cheap : current.balanced;
         if (!plan) return current;
-        const key = `${today}:${dayIndex}`;
+        const key = `${plan.startedOn ?? today}:${dayIndex}`;
         if (current.cookedKeys.includes(key)) return current;
         return { ...current, cookedKeys: [...current.cookedKeys, key] };
       }),
@@ -561,7 +606,50 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         observations: current.observations.filter((row) => row.id !== id),
       })),
     toggleCheck: (ingredientId, checked) =>
-      update((current) => ({ ...current, checks: { ...current.checks, [ingredientId]: checked } })),
+      update((current) => {
+        const checks = { ...current.checks, [ingredientId]: checked };
+        const packAdded = { ...current.packAdded };
+        let stock = current.stock;
+        const added = packAdded[ingredientId];
+        if (!checked && added) {
+          stock = stock
+            .map((item) =>
+              item.ingredientId === ingredientId && item.place === added.place
+                ? { ...item, units: Math.round((item.units - added.units) * 10) / 10 }
+                : item,
+            )
+            .filter((item) => item.units > 0.05);
+          delete packAdded[ingredientId];
+          return { ...current, checks, stock, packAdded };
+        }
+        const plan = current.focus === "cheap" ? current.cheap : current.balanced;
+        if (checked && plan && today) {
+          const lookup = createPriceBook(current.areaId, today, current.observations);
+          const start = plan.startedOn ?? today;
+          const list = buildShoppingList(
+            plan,
+            lookup,
+            stockAside(current.stock, current.packAdded),
+            current.preferredStoreId,
+            cookedDaysOn(current.cookedKeys, start),
+          );
+          const line = list.groups.flatMap((group) => group.lines).find((item) => item.ingredientId === ingredientId);
+          const extra = line && line.neededUnits != null ? line.units - line.neededUnits : 0;
+          if (extra > 0.05) {
+            const ingredient = getIngredient(ingredientId);
+            const place = ingredient?.category === "meat" || ingredient?.category === "fish" ? "freezer" : "fridge";
+            const rounded = Math.round(extra * 10) / 10;
+            const existing = stock.find((item) => item.ingredientId === ingredientId && item.place === place);
+            stock = existing
+              ? stock.map((item) =>
+                  item === existing ? { ...item, units: Math.min(80, Math.round((item.units + rounded) * 10) / 10) } : item,
+                )
+              : [...stock, { ingredientId, place, units: Math.min(80, rounded) }];
+            packAdded[ingredientId] = { units: rounded, place };
+          }
+        }
+        return { ...current, checks, stock, packAdded };
+      }),
     replaceSlot: (dayIndex, meal, recipeId) => {
       if (!today) return;
       const lookup = createPriceBook(state.areaId, today, state.observations);

@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Slider } from "@/components/ui/slider";
-import { addDays, formatWithWeekday } from "@/lib/dates";
+import { addDays, planDayLabel, weekIsOver } from "@/lib/dates";
 import {
   MODE_LABEL,
   budgetHint,
@@ -378,15 +378,25 @@ export function MealsScreen() {
 
           <BudgetAdvice variant="full" />
           <div className="mt-6">
-            <SectionTitle eyebrow="献立" title="今日から7日" />
+            <SectionTitle
+              eyebrow="献立"
+              title={plan.startedOn && weekIsOver(plan.startedOn, app.today) ? "この1週間は終わりました" : "始めた日から7日"}
+            />
           </div>
+          {plan.startedOn && weekIsOver(plan.startedOn, app.today) ? (
+            <p className="mt-3 rounded-2xl bg-card px-3 py-3 text-base leading-7">
+              新しい週の献立を作ると、買い物リストは来週の分になります。作った日の記録は、その週の中だけ残します。
+            </p>
+          ) : null}
           <ol className="mt-3 space-y-3">
             {Array.from({ length: plan.days }, (_, day) => {
-              const date = addDays(app.today, day);
+              const start = plan.startedOn ?? app.today;
+              const date = addDays(start, day);
+              const cookedKey = `${start}:${day}`;
               const slots = plan.slots.filter((slot) => slot.dayIndex === day);
               return (
                 <li key={date} className="rounded-3xl bg-card p-4">
-                  <p className="text-base font-black">{day === 0 ? "今日" : day === 1 ? "明日" : formatWithWeekday(date)}</p>
+                  <p className="text-base font-black">{planDayLabel(start, day, app.today)}</p>
                   <ul className="mt-2 space-y-3">
                     {slots.map((slot) => {
                       const recipe = getRecipe(slot.recipeId);
@@ -426,11 +436,11 @@ export function MealsScreen() {
                   </ul>
                   <button
                     type="button"
-                    disabled={app.state.cookedKeys.includes(`${app.today}:${day}`)}
+                    disabled={app.state.cookedKeys.includes(cookedKey)}
                     onClick={() => setCookDay(day)}
                     className="mt-3 flex min-h-11 w-full items-center justify-center rounded-2xl bg-muted text-base font-bold disabled:opacity-60"
                   >
-                    {app.state.cookedKeys.includes(`${app.today}:${day}`) ? "この日は作った" : "この日を作った"}
+                    {app.state.cookedKeys.includes(cookedKey) ? "この日は作った" : "この日を作った"}
                   </button>
                 </li>
               );
@@ -461,7 +471,7 @@ export function MealsScreen() {
                         app.replaceSlot(swap.dayIndex, swap.meal, option.recipe.id);
                         setSwap(null);
                       }}
-                      className="flex w-full items-center justify-between text-left"
+                      className="flex min-h-11 w-full items-center justify-between text-left"
                     >
                       <span>
                         <span className="block text-base font-bold">

@@ -65,6 +65,32 @@ export function formatWithWeekday(iso: string): string {
   return `${month}/${day}（${weekdayName(iso)}）`;
 }
 
+export function planDayLabel(startedOn: string, dayIndex: number, today: string): string {
+  const date = addDays(startedOn, dayIndex);
+  if (date === today) return "今日";
+  if (date === addDays(today, 1)) return "明日";
+  if (date === addDays(today, -1)) return "きのう";
+  return formatWithWeekday(date);
+}
+
+export function weekIsOver(startedOn: string, today: string): boolean {
+  return daysBetween(startedOn, today) > 6;
+}
+
+/** 献立は始めた日から7日間。そのあいだは同じ起点を使い、8日目以降は新しい週。 */
+export function resolvePlanStart(
+  previousStart: string | undefined,
+  today: string,
+): { startedOn: string; continueWeek: boolean } {
+  const continueWeek = Boolean(
+    previousStart && daysBetween(previousStart, today) >= 0 && daysBetween(previousStart, today) <= 6,
+  );
+  return {
+    startedOn: continueWeek && previousStart ? previousStart : today,
+    continueWeek,
+  };
+}
+
 export function weekRangeLabel(iso: string): string {
   const dow = weekdayIndex(iso);
   const mondayOffset = dow === 0 ? -6 : 1 - dow;

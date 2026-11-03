@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { getIngredient, getRecipe, ingredients, recipes, storesIn } from "./catalog";
+import { planDayLabel, resolvePlanStart, weekIsOver } from "./dates";
 import { CHILD_PORTION, householdServings, TOME_PRESET, weeklyFromMonthly } from "./household";
 import { consumeStock } from "./stock";
-import { buildPlan } from "./optimizer";
+import { buildPlan, dropDuplicateCookedDishes, ensureWeeklyDishes, keepCookedDays, syncLeftoverNote } from "./optimizer";
 import { createPriceBook } from "./prices";
-import { buildShoppingList, retailBuy } from "./shopping";
+import { buildShoppingList, cookedDaysOn, retailBuy, stockAside } from "./shopping";
 import { surveyUnitYen } from "./survey";
 import { youtubeCookUrl } from "./youtube";
 import type { Prefs } from "./types";
@@ -267,7 +268,16 @@ test("the shop list uses packs and keeps pantry items out of the store total", (
   assert.equal(result.balanced.notes.some((note) => note.includes("少なめに見積もって")), false);
   const withPantry = buildShoppingList(result.balanced, book);
   assert.ok(withPantry.groups.every((group) => group.lines.every((line) => line.ingredientId !== "wakame" && line.ingredientId !== "miso")));
-  assert.ok(withPantry.pantry.some((row) => row.label.startsWith("乾燥わかめ 1袋")) || withPantry.covered.some((row) => row.ingredientId === "wakame") || !result.balanced.slots.some((slot) => getRecipe(slot.recipeId)?.items.some((item) => item.ingredientId === "wakame")));
+  const wakameLine = withPantry.pantry.find((row) => row.ingredientId === "wakame");
+  if (wakameLine) {
+    assert.match(wakameLine.label, /40g/);
+    assert.ok(wakameLine.approxYen < 1500, String(wakameLine.approxYen));
+  }
+  const misoLine = withPantry.pantry.find((row) => row.ingredientId === "miso");
+  if (misoLine) {
+    assert.match(misoLine.label, /750g/);
+    assert.ok(misoLine.approxYen < 800, String(misoLine.approxYen));
+  }
   const stocked = buildShoppingList(result.balanced, book, [
     { ingredientId: "wakame", place: "fridge", units: 100 },
     { ingredientId: "miso", place: "fridge", units: 100 },
@@ -303,6 +313,129 @@ test("cooking a day does not put that food back on the shopping list", () => {
     list.groups.flatMap((group) => group.lines).find((line) => line.ingredientId === id)?.units ?? 0;
   assert.ok(unitsOf(after, "chicken_hiki") <= unitsOf(before, "chicken_hiki"));
   assert.ok(unitsOf(after, "cabbage") <= unitsOf(before, "cabbage"));
+});
+
+const emptyNutrition = { kcal: 0, protein: 0, fat: 0, carb: 0, fiber: 0, salt: 0, veg: 0 };
+
+test("a normal pantry bag is not priced as 100g", () => {
+  const book = createPriceBook("tome", TODAY, []);
+  const plan = {
+    focus: "balanced" as const,
+    budget: 18400,
+    people: 4,
+    days: 1,
+    mode: "dinner" as const,
+    slots: [{ dayIndex: 0, meal: "dinner" as const, recipeId: "sake-teishoku", cost: 100 }],
+    cost: 100,
+    overBy: 0,
+    portion: 1,
+    nutrition: emptyNutrition,
+    targets: emptyNutrition,
+    notes: [],
+    sourceKey: "",
+    startedOn: "2026-11-03",
+  };
+  const list = buildShoppingList(plan, book);
+  const wakame = list.pantry.find((row) => row.ingredientId === "wakame");
+  const miso = list.pantry.find((row) => row.ingredientId === "miso");
+  assert.ok(wakame);
+  assert.equal(wakame?.label, "乾燥わかめ 40g入り1袋（ないときは約¥972）");
+  assert.equal(wakame?.approxYen, 972);
+  assert.ok(miso);
+  assert.equal(miso?.label, "味噌 750g 1パック（ないときは約¥490）");
+  assert.equal(miso?.approxYen, 490);
+  const rice = list.groups.flatMap((group) => group.lines).find((line) => line.ingredientId === "rice");
+  assert.ok(rice);
+  assert.equal(rice?.buyLabel, "5kg袋");
+  assert.ok((rice?.neededUnits ?? 0) < (rice?.units ?? 0));
+  const surplus = Math.round(((rice?.units ?? 0) - (rice?.neededUnits ?? 0)) * 10) / 10;
+  const bought = [{ ingredientId: "rice", place: "fridge" as const, units: surplus }];
+  const hidden = buildShoppingList(plan, book, bought);
+  const still = buildShoppingList(plan, book, stockAside(bought, { rice: { units: surplus, place: "fridge" } }));
+  assert.equal(hidden.groups.some((group) => group.lines.some((line) => line.ingredientId === "rice")), false);
+  assert.equal(still.groups.some((group) => group.lines.some((line) => line.ingredientId === "rice")), true);
+});
+
+test("the next day keeps a cooked day off the shopping list", () => {
+  const start = "2026-11-03";
+  const next = "2026-11-04";
+  assert.deepEqual(resolvePlanStart(start, next), { startedOn: start, continueWeek: true });
+  assert.equal(weekIsOver(start, next), false);
+  assert.equal(planDayLabel(start, 0, next), "きのう");
+  assert.equal(planDayLabel(start, 1, next), "今日");
+  assert.deepEqual(cookedDaysOn([`${start}:0`], start), [0]);
+  assert.deepEqual(cookedDaysOn([`${start}:0`], next), []);
+  assert.deepEqual(resolvePlanStart(start, "2026-11-10"), { startedOn: "2026-11-10", continueWeek: false });
+  assert.equal(weekIsOver(start, "2026-11-10"), true);
+  assert.equal(weekIsOver(start, "2026-11-09"), false);
+
+  const book = createPriceBook("tome", start, []);
+  const result = buildPlan(
+    {
+      budget: 18_400,
+      people: 4,
+      days: 7,
+      mode: "dinner_breakfast",
+      prefs: { ...prefs, lessFat: true, noMilk: true },
+      excludes: [],
+      fullPortions: true,
+      weeklyDishes: ["hamburg", "soboro"],
+    },
+    book,
+  );
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  const stock = [
+    { ingredientId: "cabbage", place: "fridge" as const, units: 10 },
+    { ingredientId: "chicken_hiki", place: "freezer" as const, units: 3 },
+    { ingredientId: "egg", place: "fridge" as const, units: 1 },
+  ];
+  const used = consumeStock(stock, result.balanced, 0);
+  const remembered = buildShoppingList(result.balanced, book, used, null, cookedDaysOn([`${start}:0`], start));
+  const forgotten = buildShoppingList(result.balanced, book, used, null, cookedDaysOn([`${start}:0`], next));
+  assert.ok(remembered.multiTotal < forgotten.multiTotal, `${remembered.multiTotal} vs ${forgotten.multiTotal}`);
+});
+
+test("rebuilding a week does not serve a cooked weekly dish again", () => {
+  const book = createPriceBook("tome", TODAY, []);
+  const input = {
+    budget: 18_400,
+    people: 4,
+    days: 7,
+    mode: "dinner_breakfast" as const,
+    prefs: { ...prefs, lessFat: true, noMilk: true },
+    excludes: [] as string[],
+    fullPortions: true,
+    weeklyDishes: ["hamburg", "soboro"],
+  };
+  const first = buildPlan(input, book);
+  assert.equal(first.ok, true);
+  if (!first.ok) return;
+  const cookedDay = first.balanced.slots.find((slot) => slot.recipeId === "hamburg")?.dayIndex;
+  assert.equal(typeof cookedDay, "number");
+  if (cookedDay == null) return;
+  const second = buildPlan({ ...input, weeklyDishes: input.weeklyDishes.filter((id) => id !== "hamburg") }, book);
+  assert.equal(second.ok, true);
+  if (!second.ok) return;
+  const locked = syncLeftoverNote(
+    ensureWeeklyDishes(
+      dropDuplicateCookedDishes(
+        keepCookedDays(second.balanced, first.balanced, [cookedDay], book.priceOf),
+        [cookedDay],
+        ["hamburg", "soboro"],
+        book.priceOf,
+      ),
+      ["hamburg", "soboro"],
+      [cookedDay],
+      book.priceOf,
+    ),
+  );
+  const days = [...new Set(locked.slots.filter((slot) => slot.recipeId === "hamburg").map((slot) => slot.dayIndex))];
+  assert.deepEqual(days, [cookedDay]);
+  const soboroDays = locked.slots.filter((slot) => slot.recipeId === "soboro").map((slot) => slot.dayIndex);
+  assert.ok(soboroDays.some((day) => day !== cookedDay), soboroDays.join(","));
+  const leftoverNote = locked.notes.find((note) => note.includes("残ります"));
+  assert.equal(leftoverNote, `予算に¥${(locked.budget - locked.cost).toLocaleString("ja-JP")}残ります。予備費として置いてあります。`);
 });
 
 test("YouTube button is a search for the dish name", () => {

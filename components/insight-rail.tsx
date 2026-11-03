@@ -5,7 +5,8 @@ import { getIngredient, getRecipe, getStore } from "@/lib/catalog";
 import { useApp } from "@/components/app-state";
 import { SignalMark, Yen } from "@/components/bits";
 import { balanceScore, mealLabel, modeHint, percent } from "@/lib/format";
-import { buildShoppingList, cookedDaysOn } from "@/lib/shopping";
+import { daysBetween } from "@/lib/dates";
+import { buildShoppingList, cookedDaysOn, stockAside } from "@/lib/shopping";
 import { ingredients } from "@/lib/catalog";
 
 export function InsightRail() {
@@ -18,8 +19,21 @@ export function InsightRail() {
     .map((item) => app.book?.quote(item.id))
     .filter((quote) => quote && quote.signal === "buy")
     .slice(0, 4);
-  const shop = plan ? buildShoppingList(plan, app.book, app.state.stock, app.state.preferredStoreId, cookedDaysOn(app.state.cookedKeys, app.today)) : null;
-  const dinner = plan?.slots.find((slot) => slot.dayIndex === 0 && slot.meal === "dinner");
+  const planStart = plan?.startedOn ?? app.today;
+  const todayIndex = plan ? daysBetween(planStart, app.today) : -1;
+  const shop = plan
+    ? buildShoppingList(
+        plan,
+        app.book,
+        stockAside(app.state.stock, app.state.packAdded),
+        app.state.preferredStoreId,
+        cookedDaysOn(app.state.cookedKeys, planStart),
+      )
+    : null;
+  const dinner =
+    plan && todayIndex >= 0 && todayIndex < plan.days
+      ? plan.slots.find((slot) => slot.dayIndex === todayIndex && slot.meal === "dinner")
+      : undefined;
   const dinnerRecipe = dinner ? getRecipe(dinner.recipeId) : undefined;
 
   return (

@@ -486,12 +486,19 @@
   animation: cook-sway 1.1s ease-in-out infinite;
 }
 
-/* 11〜12px の指定を 14px にする。明るい画面のまま。 */
-.readable-app .text-xs,
-.readable-app .text-\[10px\],
-.readable-app .text-\[11px\] {
+/* 11〜12px の指定を 14px にする。シートは body 直下に出るので、画面全体にかける。 */
+body .text-xs,
+body .text-\[10px\],
+body .text-\[11px\] {
   font-size: 0.875rem;
   line-height: 1.45;
+}
+
+body [data-sonner-toast],
+body [data-sonner-toast] [data-title],
+body [data-sonner-toast] [data-description] {
+  font-size: 0.875rem !important;
+  line-height: 1.45 !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

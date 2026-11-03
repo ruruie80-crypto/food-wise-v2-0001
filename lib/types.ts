@@ -147,6 +147,8 @@ export type Plan = {
   targets: Nutrition;
   notes: string[];
   sourceKey: string;
+  /** 献立の1日目。日付が変わっても、この日を起点に数える。 */
+  startedOn?: string;
 };
 
 export type Quote = {
@@ -175,6 +177,8 @@ export type ShopLine = {
   linePrice: number;
   /** 店で買うときの呼び方。卵はパック、尾は切り上げ。 */
   buyLabel?: string;
+  /** 切り上げる前に、献立で使う量。 */
+  neededUnits?: number;
 };
 
 export type ShopStoreGroup = {

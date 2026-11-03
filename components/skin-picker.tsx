@@ -12,10 +12,10 @@ export function SkinPicker({ className }: { className?: string }) {
   const skins = tome ? SKINS.filter((skin) => isBrightSkin(skin.id)) : SKINS;
   return (
     <section className={cn("mt-5", className)} aria-labelledby={headingId}>
-      <h2 id={headingId} className="text-[11px] font-bold tracking-[0.16em] text-primary">
+      <h2 id={headingId} className="text-sm font-bold tracking-[0.16em] text-primary">
         着せ替え
       </h2>
-      <p className="mt-1 text-xs leading-5 text-muted-foreground">
+      <p className="mt-1 text-sm leading-6 text-muted-foreground">
         {tome
           ? "登米では明るい画面だけです。献立と値札はそのままです。"
           : "見た目だけが変わります。献立と値札はそのままです。"}
@@ -46,7 +46,7 @@ function SkinCard({
       aria-label={`${skin.name}。${skin.blurb}`}
       onClick={() => onSelect(skin.id)}
       className={cn(
-        "overflow-hidden p-2 text-left ring-2 ring-offset-2 ring-offset-background",
+        "min-h-11 overflow-hidden p-2 text-left ring-2 ring-offset-2 ring-offset-background",
         selected ? "ring-primary" : "ring-transparent",
       )}
       style={{ background: skin.swatch.background, color: skin.swatch.foreground, borderRadius: skin.radius }}
@@ -64,7 +64,7 @@ function SkinCard({
         }}
       />
       <span className="block px-2 py-2" style={{ background: skin.swatch.card, borderRadius: `calc(${skin.radius} * 0.62)` }}>
-        <span className="block text-[10px] font-bold tracking-[0.14em]" style={{ color: skin.swatch.primary }}>
+        <span className="block text-sm font-bold tracking-[0.14em]" style={{ color: skin.swatch.primary }}>
           底値
         </span>
         <span className="mt-1 flex items-end justify-between gap-1">
@@ -77,7 +77,7 @@ function SkinCard({
           </span>
         </span>
       </span>
-      <span className="mt-1.5 block text-[10px] leading-4">{selected ? "着用中 · " : ""}{skin.blurb}</span>
+      <span className="mt-1.5 block text-sm leading-6">{selected ? "着用中 · " : ""}{skin.blurb}</span>
     </button>
   );
 }

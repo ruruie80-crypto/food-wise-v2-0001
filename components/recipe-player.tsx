@@ -63,7 +63,7 @@ function RecipePlayer({
           <SheetTitle className="pr-10 text-panel-foreground">{recipe.name}</SheetTitle>
         </SheetHeader>
         <div className="space-y-4 px-4 pb-6">
-          <p className="text-xs text-panel-muted">
+          <p className="text-sm leading-6 text-panel-muted">
             {method} · 調理の目安 {recipe.minutes}分 · 手順 {step + 1}/{steps.length}
           </p>
           <MethodStage method={method} playing={playing} />

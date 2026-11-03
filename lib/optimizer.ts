@@ -681,6 +681,79 @@ export function keepCookedDays(
   };
 }
 
+export function dropDuplicateCookedDishes(
+  plan: Plan,
+  cookedDays: number[],
+  dishIds: string[],
+  priceOf: PriceLookup["priceOf"],
+): Plan {
+  const cooked = new Set(cookedDays);
+  const taken = new Set(
+    plan.slots.filter((slot) => cooked.has(slot.dayIndex) && dishIds.includes(slot.recipeId)).map((slot) => slot.recipeId),
+  );
+  if (taken.size === 0) return plan;
+  const slots = plan.slots.map((slot) => {
+    if (cooked.has(slot.dayIndex) || !taken.has(slot.recipeId)) return slot;
+    const alternatives = recipes
+      .filter((recipe) => recipe.meals.includes(slot.meal) && !taken.has(recipe.id))
+      .sort(
+        (a, b) =>
+          recipeCost(a, plan.people, priceOf, plan.portion) - recipeCost(b, plan.people, priceOf, plan.portion),
+      );
+    const pick = alternatives[0];
+    if (!pick) return slot;
+    return { ...slot, recipeId: pick.id, cost: recipeCost(pick, plan.people, priceOf, plan.portion) };
+  });
+  const nutrition = slots.reduce((total, slot) => {
+    const recipe = getRecipe(slot.recipeId);
+    return recipe ? add(total, recipeNutrition(recipe, plan.people, plan.portion)) : total;
+  }, zeroNutrition());
+  const cost = slots.reduce((sum, slot) => sum + slot.cost, 0);
+  return { ...plan, slots, nutrition, cost, overBy: Math.max(0, cost - plan.budget) };
+}
+
+/** 作った日で上書きされて週の定番が消えたとき、まだ作っていない日へ入れ直す。 */
+export function ensureWeeklyDishes(
+  plan: Plan,
+  dishIds: string[],
+  cookedDays: number[],
+  priceOf: PriceLookup["priceOf"],
+): Plan {
+  const cooked = new Set(cookedDays);
+  const slots = plan.slots.map((slot) => ({ ...slot }));
+  const present = new Set(slots.map((slot) => slot.recipeId));
+  let changed = false;
+  for (const dishId of dishIds) {
+    if (present.has(dishId)) continue;
+    const recipe = getRecipe(dishId);
+    if (!recipe) continue;
+    const target = slots.find(
+      (slot) => slot.meal === "dinner" && !cooked.has(slot.dayIndex) && !dishIds.includes(slot.recipeId),
+    );
+    if (!target) continue;
+    target.recipeId = dishId;
+    target.cost = recipeCost(recipe, plan.people, priceOf, plan.portion);
+    present.add(dishId);
+    changed = true;
+  }
+  if (!changed) return plan;
+  const nutrition = slots.reduce((total, slot) => {
+    const recipe = getRecipe(slot.recipeId);
+    return recipe ? add(total, recipeNutrition(recipe, plan.people, plan.portion)) : total;
+  }, zeroNutrition());
+  const cost = slots.reduce((sum, slot) => sum + slot.cost, 0);
+  return { ...plan, slots, nutrition, cost, overBy: Math.max(0, cost - plan.budget) };
+}
+
+export function syncLeftoverNote(plan: Plan): Plan {
+  const notes = plan.notes.filter((note) => !(note.startsWith("予算に") && note.includes("残ります")));
+  const leftover = plan.budget - plan.cost;
+  if (plan.overBy <= 0 && leftover >= 800) {
+    notes.push(`予算に${yen(leftover)}残ります。予備費として置いてあります。`);
+  }
+  return { ...plan, notes };
+}
+
 export function dinnerRepeats(plan: Plan): Record<string, number> {
   const counts: Record<string, number> = {};
   for (const slot of plan.slots) {

@@ -370,7 +370,7 @@ export function ScanScreen() {
                 <li key={item.id}>
                   <button
                     type="button"
-                    className="flex w-full items-center justify-between rounded-xl px-2 py-2 text-left hover:bg-muted"
+                    className="flex min-h-11 w-full items-center justify-between rounded-xl px-2 py-2 text-left text-base hover:bg-muted"
                     onClick={() => {
                       const quote = app.book?.quote(item.id);
                       setLines((current) => [
