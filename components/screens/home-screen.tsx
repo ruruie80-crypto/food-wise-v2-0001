@@ -26,7 +26,7 @@ import { BudgetAdvice } from "@/components/budget-advice";
 import { SkinPicker } from "@/components/skin-picker";
 import { StoreCheapest } from "@/components/store-cheapest";
 import { MarketCard, SeasonCard } from "@/components/today-panel";
-import { daysBetween, expenseRangeLabel, formatWithWeekday, planDayLabel, weekIsOver } from "@/lib/dates";
+import { daysBetween, expenseRangeLabel, formatWithWeekday, lunchMoneyHint, planDayLabel, weekIsOver } from "@/lib/dates";
 import { mealLabel, modeHint, yen } from "@/lib/format";
 
 export function HomeScreen() {
@@ -103,7 +103,7 @@ export function HomeScreen() {
               : "献立は使う量の金額です。買い物は、袋の大きさや家にある分を数えた金額です。"
             : "献立を作ると、今日から7日で数えます。"}
         </p>
-        {plan && plan.budget - plan.cost > 0 && plan.budget - plan.cost <= 4000 ? (
+        {plan && lunchMoneyHint(plan.startedOn, app.today, plan.budget - plan.cost) ? (
           <p className="mt-2 text-sm leading-6">
             残りは週{yen(plan.budget - plan.cost)}（月にならすと約
             {yen(Math.round(((plan.budget - plan.cost) / 7) * 30.4 / 100) * 100)}）です。お昼ごはん代には少なめかもしれません。

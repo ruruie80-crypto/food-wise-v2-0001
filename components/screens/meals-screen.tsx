@@ -24,7 +24,7 @@ import {
 } from "@/lib/format";
 import { cookingMethod } from "@/lib/advice";
 import { StockUseDialog } from "@/components/stock-use-dialog";
-import { describeHousehold, householdServings, TOME_PRESET, weeklyFromMonthly } from "@/lib/household";
+import { describeHousehold, householdServings, TOME_PRESET, usedItems, weeklyFromMonthly } from "@/lib/household";
 import { isRecipeAllowed, recipeCost, recipeNutrition } from "@/lib/optimizer";
 import type { MealMode, MealType, Plan, PlanSlot, Prefs } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -423,7 +423,7 @@ export function MealsScreen() {
                           {recipe.usesMilk === false ? (
                             <p className="mt-1 text-sm font-bold text-primary">牛乳なし</p>
                           ) : null}
-                          {recipe.items.some((item) => stocked.has(item.ingredientId)) ? (
+                          {usedItems(recipe.id, recipe.items).some((item) => stocked.has(item.ingredientId)) ? (
                             <p className="text-sm font-bold">在庫を使います</p>
                           ) : null}
                           <YouTubeCookButton name={recipe.name} />
@@ -614,7 +614,7 @@ function optionsFor(
       recipe,
       cost: recipeCost(recipe, plan.people, priceOf, plan.portion),
       protein: recipeNutrition(recipe, plan.people, plan.portion).protein,
-      usesStock: recipe.items.some((item) => stocked.has(item.ingredientId)),
+      usesStock: usedItems(recipe.id, recipe.items).some((item) => stocked.has(item.ingredientId)),
     }))
     .sort(
       (a, b) =>

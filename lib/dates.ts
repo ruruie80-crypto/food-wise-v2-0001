@@ -77,6 +77,13 @@ export function weekIsOver(startedOn: string, today: string): boolean {
   return daysBetween(startedOn, today) > 6;
 }
 
+/** 前の献立が終わった日は出さない。新しい献立ができるまで、お昼代の案内は止める。 */
+export function lunchMoneyHint(startedOn: string | undefined, today: string, leftover: number): boolean {
+  if (leftover <= 0 || leftover > 4000) return false;
+  if (startedOn && weekIsOver(startedOn, today)) return false;
+  return true;
+}
+
 /** 献立は始めた日から7日間。そのあいだは同じ起点を使い、8日目以降は新しい週。 */
 export function resolvePlanStart(
   previousStart: string | undefined,

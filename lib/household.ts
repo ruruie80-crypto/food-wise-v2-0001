@@ -51,6 +51,21 @@ export const CHEAP_EGG_DISHES = ["niratama", "tamago-don"];
 /** 卵を減らすとき、卵のない朝（豆腐と味噌汁）はここまで繰り返してよい。 */
 export const EGG_FREE_MEAL_CAP = 4;
 
+/**
+ * 納豆定食と冷奴の卵。のせるかはまだ聞いていないので、初期は入れない。
+ * true にすると、この2品の卵を買い物と献立の金額に足す。
+ */
+export const INCLUDE_OPTIONAL_EGGS = false;
+export const OPTIONAL_EGG_RECIPES = ["natto-set", "hiyayakko"];
+
+/** 卵をのせないときの目安。5パックまでは許すが、初期の献立はここに収める。 */
+export const QUIET_EGG_TARGET = 36;
+
+export function usedItems<T extends { ingredientId: string }>(recipeId: string, items: T[]): T[] {
+  if (INCLUDE_OPTIONAL_EGGS || !OPTIONAL_EGG_RECIPES.includes(recipeId)) return items;
+  return items.filter((item) => item.ingredientId !== "egg");
+}
+
 export const TOME_PRESET: {
   adults: number;
   children: number;

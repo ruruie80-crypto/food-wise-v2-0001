@@ -1,4 +1,5 @@
 import { getIngredient, getRecipe } from "./catalog";
+import { usedItems } from "./household";
 import type { Plan } from "./types";
 
 const METHODS: Record<string, string> = {
@@ -47,7 +48,7 @@ export function plannedFoods(plan: Plan, priceOf: (ingredientId: string) => numb
   for (const slot of plan.slots) {
     const recipe = getRecipe(slot.recipeId);
     if (!recipe) continue;
-    for (const item of recipe.items) {
+    for (const item of usedItems(recipe.id, recipe.items)) {
       const row = totals.get(item.ingredientId) ?? { units: 0, recipeIds: [] };
       row.units += item.units * plan.people * plan.portion;
       if (!row.recipeIds.includes(recipe.id)) row.recipeIds.push(recipe.id);

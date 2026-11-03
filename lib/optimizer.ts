@@ -5,8 +5,11 @@ import {
   EGG_FREE_MEAL_CAP,
   EGGS_PER_PACK,
   fattyIds,
+  INCLUDE_OPTIONAL_EGGS,
   MAX_WEEKLY_EGG_PACKS,
+  QUIET_EGG_TARGET,
   TWICE_A_WEEK_DISHES,
+  usedItems,
 } from "./household";
 import type {
   MealMode,
@@ -94,7 +97,7 @@ function scale(nutrition: Nutrition, factor: number): Nutrition {
 
 export function recipeNutrition(recipe: Recipe, people: number, portion = 1): Nutrition {
   let total = scale(ZERO, 0);
-  for (const item of recipe.items) {
+  for (const item of usedItems(recipe.id, recipe.items)) {
     const ingredient = getIngredient(item.ingredientId);
     if (!ingredient) continue;
     const grams = item.units * ingredient.gramsPerUnit * people * portion;
@@ -111,7 +114,7 @@ export function recipeCost(
   priceOf: PriceLookup["priceOf"],
   portion = 1,
 ): number {
-  const food = recipe.items.reduce((sum, item) => {
+  const food = usedItems(recipe.id, recipe.items).reduce((sum, item) => {
     const price = priceOf(item.ingredientId);
     const units = item.units * people * portion;
     if (!Number.isFinite(price)) return sum + Math.round(100000 * units);
@@ -239,7 +242,9 @@ function capDinnerRepeats(
 }
 
 function ingredientUnits(recipeId: string, ingredientId: string): number {
-  return getRecipe(recipeId)?.items.find((item) => item.ingredientId === ingredientId)?.units ?? 0;
+  const recipe = getRecipe(recipeId);
+  if (!recipe) return 0;
+  return usedItems(recipe.id, recipe.items).find((item) => item.ingredientId === ingredientId)?.units ?? 0;
 }
 
 function cheapestDish(
@@ -271,7 +276,7 @@ function trimWeeklyEggs(
   protect: string[] = [],
 ): string[] {
   const next = [...picks];
-  const maxEggs = MAX_WEEKLY_EGG_PACKS * EGGS_PER_PACK;
+  const maxEggs = INCLUDE_OPTIONAL_EGGS ? MAX_WEEKLY_EGG_PACKS * EGGS_PER_PACK : QUIET_EGG_TARGET;
   const eggsOf = (id: string) => ingredientUnits(id, "egg") * people * portion;
   const costOf = (id: string) => {
     const recipe = getRecipe(id);
@@ -361,7 +366,7 @@ function stockOf(items: StockItem[] | undefined): Map<string, number> {
 function stockPoints(recipe: Recipe, stock: Map<string, number>): number {
   if (stock.size === 0) return 0;
   let points = 0;
-  for (const item of recipe.items) {
+  for (const item of usedItems(recipe.id, recipe.items)) {
     const have = stock.get(item.ingredientId) ?? 0;
     if (have <= 0) continue;
     const ingredient = getIngredient(item.ingredientId);
@@ -391,7 +396,7 @@ function marginalScore(
   let score = nutritionPoints(nutrition, meal, prefs) - cost * coeff + fromStock;
   if (prefs.washoku && recipe.tags.includes("washoku")) score += 8;
   if (prefs.quick && recipe.minutes <= 15) score += 8;
-  const buyCount = recipe.items.filter((item) => isBuy(item.ingredientId)).length;
+  const buyCount = usedItems(recipe.id, recipe.items).filter((item) => isBuy(item.ingredientId)).length;
   score += buyCount * 11;
   return score;
 }
@@ -572,7 +577,7 @@ function buildNotes(balanced: Plan, cheap: Plan, lookup: PriceLookup): string[] 
   for (const slot of balanced.slots) {
     const recipe = getRecipe(slot.recipeId);
     if (!recipe) continue;
-    for (const item of recipe.items) {
+    for (const item of usedItems(recipe.id, recipe.items)) {
       if (seen.has(item.ingredientId) || !lookup.isBuy(item.ingredientId)) continue;
       const ingredient = getIngredient(item.ingredientId);
       if (!ingredient || ingredient.category === "seasoning") continue;
@@ -757,7 +762,7 @@ export function buildPlan(input: PlanInput, lookup: PriceLookup): PlanResult {
     for (const slot of balanced.slots) {
       const recipe = getRecipe(slot.recipeId);
       if (!recipe) continue;
-      for (const item of recipe.items) {
+      for (const item of usedItems(recipe.id, recipe.items)) {
         if ((stock.get(item.ingredientId) ?? 0) > 0) used.add(item.ingredientId);
       }
     }

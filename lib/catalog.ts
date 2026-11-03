@@ -1182,11 +1182,11 @@ export const recipes: Recipe[] = [
     meals: ["dinner"],
     minutes: 15,
     tags: ["washoku", "veggie", "quick"],
-    summary: "火をほとんど使わない夜。たんぱく質は豆腐と卵。",
+    summary: "火をほとんど使わない夜。たんぱく質は豆腐です。卵は、のせるかまだ決めていません。",
     steps: [
       "ごぼうとにんじんを細切りにして炒め煮にする。",
       "豆腐は冷やし、ねぎと醤油を少しかける。",
-      "卵を一つ割り、ご飯と並べる。",
+      "ご飯を添える。卵は、のせるかまだ決めていません。",
     ],
     items: [
       { ingredientId: "tofu", units: 1 },
@@ -1287,11 +1287,11 @@ export const recipes: Recipe[] = [
     meals: ["breakfast"],
     minutes: 8,
     tags: ["washoku", "quick", "protein"],
-    summary: "卵と納豆で、朝のたんぱく質を先に確保する。",
+    summary: "納豆で、朝のたんぱく質を先に確保する。卵は、のせるかまだ決めていません。",
     steps: [
-      "ご飯に納豆と卵をのせる。",
+      "ご飯に納豆をのせる。",
       "わかめと味噌で汁を作る。",
-      "納豆のタレで塩分が足りるので、醤油は足さない。",
+      "納豆のタレで塩分が足りるので、醤油は足さない。卵は、のせるかまだ決めていません。",
     ],
     items: [
       { ingredientId: "rice", units: 1 },

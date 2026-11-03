@@ -1,4 +1,5 @@
 import { getIngredient, getRecipe, getStore } from "./catalog";
+import { usedItems } from "./household";
 import { formatUnits, yen } from "./format";
 import type { PriceLookup } from "./optimizer";
 import type { Plan, ShopLine, ShopList, StockItem } from "./types";
@@ -115,7 +116,7 @@ export function buildShoppingList(
     const recipe = getRecipe(slot.recipeId);
     if (!recipe) continue;
     seasoningYen += Math.round(recipe.extraYen * plan.people * plan.portion);
-    for (const item of recipe.items) {
+    for (const item of usedItems(recipe.id, recipe.items)) {
       totals.set(
         item.ingredientId,
         (totals.get(item.ingredientId) ?? 0) + item.units * plan.people * plan.portion,

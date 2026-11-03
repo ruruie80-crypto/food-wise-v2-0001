@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { getIngredient, getRecipe, ingredients, recipes, storesIn } from "./catalog";
-import { expenseRangeLabel, planDayLabel, resolvePlanStart, weekIsOver, weekRangeLabel } from "./dates";
-import { CHEAP_EGG_DISHES, CHILD_PORTION, EGGS_PER_PACK, householdServings, MAX_WEEKLY_EGG_PACKS, TOME_PRESET, TWICE_A_WEEK_DISHES, weeklyFromMonthly } from "./household";
+import { expenseRangeLabel, lunchMoneyHint, planDayLabel, resolvePlanStart, weekIsOver, weekRangeLabel } from "./dates";
+import { CHEAP_EGG_DISHES, CHILD_PORTION, EGGS_PER_PACK, householdServings, MAX_WEEKLY_EGG_PACKS, TOME_PRESET, TWICE_A_WEEK_DISHES, usedItems, weeklyFromMonthly } from "./household";
+import { formatUnits } from "./format";
 import { consumeStock, MAX_STOCK_UNITS, readRiceKg, riceUnitsFromKg } from "./stock";
 import { buildPlan, dropDuplicateCookedDishes, ensureWeeklyDishes, isRecipeAllowed, keepCookedDays, syncLeftoverNote } from "./optimizer";
 import { samePlanAsideFromStock } from "../components/app-state";
@@ -121,10 +122,16 @@ test("a Tome family plan stays inside budget and includes the home dishes", () =
     assert.ok(count <= (TWICE_A_WEEK_DISHES.includes(id) ? 2 : 1), `${id}:${count}`);
   }
   const eggs = result.balanced.slots.reduce((sum, slot) => {
-    const units = getRecipe(slot.recipeId)?.items.find((item) => item.ingredientId === "egg")?.units ?? 0;
+    const recipe = getRecipe(slot.recipeId);
+    const units = recipe ? usedItems(recipe.id, recipe.items).find((item) => item.ingredientId === "egg")?.units ?? 0 : 0;
     return sum + units * result.balanced.people * result.balanced.portion;
   }, 0);
-  assert.ok(eggs <= MAX_WEEKLY_EGG_PACKS * EGGS_PER_PACK, String(eggs));
+  assert.ok(eggs <= 40, String(eggs));
+  assert.ok(eggs >= 26, String(eggs));
+  assert.equal(usedItems("natto-set", [{ ingredientId: "egg", units: 1 }, { ingredientId: "natto", units: 1 }]).some((item) => item.ingredientId === "egg"), false);
+  assert.equal(formatUnits(3.6, getIngredient("egg")!), "3個");
+  assert.equal(lunchMoneyHint("2026-11-03", "2026-11-10", 2800), false);
+  assert.equal(lunchMoneyHint("2026-11-03", "2026-11-04", 2800), true);
   const eggLine = buildShoppingList(result.balanced, createPriceBook("tome", TODAY, [])).groups
     .flatMap((group) => group.lines)
     .find((line) => line.ingredientId === "egg");

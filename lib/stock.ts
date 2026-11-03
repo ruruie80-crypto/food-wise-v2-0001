@@ -1,4 +1,5 @@
 import { getIngredient, getRecipe } from "./catalog";
+import { usedItems } from "./household";
 import type { Ingredient, Plan, StockItem } from "./types";
 
 /** 在庫の上限。米は1単位が75gなので、400単位で30kg。読み込みも保存もこの数。 */
@@ -65,7 +66,7 @@ export function consumeStock(
   for (const slot of slots) {
     const recipe = getRecipe(slot.recipeId);
     if (!recipe) continue;
-    for (const item of recipe.items) {
+    for (const item of usedItems(recipe.id, recipe.items)) {
       const ingredient = getIngredient(item.ingredientId);
       if (!ingredient || ingredient.category === "seasoning") continue;
       need.set(

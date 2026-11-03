@@ -19,6 +19,9 @@ export function formatUnits(units: number, ingredient: Ingredient): string {
   if (ingredient.unitKind === "tbsp") {
     return `大さじ${trimNum(units)}`;
   }
+  if (ingredient.unitKind === "count") {
+    return `${Math.floor(units)}${ingredient.unitSuffix}`;
+  }
   return `${trimNum(units)}${ingredient.unitSuffix}`;
 }
 
