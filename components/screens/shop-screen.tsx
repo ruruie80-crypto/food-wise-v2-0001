@@ -13,12 +13,14 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { formatUnits, yen } from "@/lib/format";
 import { formatWithWeekday, weekIsOver } from "@/lib/dates";
 import { buildShoppingList, cookedDaysOn, stockAside } from "@/lib/shopping";
+import { riceUnitsFromKg } from "@/lib/stock";
 import { cn } from "@/lib/utils";
 import type { Store } from "@/lib/types";
 
 export function ShopScreen() {
   const app = useApp();
   const [storeId, setStoreId] = useState<string | null>(null);
+  const [riceKg, setRiceKg] = useState("");
   if (!app.ready || !app.book || !app.today) return <BootScreen />;
   const plan = app.activePlan;
   if (!plan) {
@@ -130,7 +132,7 @@ export function ShopScreen() {
         <section className="mt-4 rounded-3xl bg-card p-4">
           <p className="text-lg font-black">家にあれば不要</p>
           <p className="mt-1 text-base leading-7">
-            わかめは40g入りの袋、味噌は750gのパックで見ています。家にあれば買いません。在庫にあれば、ここにも出ません。
+            わかめは40g入りの袋で、ふつうのスーパーだと約¥200〜¥500です。味噌は750gのパックです。家にあれば買いません。在庫にあれば、ここにも出ません。
           </p>
           <ul className="mt-2 space-y-1">
             {list.pantry.map((row) => (
@@ -234,16 +236,28 @@ export function ShopScreen() {
                       </label>
                       {line.ingredientId === "rice" &&
                       (app.state.stock.find((item) => item.ingredientId === "rice")?.units ?? 0) <= 0 ? (
-                        <p className="mt-1 flex flex-wrap items-center gap-2 pl-9 text-base leading-7">
-                          米は家にありますか
-                          <button
-                            type="button"
-                            className="inline-flex min-h-11 items-center text-base font-bold text-primary"
-                            onClick={() => app.setStock("rice", "fridge", Math.max(line.neededUnits ?? line.units, 1))}
-                          >
-                            家にあります
-                          </button>
-                        </p>
+                        <div className="mt-1 pl-9 text-base leading-7">
+                          <p>米は家にありますか。何kgあるか入れてください。</p>
+                          <div className="mt-1 flex flex-wrap items-center gap-2">
+                            <input
+                              value={riceKg}
+                              onChange={(event) => setRiceKg(event.target.value)}
+                              inputMode="decimal"
+                              aria-label="家にある米（kg）"
+                              placeholder="例 5"
+                              className="h-11 w-24 rounded-xl border border-border bg-card px-3 text-base"
+                            />
+                            <span>kg</span>
+                            <button
+                              type="button"
+                              className="inline-flex min-h-11 items-center text-base font-bold text-primary disabled:opacity-40"
+                              disabled={riceUnitsFromKg(Number(riceKg)) <= 0}
+                              onClick={() => app.setStock("rice", "fridge", riceUnitsFromKg(Number(riceKg)))}
+                            >
+                              家にあります
+                            </button>
+                          </div>
+                        </div>
                       ) : null}
                     </li>
                   );

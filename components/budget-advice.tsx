@@ -7,7 +7,7 @@ import { Yen } from "@/components/bits";
 import { RecipeVideoButton } from "@/components/recipe-player";
 import { cookingMethod, methodsInPlan, plannedFoods } from "@/lib/advice";
 import { ingredientTargetPercents, nutrientRows } from "@/lib/nutrients";
-import { addDays, formatWithWeekday } from "@/lib/dates";
+import { formatWithWeekday, planDayLabel } from "@/lib/dates";
 import { formatUnits, mealLabel, trimNum, yen } from "@/lib/format";
 import type { Plan } from "@/lib/types";
 
@@ -22,8 +22,9 @@ export function BudgetAdvice({ variant }: { variant: "compact" | "full" }) {
       <section className="mt-6">
         <p className="text-[11px] font-bold tracking-[0.16em] text-primary">この予算から</p>
         <h2 className="text-lg font-black">1週間の献立</h2>
-        <p className="mt-1 text-xs leading-5 text-muted-foreground">
-          今週 {yen(plan.budget)} のうち、献立は {yen(plan.cost)} です。作り方は各皿の動画です。
+        <p className="mt-1 text-sm leading-6 text-muted-foreground">
+          今週 {yen(plan.budget)} のうち、献立は {yen(plan.cost)} です。
+          {formatWithWeekday(plan.startedOn ?? app.today)}から7日です。作り方は各皿の動画です。
         </p>
         <ul className="mt-2 flex flex-wrap gap-2">
           {foods.slice(0, 6).map((food) => (
@@ -35,7 +36,7 @@ export function BudgetAdvice({ variant }: { variant: "compact" | "full" }) {
         <ol className="mt-3 space-y-2">
           {Array.from({ length: plan.days }, (_, day) => {
             const slots = plan.slots.filter((slot) => slot.dayIndex === day);
-            const label = day === 0 ? "今日" : day === 1 ? "明日" : formatWithWeekday(addDays(app.today, day));
+            const label = planDayLabel(plan.startedOn ?? app.today, day, app.today);
             return (
               <li key={day} className="rounded-3xl bg-card p-4">
                 <p className="text-sm font-black">{label}</p>

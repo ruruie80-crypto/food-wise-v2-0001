@@ -326,12 +326,18 @@ export function sourceKey(state: Persisted): string {
     state.prefs.lessFat,
     state.prefs.noMilk,
     state.excludes.slice().sort().join(","),
-    state.stock
-      .map((item) => `${item.place}:${item.ingredientId}:${item.units}`)
-      .sort()
-      .join(","),
     state.observations.map((row) => row.id).join(","),
   ].join("|");
+}
+
+/** 保存済みの鍵が、在庫の欄だけ違うときは、予算や値札は変わっていない。 */
+export function samePlanAsideFromStock(savedKey: string, currentKey: string): boolean {
+  if (savedKey === currentKey) return true;
+  const saved = savedKey.split("|");
+  const current = currentKey.split("|");
+  if (saved.length !== current.length + 1) return false;
+  const stripped = [...saved.slice(0, -2), saved[saved.length - 1]].join("|");
+  return stripped === currentKey;
 }
 
 function uid(): string {
@@ -403,7 +409,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   );
 
   const activePlan = state.focus === "cheap" ? state.cheap : state.balanced;
-  const stale = Boolean(activePlan && activePlan.sourceKey !== sourceKey(state));
+  const stale = Boolean(activePlan && !samePlanAsideFromStock(activePlan.sourceKey, sourceKey(state)));
   const alerts = useMemo(
     () => (book && today ? buildAlerts(today, book, activePlan, state.observations, state.areaId) : []),
     [book, today, activePlan, state.observations, state.areaId],
@@ -423,15 +429,17 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       (previous?.slots ?? []).filter((slot) => cooked.includes(slot.dayIndex)).map((slot) => slot.recipeId),
     );
     const weekly = (state.areaId === "tome" ? WEEKLY_DISHES : []).filter((id) => !cookedRecipes.has(id));
+    const prefs = { ...state.prefs, allowSkinlessThigh: state.thighPolicy === "allow" };
+    const excludes =
+      state.dairyPolicy === "allDairy" ? [...new Set([...state.excludes, ...OTHER_DAIRY_IDS])] : state.excludes;
     const result = buildPlan(
       {
         budget: state.budget,
         people: householdServings(state.adults, state.children, state.childStage),
         days: 7,
         mode: state.mode,
-        prefs: { ...state.prefs, allowSkinlessThigh: state.thighPolicy === "allow" },
-        excludes:
-          state.dairyPolicy === "allDairy" ? [...new Set([...state.excludes, ...OTHER_DAIRY_IDS])] : state.excludes,
+        prefs,
+        excludes,
         stock: stockAside(state.stock, continueWeek ? state.packAdded : {}),
         weeklyDishes: weekly,
         fullPortions: state.childStage === "teen" && state.children > 0,
@@ -448,10 +456,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
             cooked,
             WEEKLY_DISHES,
             lookup.priceOf,
+            prefs,
+            excludes,
           ),
           state.areaId === "tome" ? WEEKLY_DISHES : [],
           cooked,
           lookup.priceOf,
+          prefs,
+          excludes,
         ),
       );
     const balanced = lock(result.balanced);
@@ -548,7 +560,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         if (current.cookedKeys.includes(key)) return current;
         return {
           ...current,
-          stock: consumeStock(current.stock, plan, dayIndex),
+          stock: consumeStock(current.stock, plan, dayIndex, current.packAdded),
           cookedKeys: [...current.cookedKeys, key],
         };
       }),
@@ -564,7 +576,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       update((current) => {
         const nextUnits = Math.round(units * 10) / 10;
         const stock = current.stock.filter((item) => !(item.ingredientId === ingredientId && item.place === place));
-        if (nextUnits > 0) stock.push({ ingredientId, place, units: Math.min(80, nextUnits) });
+        if (nextUnits > 0) stock.push({ ingredientId, place, units: Math.min(200, nextUnits) });
         return { ...current, stock };
       }),
     togglePref: (key) =>
@@ -642,9 +654,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
             const existing = stock.find((item) => item.ingredientId === ingredientId && item.place === place);
             stock = existing
               ? stock.map((item) =>
-                  item === existing ? { ...item, units: Math.min(80, Math.round((item.units + rounded) * 10) / 10) } : item,
+                  item === existing ? { ...item, units: Math.min(200, Math.round((item.units + rounded) * 10) / 10) } : item,
                 )
-              : [...stock, { ingredientId, place, units: Math.min(80, rounded) }];
+              : [...stock, { ingredientId, place, units: Math.min(200, rounded) }];
             packAdded[ingredientId] = { units: rounded, place };
           }
         }

@@ -98,3 +98,17 @@ export function weekRangeLabel(iso: string): string {
   const end = addDays(start, 6);
   return `${formatShort(start)}–${formatShort(end)}`;
 }
+
+/**
+ * 食費の週の始め。
+ * "plan" は献立の始めた日から7日。"monday" はカレンダーの月曜。
+ * 後で家族に聞くまで、画面は "plan" にそろえる。
+ */
+export const EXPENSE_WEEK_ANCHOR: "plan" | "monday" = "plan";
+
+export function expenseRangeLabel(today: string, planStart?: string): string {
+  if (EXPENSE_WEEK_ANCHOR === "plan" && planStart) {
+    return `${formatShort(planStart)}–${formatShort(addDays(planStart, 6))}`;
+  }
+  return weekRangeLabel(today);
+}

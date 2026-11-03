@@ -686,6 +686,8 @@ export function dropDuplicateCookedDishes(
   cookedDays: number[],
   dishIds: string[],
   priceOf: PriceLookup["priceOf"],
+  prefs?: Prefs,
+  excludes: string[] = [],
 ): Plan {
   const cooked = new Set(cookedDays);
   const taken = new Set(
@@ -695,7 +697,11 @@ export function dropDuplicateCookedDishes(
   const slots = plan.slots.map((slot) => {
     if (cooked.has(slot.dayIndex) || !taken.has(slot.recipeId)) return slot;
     const alternatives = recipes
-      .filter((recipe) => recipe.meals.includes(slot.meal) && !taken.has(recipe.id))
+      .filter((recipe) => {
+        if (!recipe.meals.includes(slot.meal) || taken.has(recipe.id)) return false;
+        if (prefs && !isRecipeAllowed(recipe, slot.meal, prefs, excludes)) return false;
+        return true;
+      })
       .sort(
         (a, b) =>
           recipeCost(a, plan.people, priceOf, plan.portion) - recipeCost(b, plan.people, priceOf, plan.portion),
@@ -718,6 +724,8 @@ export function ensureWeeklyDishes(
   dishIds: string[],
   cookedDays: number[],
   priceOf: PriceLookup["priceOf"],
+  prefs?: Prefs,
+  excludes: string[] = [],
 ): Plan {
   const cooked = new Set(cookedDays);
   const slots = plan.slots.map((slot) => ({ ...slot }));
@@ -727,6 +735,7 @@ export function ensureWeeklyDishes(
     if (present.has(dishId)) continue;
     const recipe = getRecipe(dishId);
     if (!recipe) continue;
+    if (prefs && !isRecipeAllowed(recipe, "dinner", prefs, excludes)) continue;
     const target = slots.find(
       (slot) => slot.meal === "dinner" && !cooked.has(slot.dayIndex) && !dishIds.includes(slot.recipeId),
     );

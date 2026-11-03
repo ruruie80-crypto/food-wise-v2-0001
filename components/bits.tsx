@@ -12,7 +12,7 @@ export function Yen({
 }) {
   return (
     <span className={cn("font-price font-semibold tracking-tight", className)}>
-      <span className="mr-px text-[0.62em]">¥</span>
+      <span className="mr-px" style={{ fontSize: "max(14px, 0.62em)" }}>¥</span>
       {Math.round(value).toLocaleString("ja-JP")}
     </span>
   );

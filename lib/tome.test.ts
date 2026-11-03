@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { getIngredient, getRecipe, ingredients, recipes, storesIn } from "./catalog";
-import { planDayLabel, resolvePlanStart, weekIsOver } from "./dates";
+import { expenseRangeLabel, planDayLabel, resolvePlanStart, weekIsOver, weekRangeLabel } from "./dates";
 import { CHILD_PORTION, householdServings, TOME_PRESET, weeklyFromMonthly } from "./household";
-import { consumeStock } from "./stock";
-import { buildPlan, dropDuplicateCookedDishes, ensureWeeklyDishes, keepCookedDays, syncLeftoverNote } from "./optimizer";
+import { consumeStock, riceUnitsFromKg } from "./stock";
+import { buildPlan, dropDuplicateCookedDishes, ensureWeeklyDishes, isRecipeAllowed, keepCookedDays, syncLeftoverNote } from "./optimizer";
+import { samePlanAsideFromStock } from "../components/app-state";
 import { createPriceBook } from "./prices";
 import { buildShoppingList, cookedDaysOn, retailBuy, stockAside } from "./shopping";
 import { surveyUnitYen } from "./survey";
@@ -339,8 +340,8 @@ test("a normal pantry bag is not priced as 100g", () => {
   const wakame = list.pantry.find((row) => row.ingredientId === "wakame");
   const miso = list.pantry.find((row) => row.ingredientId === "miso");
   assert.ok(wakame);
-  assert.equal(wakame?.label, "乾燥わかめ 40g入り1袋（ないときは約¥972）");
-  assert.equal(wakame?.approxYen, 972);
+  assert.equal(wakame?.label, "乾燥わかめ 40g入り1袋（ないときは約¥200〜¥500）");
+  assert.ok((wakame?.approxYen ?? 0) >= 200 && (wakame?.approxYen ?? 0) <= 500);
   assert.ok(miso);
   assert.equal(miso?.label, "味噌 750g 1パック（ないときは約¥490）");
   assert.equal(miso?.approxYen, 490);
@@ -424,18 +425,73 @@ test("rebuilding a week does not serve a cooked weekly dish again", () => {
         [cookedDay],
         ["hamburg", "soboro"],
         book.priceOf,
+        input.prefs,
+        input.excludes,
       ),
       ["hamburg", "soboro"],
       [cookedDay],
       book.priceOf,
+      input.prefs,
+      input.excludes,
     ),
   );
+  for (const slot of locked.slots) {
+    const recipe = getRecipe(slot.recipeId);
+    assert.equal(recipe ? isRecipeAllowed(recipe, slot.meal, input.prefs, input.excludes) : false, true, slot.recipeId);
+  }
   const days = [...new Set(locked.slots.filter((slot) => slot.recipeId === "hamburg").map((slot) => slot.dayIndex))];
   assert.deepEqual(days, [cookedDay]);
   const soboroDays = locked.slots.filter((slot) => slot.recipeId === "soboro").map((slot) => slot.dayIndex);
   assert.ok(soboroDays.some((day) => day !== cookedDay), soboroDays.join(","));
   const leftoverNote = locked.notes.find((note) => note.includes("残ります"));
   assert.equal(leftoverNote, `予算に¥${(locked.budget - locked.cost).toLocaleString("ja-JP")}残ります。予備費として置いてあります。`);
+});
+
+test("a bought pack's leftover is not eaten when a day is cooked", () => {
+  const plan = {
+    focus: "balanced" as const,
+    budget: 18400,
+    people: 4,
+    days: 1,
+    mode: "dinner_breakfast" as const,
+    slots: [
+      { dayIndex: 0, meal: "breakfast" as const, recipeId: "tamago-kake", cost: 50 },
+      { dayIndex: 0, meal: "dinner" as const, recipeId: "sake-teishoku", cost: 100 },
+    ],
+    cost: 100,
+    overBy: 0,
+    portion: 1,
+    nutrition: emptyNutrition,
+    targets: emptyNutrition,
+    notes: [],
+    sourceKey: "",
+  };
+  const reserved = {
+    rice: { units: 18.6, place: "fridge" as const },
+    egg: { units: 6, place: "fridge" as const },
+    cabbage: { units: 1.6, place: "fridge" as const },
+  };
+  const stock = [
+    { ingredientId: "rice", place: "fridge" as const, units: 18.6 },
+    { ingredientId: "egg", place: "fridge" as const, units: 7 },
+    { ingredientId: "cabbage", place: "fridge" as const, units: 4 },
+  ];
+  const next = consumeStock(stock, plan, 0, reserved);
+  assert.equal(next.find((item) => item.ingredientId === "rice")?.units, 18.6);
+  assert.equal(next.find((item) => item.ingredientId === "egg")?.units, 6);
+  assert.ok((next.find((item) => item.ingredientId === "cabbage")?.units ?? 0) >= 1.6);
+  assert.equal(riceUnitsFromKg(5), 66.7);
+  assert.equal(riceUnitsFromKg(2), 26.7);
+});
+
+test("the expense week follows the plan start, and stock alone is not a new plan", () => {
+  assert.equal(weekRangeLabel("2026-11-04"), "11/2–11/8");
+  assert.equal(expenseRangeLabel("2026-11-04", "2026-11-03"), "11/3–11/9");
+  assert.equal(expenseRangeLabel("2026-11-10", "2026-11-03"), "11/3–11/9");
+  assert.equal(samePlanAsideFromStock("a|b|fridge:rice:18.6|c", "a|b|c"), true);
+  assert.equal(samePlanAsideFromStock("a|x|fridge:rice:18.6|c", "a|b|c"), false);
+  assert.equal(planDayLabel("2026-11-03", 0, "2026-11-04"), "きのう");
+  assert.equal(planDayLabel("2026-11-03", 0, "2026-11-10"), "11/3（火）");
 });
 
 test("YouTube button is a search for the dish name", () => {

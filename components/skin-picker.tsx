@@ -17,8 +17,8 @@ export function SkinPicker({ className }: { className?: string }) {
       </h2>
       <p className="mt-1 text-sm leading-6 text-muted-foreground">
         {tome
-          ? "登米では明るい画面だけです。献立と値札はそのままです。"
-          : "見た目だけが変わります。献立と値札はそのままです。"}
+          ? "登米では明るい画面だけです。見た目の見本で、お金はかかりません。"
+          : "見た目だけが変わります。お金はかかりません。"}
       </p>
       <div className="mt-3 grid grid-cols-2 gap-2">
         {skins.map((skin) => (
@@ -73,7 +73,7 @@ function SkinCard({
             className="rounded-[4px] px-1.5 font-price text-lg leading-none font-semibold"
             style={{ background: skin.swatch.accent, color: skin.swatch.accentForeground }}
           >
-            ¥128
+            見本
           </span>
         </span>
       </span>

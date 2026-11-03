@@ -1,6 +1,6 @@
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import { getArea, getIngredient, getRecipe, getStore } from "./catalog";
-import { addDays, formatWithWeekday, weekRangeLabel } from "./dates";
+import { addDays, expenseRangeLabel, formatWithWeekday } from "./dates";
 import { formatUnits, mealLabel, yen } from "./format";
 import { createPriceBook } from "./prices";
 import { buildShoppingList, cookedDaysOn, stockAside } from "./shopping";
@@ -146,7 +146,7 @@ function renderText(record: HandoffRecord, today: string, stale: boolean): strin
       : `人数: ${record.people}人`,
     ...(typeof record.monthlyBudget === "number" ? [`1か月の食費: ${yen(record.monthlyBudget)}`] : []),
     `今週の食費: ${yen(record.budget)}`,
-    weekRangeLabel(today),
+    expenseRangeLabel(today, plan?.startedOn),
   ];
 
   if (!plan) {

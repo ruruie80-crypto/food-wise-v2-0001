@@ -48,8 +48,14 @@ function sellByWeight(ingredientId: string, units: number): { chargeUnits: numbe
 const PANTRY_IDS = new Set(["wakame", "miso"]);
 
 /** 家にある前提の品。統計の大袋ではなく、ふつうに買う大きさで示す。 */
-const PANTRY_BAGS: Record<string, { grams: number; name: string; surveyGrams: number; surveyYen: number }> = {
-  wakame: { grams: 40, name: "乾燥わかめ 40g入り1袋", surveyGrams: 100, surveyYen: 2431 },
+const PANTRY_BAGS: Record<string, { grams: number; name: string; surveyGrams: number; surveyYen: number; shelfLabel?: string }> = {
+  wakame: {
+    grams: 40,
+    name: "乾燥わかめ 40g入り1袋",
+    surveyGrams: 100,
+    surveyYen: 2431,
+    shelfLabel: "ないときは約¥200〜¥500",
+  },
   miso: { grams: 750, name: "味噌 750g 1パック", surveyGrams: 750, surveyYen: 490 },
 };
 
@@ -139,10 +145,14 @@ export function buildShoppingList(
       const surveyUnit = bag.surveyGrams > 0 ? (bag.surveyYen * perUnit) / bag.surveyGrams : unit;
       const bagYen = bag.surveyYen * (bag.grams / bag.surveyGrams);
       const scale = surveyUnit > 0 ? unit / surveyUnit : 1;
-      const approxYen = Math.abs(unit - surveyUnit) < 0.51 ? Math.round(bagYen) : Math.round(bagYen * scale);
+      const approxYen = bag.shelfLabel
+        ? 350
+        : Math.abs(unit - surveyUnit) < 0.51
+          ? Math.round(bagYen)
+          : Math.round(bagYen * scale);
       pantry.push({
         ingredientId,
-        label: `${bag.name}（ないときは約${yen(approxYen)}）`,
+        label: `${bag.name}（${bag.shelfLabel ?? `ないときは約${yen(approxYen)}`}）`,
         approxYen,
       });
       continue;

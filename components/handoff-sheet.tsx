@@ -39,7 +39,7 @@ export function HandoffSheet({ open, onOpenChange }: { open: boolean; onOpenChan
   const download = () => {
     if (!app.today) return;
     saveHandoffZip(app.state, app.today, app.stale);
-    toast.success("Zipをダウンロードしました");
+    toast.success("このスマホに保存しました。料金はかかりません");
   };
 
   const copy = async () => {
@@ -80,7 +80,7 @@ export function HandoffSheet({ open, onOpenChange }: { open: boolean; onOpenChan
         </SheetHeader>
         <div className="space-y-3 overflow-y-auto px-4 pb-6 text-sm leading-6">
           <p className="text-muted-foreground">
-            献立、買い物、読んだ値札を1つの Zip にします。メモ.txt はそのまま読めます。相手は底値ごはんでこの Zip を開くと、同じ週を続けられます。アプリから送信はしません。
+            献立、買い物、読んだ値札を、このスマホのファイルにします。メモ.txt はそのまま読めます。相手は底値ごはんでそのファイルを開くと、同じ週を続けられます。送信も料金もありません。
           </p>
           {preview ? (
             <div className="rounded-2xl bg-notice text-notice-foreground px-3 py-3">
@@ -98,7 +98,7 @@ export function HandoffSheet({ open, onOpenChange }: { open: boolean; onOpenChan
           ) : (
             <>
               <Button type="button" className="h-11 w-full" onClick={download}>
-                Zipをダウンロード
+                記録をこのスマホに保存（無料）
               </Button>
               <Button type="button" variant="outline" className="h-11 w-full" onClick={copy}>
                 読めるメモをコピー

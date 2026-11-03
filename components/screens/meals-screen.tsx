@@ -436,11 +436,15 @@ export function MealsScreen() {
                   </ul>
                   <button
                     type="button"
-                    disabled={app.state.cookedKeys.includes(cookedKey)}
+                    disabled={app.state.cookedKeys.includes(cookedKey) || (weekIsOver(start, app.today) && date < app.today)}
                     onClick={() => setCookDay(day)}
                     className="mt-3 flex min-h-11 w-full items-center justify-center rounded-2xl bg-muted text-base font-bold disabled:opacity-60"
                   >
-                    {app.state.cookedKeys.includes(cookedKey) ? "この日は作った" : "この日を作った"}
+                    {app.state.cookedKeys.includes(cookedKey)
+                      ? "この日は作った"
+                      : weekIsOver(start, app.today) && date < app.today
+                        ? "この日は過ぎました"
+                        : "この日を作った"}
                   </button>
                 </li>
               );

@@ -28,8 +28,19 @@ export function stockChoices(ingredient: Ingredient): { units: number; label: st
   return [{ units: 1, label: ingredient.unitLabel }];
 }
 
-/** 献立で使う量を、冷蔵庫から先に引く。調味料は家にある前提なので減らさない。dayIndex があるときは、その日だけ。 */
-export function consumeStock(stock: StockItem[], plan: Plan, dayIndex?: number): StockItem[] {
+/** 米のkgを、0.5合単位に直す。1合は150g。 */
+export function riceUnitsFromKg(kg: number): number {
+  if (!Number.isFinite(kg) || kg <= 0) return 0;
+  return Math.round(((kg * 1000) / 75) * 10) / 10;
+}
+
+/** 献立で使う量を、冷蔵庫から先に引く。調味料は家にある前提なので減らさない。dayIndex があるときは、その日だけ。reserved は今週買った袋の余りで、ここからは引かない。 */
+export function consumeStock(
+  stock: StockItem[],
+  plan: Plan,
+  dayIndex?: number,
+  reserved: Record<string, { units: number; place: StockItem["place"] }> = {},
+): StockItem[] {
   const need = new Map<string, number>();
   const slots = dayIndex == null ? plan.slots : plan.slots.filter((slot) => slot.dayIndex === dayIndex);
   for (const slot of slots) {
@@ -50,7 +61,9 @@ export function consumeStock(stock: StockItem[], plan: Plan, dayIndex?: number):
     for (const place of ["fridge", "freezer"] as const) {
       const row = next.find((item) => item.ingredientId === ingredientId && item.place === place);
       if (!row || left <= 0) continue;
-      const take = Math.min(row.units, left);
+      const hold = reserved[ingredientId]?.place === place ? reserved[ingredientId].units : 0;
+      const available = Math.max(0, Math.round((row.units - hold) * 10) / 10);
+      const take = Math.min(available, left);
       row.units = Math.round((row.units - take) * 10) / 10;
       left -= take;
     }

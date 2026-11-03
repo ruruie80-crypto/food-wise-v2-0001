@@ -26,7 +26,7 @@ import { BudgetAdvice } from "@/components/budget-advice";
 import { SkinPicker } from "@/components/skin-picker";
 import { StoreCheapest } from "@/components/store-cheapest";
 import { MarketCard, SeasonCard } from "@/components/today-panel";
-import { formatWithWeekday, weekRangeLabel } from "@/lib/dates";
+import { daysBetween, expenseRangeLabel, formatWithWeekday, planDayLabel, weekIsOver } from "@/lib/dates";
 import { mealLabel, modeHint, yen } from "@/lib/format";
 
 export function HomeScreen() {
@@ -39,7 +39,10 @@ export function HomeScreen() {
   const area = getArea(app.state.areaId);
   const plan = app.activePlan;
   const greeting = app.hour < 11 ? "おはようございます" : app.hour < 17 ? "こんにちは" : "こんばんは";
-  const spotlight = pickSpotlight(plan?.slots ?? [], app.hour);
+  const planStart = plan?.startedOn ?? app.today;
+  const todayIndex = plan ? daysBetween(planStart, app.today) : -1;
+  const inPlanWeek = Boolean(plan && todayIndex >= 0 && todayIndex < plan.days);
+  const spotlight = inPlanWeek ? pickSpotlight(plan?.slots ?? [], todayIndex, app.hour) : undefined;
   const recipe = spotlight ? getRecipe(spotlight.recipeId) : undefined;
   const buys = ingredients
     .map((item) => app.book?.quote(item.id) ?? null)
@@ -74,7 +77,7 @@ export function HomeScreen() {
       <SkinPicker />
 
       <section className="receipt mt-5 rounded-b-3xl px-4 pt-5 pb-4 shadow-[0_10px_30px_rgba(28,25,21,0.05)]">
-        <p className="text-xs text-muted-foreground">{weekRangeLabel(app.today)} の食費</p>
+        <p className="text-sm text-muted-foreground">{expenseRangeLabel(app.today, plan?.startedOn)} の食費</p>
         <div className="mt-2 flex items-end justify-between gap-3">
           <p className="font-price text-5xl leading-none font-semibold">{yen(app.state.budget)}</p>
           <div className="text-right text-sm leading-6">
@@ -111,14 +114,14 @@ export function HomeScreen() {
         <Button
           type="button"
           variant="outline"
-          className="mt-2 h-11 w-full text-base"
+          className="mt-2 h-auto min-h-11 w-full whitespace-normal py-2 text-base"
           onClick={() => {
             if (!app.today) return;
             saveHandoffZip(app.state, app.today, app.stale);
-            toast.success("Zipをダウンロードしました");
+            toast.success("このスマホに保存しました。料金はかかりません");
           }}
         >
-          Zipをダウンロード
+          記録をこのスマホに保存（無料）
         </Button>
         <Link
           href="/stock"
@@ -152,8 +155,14 @@ export function HomeScreen() {
 
       <section className="mt-6">
         <SectionTitle
-          eyebrow="今日"
-          title={spotlight && recipe ? `${mealLabel(spotlight.meal)}は${recipe.name}` : "献立はまだありません"}
+          eyebrow={inPlanWeek ? "今日" : "献立"}
+          title={
+            spotlight && recipe
+              ? `${mealLabel(spotlight.meal)}は${recipe.name}`
+              : plan && weekIsOver(planStart, app.today)
+                ? "この1週間は終わりました"
+                : "献立はまだありません"
+          }
         />
         {spotlight && recipe ? (
           <div className="mt-3 rounded-3xl bg-card p-4">
@@ -161,7 +170,7 @@ export function HomeScreen() {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-sm text-muted-foreground">
-                    {spotlight.dayIndex === 0 ? "今日" : "明日"}の{mealLabel(spotlight.meal)} · {recipe.minutes}分
+                    {planDayLabel(planStart, spotlight.dayIndex, app.today)}の{mealLabel(spotlight.meal)} · {recipe.minutes}分
                   </p>
                   <p className="mt-1 text-xl font-black">{recipe.name}</p>
                   <p className="mt-1 text-base leading-7 text-muted-foreground">{recipe.summary}</p>
@@ -251,10 +260,10 @@ export function HomeScreen() {
       </section>
 
       <button type="button" onClick={() => setHandoff(true)} className="mt-6 block w-full rounded-3xl bg-panel px-4 py-4 text-left text-panel-foreground">
-        <p className="text-[11px] font-bold tracking-[0.14em] text-panel-accent">渡す</p>
-        <p className="mt-1 font-black">記録を Zip にする</p>
+        <p className="text-sm font-bold tracking-[0.14em] text-panel-accent">渡す</p>
+        <p className="mt-1 font-black">記録をファイルにする</p>
         <p className="mt-1 text-sm leading-6 text-panel-muted">
-          献立と値札を1つの Zip にして渡せます。送信はしません。
+          献立と値札を、このスマホのファイルにします。送信も料金もありません。
         </p>
       </button>
 
@@ -326,9 +335,10 @@ export function HomeScreen() {
 
 function pickSpotlight(
   slots: { dayIndex: number; meal: "breakfast" | "lunch" | "dinner"; recipeId: string; cost: number }[],
+  dayIndex: number,
   hour: number,
 ) {
-  const today = slots.filter((slot) => slot.dayIndex === 0);
+  const today = slots.filter((slot) => slot.dayIndex === dayIndex);
   if (hour < 10) return today.find((slot) => slot.meal === "breakfast") ?? today.find((slot) => slot.meal === "dinner");
   if (hour < 15) return today.find((slot) => slot.meal === "lunch") ?? today.find((slot) => slot.meal === "dinner");
   return today.find((slot) => slot.meal === "dinner") ?? today[0];
