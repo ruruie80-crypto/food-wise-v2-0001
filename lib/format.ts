@@ -20,7 +20,13 @@ export function formatUnits(units: number, ingredient: Ingredient): string {
     return `大さじ${trimNum(units)}`;
   }
   if (ingredient.unitKind === "count") {
-    return `${Math.floor(units)}${ingredient.unitSuffix}`;
+    const suffix = ingredient.unitSuffix;
+    if (!(units > 0)) return `0${suffix}`;
+    if (units < 1) return `1${suffix}弱`;
+    const whole = Math.floor(units + 1e-9);
+    const fraction = units - whole;
+    if (fraction >= 0.05) return `${whole}${suffix}と少し`;
+    return `${whole}${suffix}`;
   }
   return `${trimNum(units)}${ingredient.unitSuffix}`;
 }

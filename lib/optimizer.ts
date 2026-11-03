@@ -5,7 +5,6 @@ import {
   EGG_FREE_MEAL_CAP,
   EGGS_PER_PACK,
   fattyIds,
-  INCLUDE_OPTIONAL_EGGS,
   MAX_WEEKLY_EGG_PACKS,
   QUIET_EGG_TARGET,
   TWICE_A_WEEK_DISHES,
@@ -41,7 +40,16 @@ export type PlanInput = {
   weeklyDishes?: string[];
   /** 中学生以上がいるとき、一人前を1未満にしない。 */
   fullPortions?: boolean;
+  /** 納豆・冷奴に卵をのせる。初期は false。 */
+  allowOptionalEggs?: boolean;
 };
+
+/** buildPlan のあいだだけ true。献立を作り直す関数は、保存済みの献立の値に戻す。 */
+let planningEggs = false;
+
+function eggsOn(explicit?: boolean): boolean {
+  return explicit ?? planningEggs;
+}
 
 const ZERO: Nutrition = {
   kcal: 0,
@@ -95,9 +103,9 @@ function scale(nutrition: Nutrition, factor: number): Nutrition {
   };
 }
 
-export function recipeNutrition(recipe: Recipe, people: number, portion = 1): Nutrition {
+export function recipeNutrition(recipe: Recipe, people: number, portion = 1, allowOptionalEggs?: boolean): Nutrition {
   let total = scale(ZERO, 0);
-  for (const item of usedItems(recipe.id, recipe.items)) {
+  for (const item of usedItems(recipe.id, recipe.items, eggsOn(allowOptionalEggs))) {
     const ingredient = getIngredient(item.ingredientId);
     if (!ingredient) continue;
     const grams = item.units * ingredient.gramsPerUnit * people * portion;
@@ -113,8 +121,9 @@ export function recipeCost(
   people: number,
   priceOf: PriceLookup["priceOf"],
   portion = 1,
+  allowOptionalEggs?: boolean,
 ): number {
-  const food = usedItems(recipe.id, recipe.items).reduce((sum, item) => {
+  const food = usedItems(recipe.id, recipe.items, eggsOn(allowOptionalEggs)).reduce((sum, item) => {
     const price = priceOf(item.ingredientId);
     const units = item.units * people * portion;
     if (!Number.isFinite(price)) return sum + Math.round(100000 * units);
@@ -244,7 +253,7 @@ function capDinnerRepeats(
 function ingredientUnits(recipeId: string, ingredientId: string): number {
   const recipe = getRecipe(recipeId);
   if (!recipe) return 0;
-  return usedItems(recipe.id, recipe.items).find((item) => item.ingredientId === ingredientId)?.units ?? 0;
+  return usedItems(recipe.id, recipe.items, planningEggs).find((item) => item.ingredientId === ingredientId)?.units ?? 0;
 }
 
 function cheapestDish(
@@ -276,7 +285,7 @@ function trimWeeklyEggs(
   protect: string[] = [],
 ): string[] {
   const next = [...picks];
-  const maxEggs = INCLUDE_OPTIONAL_EGGS ? MAX_WEEKLY_EGG_PACKS * EGGS_PER_PACK : QUIET_EGG_TARGET;
+  const maxEggs = planningEggs ? MAX_WEEKLY_EGG_PACKS * EGGS_PER_PACK : QUIET_EGG_TARGET;
   const eggsOf = (id: string) => ingredientUnits(id, "egg") * people * portion;
   const costOf = (id: string) => {
     const recipe = getRecipe(id);
@@ -366,7 +375,7 @@ function stockOf(items: StockItem[] | undefined): Map<string, number> {
 function stockPoints(recipe: Recipe, stock: Map<string, number>): number {
   if (stock.size === 0) return 0;
   let points = 0;
-  for (const item of usedItems(recipe.id, recipe.items)) {
+  for (const item of usedItems(recipe.id, recipe.items, planningEggs)) {
     const have = stock.get(item.ingredientId) ?? 0;
     if (have <= 0) continue;
     const ingredient = getIngredient(item.ingredientId);
@@ -396,7 +405,7 @@ function marginalScore(
   let score = nutritionPoints(nutrition, meal, prefs) - cost * coeff + fromStock;
   if (prefs.washoku && recipe.tags.includes("washoku")) score += 8;
   if (prefs.quick && recipe.minutes <= 15) score += 8;
-  const buyCount = usedItems(recipe.id, recipe.items).filter((item) => isBuy(item.ingredientId)).length;
+  const buyCount = usedItems(recipe.id, recipe.items, planningEggs).filter((item) => isBuy(item.ingredientId)).length;
   score += buyCount * 11;
   return score;
 }
@@ -559,6 +568,7 @@ function materialize(
     notes: [],
     sourceKey: input.sourceKey ?? "",
     portion,
+    allowOptionalEggs: input.allowOptionalEggs === true,
   };
 }
 
@@ -577,7 +587,7 @@ function buildNotes(balanced: Plan, cheap: Plan, lookup: PriceLookup): string[] 
   for (const slot of balanced.slots) {
     const recipe = getRecipe(slot.recipeId);
     if (!recipe) continue;
-    for (const item of usedItems(recipe.id, recipe.items)) {
+    for (const item of usedItems(recipe.id, recipe.items, planningEggs)) {
       if (seen.has(item.ingredientId) || !lookup.isBuy(item.ingredientId)) continue;
       const ingredient = getIngredient(item.ingredientId);
       if (!ingredient || ingredient.category === "seasoning") continue;
@@ -650,6 +660,16 @@ export function buildPlan(input: PlanInput, lookup: PriceLookup): PlanResult {
   if (input.people < 1 || input.days < 1) {
     return { ok: false, error: "人数と日数を確認してください。" };
   }
+  const previousEggs = planningEggs;
+  planningEggs = input.allowOptionalEggs === true;
+  try {
+    return planWithCurrentEggs(input, lookup);
+  } finally {
+    planningEggs = previousEggs;
+  }
+}
+
+function planWithCurrentEggs(input: PlanInput, lookup: PriceLookup): PlanResult {
   const slots = buildSlots(input.days, input.mode);
   const targets = targetsFor(slots, input.people);
   const portion = portionFor(input.budget, input.people, input.mode, input.fullPortions);
@@ -762,7 +782,7 @@ export function buildPlan(input: PlanInput, lookup: PriceLookup): PlanResult {
     for (const slot of balanced.slots) {
       const recipe = getRecipe(slot.recipeId);
       if (!recipe) continue;
-      for (const item of usedItems(recipe.id, recipe.items)) {
+      for (const item of usedItems(recipe.id, recipe.items, planningEggs)) {
         if ((stock.get(item.ingredientId) ?? 0) > 0) used.add(item.ingredientId);
       }
     }
@@ -781,6 +801,22 @@ export function buildPlan(input: PlanInput, lookup: PriceLookup): PlanResult {
 }
 
 export function replacePlanSlot(
+  plan: Plan,
+  dayIndex: number,
+  meal: MealType,
+  recipeId: string,
+  lookup: PriceLookup,
+): Plan {
+  const previousEggs = planningEggs;
+  planningEggs = plan.allowOptionalEggs === true;
+  try {
+    return replacePlanSlotNow(plan, dayIndex, meal, recipeId, lookup);
+  } finally {
+    planningEggs = previousEggs;
+  }
+}
+
+function replacePlanSlotNow(
   plan: Plan,
   dayIndex: number,
   meal: MealType,
@@ -817,6 +853,21 @@ export function replacePlanSlot(
 }
 
 export function keepCookedDays(
+  plan: Plan,
+  previous: Plan | null,
+  dayIndexes: number[],
+  priceOf: PriceLookup["priceOf"],
+): Plan {
+  const previousEggs = planningEggs;
+  planningEggs = plan.allowOptionalEggs === true;
+  try {
+    return keepCookedDaysNow(plan, previous, dayIndexes, priceOf);
+  } finally {
+    planningEggs = previousEggs;
+  }
+}
+
+function keepCookedDaysNow(
   plan: Plan,
   previous: Plan | null,
   dayIndexes: number[],
@@ -863,16 +914,46 @@ export function dropDuplicateCookedDishes(
   prefs?: Prefs,
   excludes: string[] = [],
 ): Plan {
+  const previousEggs = planningEggs;
+  planningEggs = plan.allowOptionalEggs === true;
+  try {
+    return dropDuplicateCookedDishesNow(plan, cookedDays, dishIds, priceOf, prefs, excludes);
+  } finally {
+    planningEggs = previousEggs;
+  }
+}
+
+function dropDuplicateCookedDishesNow(
+  plan: Plan,
+  cookedDays: number[],
+  dishIds: string[],
+  priceOf: PriceLookup["priceOf"],
+  prefs?: Prefs,
+  excludes: string[] = [],
+): Plan {
   const cooked = new Set(cookedDays);
-  const taken = new Set(
-    plan.slots.filter((slot) => cooked.has(slot.dayIndex) && dishIds.includes(slot.recipeId)).map((slot) => slot.recipeId),
-  );
-  if (taken.size === 0) return plan;
+  if (cooked.size === 0) return plan;
+  const capFor = (id: string) => {
+    if (dishIds.includes(id)) return 1;
+    return TWICE_A_WEEK_DISHES.includes(id) ? 2 : 1;
+  };
+  const counts = new Map<string, number>();
+  for (const slot of plan.slots) {
+    if (slot.meal !== "dinner" || !cooked.has(slot.dayIndex)) continue;
+    counts.set(slot.recipeId, (counts.get(slot.recipeId) ?? 0) + 1);
+  }
+  let changed = false;
   const slots = plan.slots.map((slot) => {
-    if (cooked.has(slot.dayIndex) || !taken.has(slot.recipeId)) return slot;
+    if (slot.meal !== "dinner" || cooked.has(slot.dayIndex)) return slot;
+    const seen = counts.get(slot.recipeId) ?? 0;
+    if (seen < capFor(slot.recipeId)) {
+      counts.set(slot.recipeId, seen + 1);
+      return slot;
+    }
     const alternatives = recipes
       .filter((recipe) => {
-        if (!recipe.meals.includes(slot.meal) || taken.has(recipe.id)) return false;
+        if (!recipe.meals.includes(slot.meal)) return false;
+        if ((counts.get(recipe.id) ?? 0) >= capFor(recipe.id)) return false;
         if (prefs && !isRecipeAllowed(recipe, slot.meal, prefs, excludes)) return false;
         return true;
       })
@@ -882,8 +963,11 @@ export function dropDuplicateCookedDishes(
       );
     const pick = alternatives[0];
     if (!pick) return slot;
+    counts.set(pick.id, (counts.get(pick.id) ?? 0) + 1);
+    changed = true;
     return { ...slot, recipeId: pick.id, cost: recipeCost(pick, plan.people, priceOf, plan.portion) };
   });
+  if (!changed) return plan;
   const nutrition = slots.reduce((total, slot) => {
     const recipe = getRecipe(slot.recipeId);
     return recipe ? add(total, recipeNutrition(recipe, plan.people, plan.portion)) : total;
@@ -894,6 +978,23 @@ export function dropDuplicateCookedDishes(
 
 /** 作った日で上書きされて週の定番が消えたとき、まだ作っていない日へ入れ直す。 */
 export function ensureWeeklyDishes(
+  plan: Plan,
+  dishIds: string[],
+  cookedDays: number[],
+  priceOf: PriceLookup["priceOf"],
+  prefs?: Prefs,
+  excludes: string[] = [],
+): Plan {
+  const previousEggs = planningEggs;
+  planningEggs = plan.allowOptionalEggs === true;
+  try {
+    return ensureWeeklyDishesNow(plan, dishIds, cookedDays, priceOf, prefs, excludes);
+  } finally {
+    planningEggs = previousEggs;
+  }
+}
+
+function ensureWeeklyDishesNow(
   plan: Plan,
   dishIds: string[],
   cookedDays: number[],

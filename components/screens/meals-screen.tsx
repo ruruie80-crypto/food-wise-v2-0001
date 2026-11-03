@@ -24,7 +24,14 @@ import {
 } from "@/lib/format";
 import { cookingMethod } from "@/lib/advice";
 import { StockUseDialog } from "@/components/stock-use-dialog";
-import { describeHousehold, householdServings, TOME_PRESET, usedItems, weeklyFromMonthly } from "@/lib/household";
+import {
+  describeHousehold,
+  householdServings,
+  OPTIONAL_EGG_RECIPES,
+  TOME_PRESET,
+  usedItems,
+  weeklyFromMonthly,
+} from "@/lib/household";
 import { isRecipeAllowed, recipeCost, recipeNutrition } from "@/lib/optimizer";
 import type { MealMode, MealType, Plan, PlanSlot, Prefs } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -242,6 +249,37 @@ export function MealsScreen() {
             中学生以上
           </button>
         </div>
+        <p className="mt-4 text-base font-bold">納豆・冷奴に卵をのせる</p>
+        <p className="mt-1 text-base leading-7">初期は「しない」です。切り替えると、献立と買い物を作り直します。</p>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          {(
+            [
+              ["avoid", "しない"],
+              ["allow", "する"],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => {
+                if (app.state.eggToppingPolicy === id) return;
+                const result = app.setEggTopping(id);
+                if (result && !result.ok) toast.error(result.error);
+                else if (result?.ok) {
+                  toast.success(
+                    id === "allow" ? "卵をのせる設定で作り直しました" : "卵をのせない設定で作り直しました",
+                  );
+                }
+              }}
+              className={cn(
+                "min-h-11 rounded-2xl px-2 text-base font-bold",
+                app.state.eggToppingPolicy === id ? "bg-primary text-primary-foreground" : "bg-muted",
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         <div className="mt-3 grid grid-cols-3 gap-2">
           {MODES.map((mode) => (
             <button
@@ -406,7 +444,12 @@ export function MealsScreen() {
                     {slots.map((slot) => {
                       const recipe = getRecipe(slot.recipeId);
                       if (!recipe) return null;
-                      const nutrition = recipeNutrition(recipe, plan.people, plan.portion);
+                      const nutrition = recipeNutrition(
+                        recipe,
+                        plan.people,
+                        plan.portion,
+                        app.state.eggToppingPolicy === "allow",
+                      );
                       return (
                         <li key={`${slot.meal}-${slot.recipeId}`} className="border-t border-track pt-3 first:border-0 first:pt-0">
                           <div className="flex items-start justify-between gap-3">
@@ -420,10 +463,19 @@ export function MealsScreen() {
                             <Yen value={slot.cost} className="text-2xl" />
                           </div>
                           <p className="mt-1 text-base leading-7 text-foreground">{recipe.summary}</p>
+                          {OPTIONAL_EGG_RECIPES.includes(recipe.id) ? (
+                            <p className="mt-1 text-base leading-7">
+                              {app.state.eggToppingPolicy === "allow"
+                                ? "卵はのせます。上の「納豆・冷奴に卵をのせる」でやめられます。"
+                                : "卵はのせません。上の「納豆・冷奴に卵をのせる」で足せます。"}
+                            </p>
+                          ) : null}
                           {recipe.usesMilk === false ? (
                             <p className="mt-1 text-sm font-bold text-primary">牛乳なし</p>
                           ) : null}
-                          {usedItems(recipe.id, recipe.items).some((item) => stocked.has(item.ingredientId)) ? (
+                          {usedItems(recipe.id, recipe.items, app.state.eggToppingPolicy === "allow").some((item) =>
+                            stocked.has(item.ingredientId),
+                          ) ? (
                             <p className="text-sm font-bold">在庫を使います</p>
                           ) : null}
                           <YouTubeCookButton name={recipe.name} />
@@ -472,6 +524,7 @@ export function MealsScreen() {
                   plan,
                   app.book.priceOf,
                   stocked,
+                  app.state.eggToppingPolicy === "allow",
                 ).map((option) => (
                   <li key={option.recipe.id} className="rounded-2xl bg-muted px-3 py-3">
                     <button
@@ -529,6 +582,7 @@ function OpenChoices() {
     <section className="mt-4 rounded-3xl bg-card p-4">
       <h2 className="text-lg font-black">まだ決めていないこと</h2>
       <p className="mt-1 text-sm leading-6">あとから変えられます。献立の計算は、選んだところだけ使います。</p>
+      <p className="mt-2 text-base leading-7">納豆と冷奴の卵は、上の「納豆・冷奴に卵をのせる」で選びます。</p>
       <p className="mt-3 text-base font-bold">8万円に入っているもの</p>
       <div className="mt-2 grid grid-cols-1 gap-2">
         {(
@@ -607,14 +661,15 @@ function optionsFor(
   plan: Plan,
   priceOf: (id: string) => number,
   stocked: Set<string>,
+  allowOptionalEggs = false,
 ) {
   return recipes
     .filter((recipe) => isRecipeAllowed(recipe, meal, prefs, excludes))
     .map((recipe) => ({
       recipe,
-      cost: recipeCost(recipe, plan.people, priceOf, plan.portion),
-      protein: recipeNutrition(recipe, plan.people, plan.portion).protein,
-      usesStock: usedItems(recipe.id, recipe.items).some((item) => stocked.has(item.ingredientId)),
+      cost: recipeCost(recipe, plan.people, priceOf, plan.portion, allowOptionalEggs),
+      protein: recipeNutrition(recipe, plan.people, plan.portion, allowOptionalEggs).protein,
+      usesStock: usedItems(recipe.id, recipe.items, allowOptionalEggs).some((item) => stocked.has(item.ingredientId)),
     }))
     .sort(
       (a, b) =>

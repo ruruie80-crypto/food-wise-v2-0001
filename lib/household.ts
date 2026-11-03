@@ -52,17 +52,23 @@ export const CHEAP_EGG_DISHES = ["niratama", "tamago-don"];
 export const EGG_FREE_MEAL_CAP = 4;
 
 /**
- * 納豆定食と冷奴の卵。のせるかはまだ聞いていないので、初期は入れない。
- * true にすると、この2品の卵を買い物と献立の金額に足す。
+ * 納豆定食と冷奴の卵。設定が「する」のときだけ、買い物と献立の金額に足す。
+ * 初期は「しない」。
  */
 export const INCLUDE_OPTIONAL_EGGS = false;
 export const OPTIONAL_EGG_RECIPES = ["natto-set", "hiyayakko"];
 
+export type EggToppingPolicy = "avoid" | "allow";
+
 /** 卵をのせないときの目安。5パックまでは許すが、初期の献立はここに収める。 */
 export const QUIET_EGG_TARGET = 36;
 
-export function usedItems<T extends { ingredientId: string }>(recipeId: string, items: T[]): T[] {
-  if (INCLUDE_OPTIONAL_EGGS || !OPTIONAL_EGG_RECIPES.includes(recipeId)) return items;
+export function usedItems<T extends { ingredientId: string }>(
+  recipeId: string,
+  items: T[],
+  allowOptionalEggs = INCLUDE_OPTIONAL_EGGS,
+): T[] {
+  if (allowOptionalEggs || !OPTIONAL_EGG_RECIPES.includes(recipeId)) return items;
   return items.filter((item) => item.ingredientId !== "egg");
 }
 

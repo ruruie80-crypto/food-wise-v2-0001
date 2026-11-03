@@ -149,6 +149,8 @@ export type Plan = {
   sourceKey: string;
   /** 献立の1日目。日付が変わっても、この日を起点に数える。 */
   startedOn?: string;
+  /** 納豆・冷奴の卵を、この献立の金額と買い物に入れる。 */
+  allowOptionalEggs?: boolean;
 };
 
 export type Quote = {

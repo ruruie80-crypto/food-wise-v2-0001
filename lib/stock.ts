@@ -66,7 +66,7 @@ export function consumeStock(
   for (const slot of slots) {
     const recipe = getRecipe(slot.recipeId);
     if (!recipe) continue;
-    for (const item of usedItems(recipe.id, recipe.items)) {
+    for (const item of usedItems(recipe.id, recipe.items, plan.allowOptionalEggs === true)) {
       const ingredient = getIngredient(item.ingredientId);
       if (!ingredient || ingredient.category === "seasoning") continue;
       need.set(

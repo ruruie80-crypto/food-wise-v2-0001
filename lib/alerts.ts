@@ -61,7 +61,7 @@ export function buildAlerts(
     for (const slot of plan.slots) {
       const recipe = getRecipe(slot.recipeId);
       if (!recipe) continue;
-      for (const item of usedItems(recipe.id, recipe.items)) {
+      for (const item of usedItems(recipe.id, recipe.items, plan.allowOptionalEggs === true)) {
         if (seen.has(item.ingredientId)) continue;
         const quote = book.quote(item.ingredientId);
         if (quote?.signal !== "wait") continue;

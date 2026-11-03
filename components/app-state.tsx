@@ -1,13 +1,14 @@
 "use client";
 
 import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useSyncExternalStore } from "react";
-import { areas, getIngredient } from "@/lib/catalog";
+import { areas, getIngredient, storesIn } from "@/lib/catalog";
 import { resolvePlanStart, tokyoHour, tokyoToday } from "@/lib/dates";
 import { buildAlerts } from "@/lib/alerts";
 import {
   type BudgetScope,
   type ChildStage,
   type DairyPolicy,
+  type EggToppingPolicy,
   householdServings,
   MAX_WEEKLY_BUDGET,
   OTHER_DAIRY_IDS,
@@ -99,6 +100,7 @@ export type Persisted = {
   budgetScope: BudgetScope;
   thighPolicy: ThighPolicy;
   dairyPolicy: DairyPolicy;
+  eggToppingPolicy: EggToppingPolicy;
   preferredStoreId: string | null;
   stock: StockItem[];
   cookedKeys: string[];
@@ -140,6 +142,7 @@ type AppContextValue = {
   setBudgetScope: (scope: BudgetScope) => void;
   setThighPolicy: (policy: ThighPolicy) => void;
   setDairyPolicy: (policy: DairyPolicy) => void;
+  setEggTopping: (policy: EggToppingPolicy) => PlanResult | undefined;
   setPreferredStore: (storeId: string | null) => void;
   applyTomePreset: () => void;
   setMode: (mode: MealMode) => void;
@@ -150,7 +153,7 @@ type AppContextValue = {
   togglePref: (key: keyof Prefs) => void;
   toggleExclusion: (ids: string[]) => void;
   setFocus: (focus: PlanFocus) => void;
-  generate: () => PlanResult;
+  generate: (overrides?: { eggToppingPolicy?: EggToppingPolicy }) => PlanResult;
   addObservations: (rows: ObservationDraft[]) => { ingredientId: string; price: number }[];
   removeObservation: (id: string) => void;
   toggleCheck: (ingredientId: string, checked: boolean) => void;
@@ -180,6 +183,7 @@ function defaultState(): Persisted {
     budgetScope: "unset",
     thighPolicy: "unset",
     dairyPolicy: "unset",
+    eggToppingPolicy: "avoid",
     preferredStoreId: null,
     stock: [],
     cookedKeys: [],
@@ -245,7 +249,11 @@ function sanitize(raw: unknown): Persisted {
     budgetScope: data.budgetScope === "food" || data.budgetScope === "all" ? data.budgetScope : "unset",
     thighPolicy: data.thighPolicy === "avoid" || data.thighPolicy === "allow" ? data.thighPolicy : "unset",
     dairyPolicy: data.dairyPolicy === "milkOnly" || data.dairyPolicy === "allDairy" ? data.dairyPolicy : "unset",
-    preferredStoreId: typeof data.preferredStoreId === "string" ? data.preferredStoreId : null,
+    eggToppingPolicy: data.eggToppingPolicy === "allow" ? "allow" : "avoid",
+    preferredStoreId:
+      typeof data.preferredStoreId === "string" && storesIn(areaId).some((store) => store.id === data.preferredStoreId)
+        ? data.preferredStoreId
+        : null,
     mode,
     prefs,
     excludes: Array.isArray(data.excludes) ? data.excludes.filter((id) => typeof id === "string") : [],
@@ -315,6 +323,7 @@ export function sourceKey(state: Persisted): string {
     state.childStage,
     state.thighPolicy,
     state.dairyPolicy,
+    state.eggToppingPolicy,
     state.people,
     state.budget,
     state.monthlyBudget ?? "",
@@ -418,10 +427,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   const patch = (partial: Partial<Persisted>) => update((current) => ({ ...current, ...partial }));
 
-  const generate = (): PlanResult => {
-    if (!today) return { ok: false, error: "日付を取得しています。" };
+  const generate = (overrides?: { eggToppingPolicy?: EggToppingPolicy }): PlanResult => {
+    const eggToppingPolicy = overrides?.eggToppingPolicy ?? state.eggToppingPolicy;
+    if (!today) {
+      if (overrides?.eggToppingPolicy) patch({ eggToppingPolicy });
+      return { ok: false, error: "日付を取得しています。" };
+    }
     const lookup = createPriceBook(state.areaId, today, state.observations);
-    const key = sourceKey(state);
+    const key = sourceKey({ ...state, eggToppingPolicy });
     const previous = state.focus === "cheap" ? state.cheap : state.balanced;
     const { startedOn, continueWeek } = resolvePlanStart(previous?.startedOn, today);
     const cooked = continueWeek ? cookedDaysOn(state.cookedKeys, startedOn) : [];
@@ -443,11 +456,15 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         stock: stockAside(state.stock, continueWeek ? state.packAdded : {}),
         weeklyDishes: weekly,
         fullPortions: state.childStage === "teen" && state.children > 0,
+        allowOptionalEggs: eggToppingPolicy === "allow",
         sourceKey: key,
       },
       lookup,
     );
-    if (!result.ok) return result;
+    if (!result.ok) {
+      if (overrides?.eggToppingPolicy) patch({ eggToppingPolicy });
+      return result;
+    }
     const lock = (plan: Plan) =>
       syncLeftoverNote(
         ensureWeeklyDishes(
@@ -470,6 +487,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     const cheap = lock(result.cheap);
     update((current) => ({
       ...current,
+      eggToppingPolicy,
       balanced,
       cheap,
       focus: "balanced",
@@ -530,6 +548,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setBudgetScope: (budgetScope) => patch({ budgetScope }),
     setThighPolicy: (thighPolicy) => patch({ thighPolicy }),
     setDairyPolicy: (dairyPolicy) => patch({ dairyPolicy }),
+    setEggTopping: (eggToppingPolicy) => {
+      if (state.balanced || state.cheap) return generate({ eggToppingPolicy });
+      patch({ eggToppingPolicy });
+      return undefined;
+    },
     setPreferredStore: (preferredStoreId) => patch({ preferredStoreId }),
     applyTomePreset: () =>
       update((current) => ({

@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
-import { getIngredient, getRecipe, ingredients, recipes, storesIn } from "./catalog";
+import { getIngredient, getRecipe, getStore, ingredients, recipes, storesIn } from "./catalog";
 import { expenseRangeLabel, lunchMoneyHint, planDayLabel, resolvePlanStart, weekIsOver, weekRangeLabel } from "./dates";
 import { CHEAP_EGG_DISHES, CHILD_PORTION, EGGS_PER_PACK, householdServings, MAX_WEEKLY_EGG_PACKS, TOME_PRESET, TWICE_A_WEEK_DISHES, usedItems, weeklyFromMonthly } from "./household";
 import { formatUnits } from "./format";
 import { consumeStock, MAX_STOCK_UNITS, readRiceKg, riceUnitsFromKg } from "./stock";
-import { buildPlan, dropDuplicateCookedDishes, ensureWeeklyDishes, isRecipeAllowed, keepCookedDays, syncLeftoverNote } from "./optimizer";
+import { buildPlan, dropDuplicateCookedDishes, ensureWeeklyDishes, isRecipeAllowed, keepCookedDays, recipeCost, syncLeftoverNote } from "./optimizer";
 import { samePlanAsideFromStock } from "../components/app-state";
 import { createPriceBook } from "./prices";
 import { buildShoppingList, cookedDaysOn, retailBuy, stockAside } from "./shopping";
@@ -129,7 +130,10 @@ test("a Tome family plan stays inside budget and includes the home dishes", () =
   assert.ok(eggs <= 40, String(eggs));
   assert.ok(eggs >= 26, String(eggs));
   assert.equal(usedItems("natto-set", [{ ingredientId: "egg", units: 1 }, { ingredientId: "natto", units: 1 }]).some((item) => item.ingredientId === "egg"), false);
-  assert.equal(formatUnits(3.6, getIngredient("egg")!), "3個");
+  assert.equal(formatUnits(3.6, getIngredient("egg")!), "3個と少し");
+  assert.equal(formatUnits(0.4, getIngredient("egg")!), "1個弱");
+  assert.equal(formatUnits(0.5, getIngredient("tofu")!), "1丁弱");
+  assert.equal(formatUnits(2, getIngredient("egg")!), "2個");
   assert.equal(lunchMoneyHint("2026-11-03", "2026-11-10", 2800), false);
   assert.equal(lunchMoneyHint("2026-11-03", "2026-11-04", 2800), true);
   const eggLine = buildShoppingList(result.balanced, createPriceBook("tome", TODAY, [])).groups
@@ -579,6 +583,186 @@ test("the expense week follows the plan start, and stock alone is not a new plan
   assert.equal(samePlanAsideFromStock("a|x|fridge:rice:18.6|c", "a|b|c"), false);
   assert.equal(planDayLabel("2026-11-03", 0, "2026-11-04"), "きのう");
   assert.equal(planDayLabel("2026-11-03", 0, "2026-11-10"), "11/3（火）");
+});
+
+test("cooking day 1 and rebuilding does not repeat that dinner", () => {
+  const book = createPriceBook("tome", "2026-11-10", []);
+  const input = {
+    budget: 18_400,
+    people: 4,
+    days: 7,
+    mode: "dinner_breakfast" as const,
+    prefs: { ...prefs, lessFat: true, noMilk: true },
+    excludes: [] as string[],
+    fullPortions: true,
+    weeklyDishes: ["hamburg", "soboro"],
+  };
+  const first = buildPlan(input, book);
+  assert.equal(first.ok, true);
+  if (!first.ok) return;
+  const previous = {
+    ...first.balanced,
+    slots: first.balanced.slots.map((slot) =>
+      slot.meal === "dinner" && slot.dayIndex === 0 ? { ...slot, recipeId: "tamago-don" } : slot,
+    ),
+  };
+  const second = buildPlan(input, book);
+  assert.equal(second.ok, true);
+  if (!second.ok) return;
+  const planted = {
+    ...second.balanced,
+    slots: second.balanced.slots.map((slot) =>
+      slot.meal === "dinner" && slot.dayIndex === 2 ? { ...slot, recipeId: "tamago-don" } : slot,
+    ),
+  };
+  const locked = syncLeftoverNote(
+    ensureWeeklyDishes(
+      dropDuplicateCookedDishes(
+        keepCookedDays(planted, previous, [0], book.priceOf),
+        [0],
+        ["hamburg", "soboro"],
+        book.priceOf,
+        input.prefs,
+        input.excludes,
+      ),
+      ["hamburg", "soboro"],
+      [0],
+      book.priceOf,
+      input.prefs,
+      input.excludes,
+    ),
+  );
+  const dinners = locked.slots.filter((slot) => slot.meal === "dinner");
+  assert.equal(dinners.find((slot) => slot.dayIndex === 0)?.recipeId, "tamago-don");
+  const counts: Record<string, number> = {};
+  for (const slot of dinners) counts[slot.recipeId] = (counts[slot.recipeId] ?? 0) + 1;
+  assert.equal(counts["tamago-don"], 1);
+  for (const [id, count] of Object.entries(counts)) {
+    assert.ok(count <= (TWICE_A_WEEK_DISHES.includes(id) ? 2 : 1), `${id}:${count}`);
+  }
+  const twice = {
+    ...planted,
+    slots: planted.slots.map((slot) =>
+      slot.meal === "dinner" && (slot.dayIndex === 2 || slot.dayIndex === 4) ? { ...slot, recipeId: "hiyayakko" } : slot,
+    ),
+  };
+  const previousCold = {
+    ...previous,
+    slots: previous.slots.map((slot) =>
+      slot.meal === "dinner" && slot.dayIndex === 0 ? { ...slot, recipeId: "hiyayakko" } : slot,
+    ),
+  };
+  const cold = dropDuplicateCookedDishes(
+    keepCookedDays(twice, previousCold, [0], book.priceOf),
+    [0],
+    ["hamburg", "soboro"],
+    book.priceOf,
+    input.prefs,
+    input.excludes,
+  );
+  assert.equal(cold.slots.filter((slot) => slot.meal === "dinner" && slot.recipeId === "hiyayakko").length, 2);
+  assert.equal(cold.slots.find((slot) => slot.dayIndex === 0 && slot.meal === "dinner")?.recipeId, "hiyayakko");
+});
+
+test("count labels never look smaller than the amount, and the price stays on the raw number", () => {
+  const egg = getIngredient("egg");
+  const tofu = getIngredient("tofu");
+  assert.ok(egg && tofu);
+  if (!egg || !tofu) return;
+  assert.equal(formatUnits(0.4, egg), "1個弱");
+  assert.equal(formatUnits(0.5, tofu), "1丁弱");
+  assert.equal(formatUnits(3.6, egg), "3個と少し");
+  assert.equal(formatUnits(10, egg), "10個");
+  const book = createPriceBook("tome", TODAY, []);
+  const result = buildPlan(
+    {
+      budget: 18_400,
+      people: 4,
+      days: 7,
+      mode: "dinner_breakfast",
+      prefs: { ...prefs, lessFat: true, noMilk: true },
+      excludes: [],
+      fullPortions: true,
+      weeklyDishes: ["hamburg", "soboro"],
+    },
+    book,
+  );
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  const list = buildShoppingList(result.balanced, book, [{ ingredientId: "egg", place: "fridge", units: 0.4 }]);
+  const covered = list.covered.find((row) => row.ingredientId === "egg");
+  assert.ok(covered);
+  assert.equal(covered?.units, 0.4);
+  assert.equal(formatUnits(covered?.units ?? 0, egg), "1個弱");
+  const price = book.priceOf("egg");
+  assert.equal(Math.round(0.4 * price), Math.round(covered!.units * price));
+});
+
+test("optional eggs follow the setting and Tome quotes stay in Tome", () => {
+  const book = createPriceBook("tome", TODAY, [
+    { id: "foreign", ingredientId: "egg", storeId: "aoba", price: 1, date: TODAY, source: "manual" },
+  ]);
+  const quote = book.quote("egg");
+  assert.ok(quote);
+  for (const row of quote?.byStore ?? []) {
+    assert.ok(TOME_STORES.includes(row.storeId), row.storeId);
+    assert.match(getStore(row.storeId)?.address ?? "", /登米市/);
+  }
+  assert.equal(quote?.byStore.some((row) => row.storeId === "aoba"), false);
+  const natto = getRecipe("natto-set");
+  const cold = getRecipe("hiyayakko");
+  assert.ok(natto && cold);
+  if (!natto || !cold) return;
+  assert.match(natto.summary, /納豆・冷奴に卵をのせる/);
+  assert.match(cold.steps.join("\n"), /納豆・冷奴に卵をのせる/);
+  assert.equal(natto.summary.includes("まだ決めていません"), false);
+  assert.ok(recipeCost(natto, 4, book.priceOf, 1, true) > recipeCost(natto, 4, book.priceOf, 1, false));
+  const shared = {
+    budget: 18_400,
+    people: 4,
+    days: 7,
+    mode: "dinner_breakfast" as const,
+    prefs: { ...prefs, lessFat: true, noMilk: true },
+    excludes: [] as string[],
+    fullPortions: true,
+    weeklyDishes: ["hamburg", "soboro"],
+  };
+  const off = buildPlan(shared, book);
+  const on = buildPlan({ ...shared, allowOptionalEggs: true }, book);
+  assert.equal(off.ok && on.ok, true);
+  if (!off.ok || !on.ok) return;
+  assert.equal(off.balanced.allowOptionalEggs, false);
+  assert.equal(on.balanced.allowOptionalEggs, true);
+  const eggs = (plan: typeof off.balanced) =>
+    plan.slots.reduce((sum, slot) => {
+      const recipe = getRecipe(slot.recipeId);
+      const units = recipe
+        ? (usedItems(recipe.id, recipe.items, plan.allowOptionalEggs === true).find((item) => item.ingredientId === "egg")
+            ?.units ?? 0)
+        : 0;
+      return sum + units * plan.people * plan.portion;
+    }, 0);
+  const offEggs = eggs(off.balanced);
+  const onEggs = eggs(on.balanced);
+  assert.ok(onEggs >= offEggs, `${onEggs} vs ${offEggs}`);
+  const shopOff = buildShoppingList(off.balanced, book);
+  const shopOn = buildShoppingList({ ...off.balanced, allowOptionalEggs: true }, book);
+  const line = (list: typeof shopOff) =>
+    list.groups.flatMap((group) => group.lines).find((item) => item.ingredientId === "egg");
+  const offLine = line(shopOff);
+  const onLine = line(shopOn);
+  if (off.balanced.slots.some((slot) => slot.recipeId === "natto-set" || slot.recipeId === "hiyayakko")) {
+    assert.ok((onLine?.neededUnits ?? 0) > (offLine?.neededUnits ?? 0));
+  }
+  const stockScreen = readFileSync(new URL("../components/screens/stock-screen.tsx", import.meta.url), "utf8");
+  assert.match(stockScreen, /登米市南方町/);
+  assert.equal(stockScreen.includes("ヨークベニマル 仙台"), false);
+  assert.equal(stockScreen.includes("イオン 仙台"), false);
+  assert.equal(stockScreen.includes("仙台市青葉区"), false);
+  for (const ingredient of ingredients) {
+    const row = book.quote(ingredient.id);
+    for (const store of row?.byStore ?? []) assert.ok(TOME_STORES.includes(store.storeId), `${ingredient.id}:${store.storeId}`);
+  }
 });
 
 test("YouTube button is a search for the dish name", () => {

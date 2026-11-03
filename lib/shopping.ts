@@ -116,7 +116,7 @@ export function buildShoppingList(
     const recipe = getRecipe(slot.recipeId);
     if (!recipe) continue;
     seasoningYen += Math.round(recipe.extraYen * plan.people * plan.portion);
-    for (const item of usedItems(recipe.id, recipe.items)) {
+    for (const item of usedItems(recipe.id, recipe.items, plan.allowOptionalEggs === true)) {
       totals.set(
         item.ingredientId,
         (totals.get(item.ingredientId) ?? 0) + item.units * plan.people * plan.portion,
