@@ -76,6 +76,16 @@ export function plainMisoText(text: string, fishAside: boolean): string {
     .replaceAll("\u0000汁", "だし入りでない味噌の汁");
 }
 
+/** 魚を除くときの豆腐の朝ごはん。料理名はここだけ決める。 */
+export const PLAIN_MISO_DISH_NAME = "豆腐の味噌汁（だし入りでない味噌）";
+
+export function displayRecipeName(recipe: { id: string; name?: string }, fishAside: boolean): string {
+  const name = recipe.name ?? "";
+  if (!fishAside) return name;
+  if (recipe.id === "tofu-morning") return PLAIN_MISO_DISH_NAME;
+  return plainMisoText(name, true);
+}
+
 /** 卵を除いているときは、おまけの卵を「設定で選ぶ」と書かない。魚を除くときは味噌の書き方を変える。 */
 export function recipeCopy<T extends { id: string; summary: string; steps: string[]; name?: string }>(
   recipe: T,
@@ -93,7 +103,7 @@ export function recipeCopy<T extends { id: string; summary: string; steps: strin
   if (fishAside) {
     summary = plainMisoText(summary, true);
     steps = steps.map((step) => plainMisoText(step, true));
-    if (name != null) name = plainMisoText(name, true);
+    if (name != null) name = displayRecipeName(recipe, true);
   }
   return { ...recipe, summary, steps, name };
 }

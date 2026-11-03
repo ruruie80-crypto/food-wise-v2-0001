@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Pause, Play, RotateCcw } from "lucide-react";
 import { getRecipe } from "@/lib/catalog";
 import { useApp } from "@/components/app-state";
-import { avoidsFish, recipeCopy } from "@/lib/household";
+import { avoidsFish, displayRecipeName, recipeCopy } from "@/lib/household";
 import { cookingMethod } from "@/lib/advice";
 import { YouTubeCookButton } from "@/components/youtube-button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -36,9 +36,10 @@ function RecipePlayer({
 }) {
   const app = useApp();
   const recipe = getRecipe(recipeId);
-  const steps = recipe
-    ? recipeCopy(recipe, app.state.excludes.includes("egg"), avoidsFish(app.state.excludes)).steps
-    : [];
+  const fishAside = avoidsFish(app.state.excludes);
+  const shown = recipe ? recipeCopy(recipe, app.state.excludes.includes("egg"), fishAside) : null;
+  const steps = shown?.steps ?? [];
+  const title = recipe ? displayRecipeName(recipe, fishAside) : "";
   const total = Math.max(steps.length, 1) * STEP_MS;
   const [elapsed, setElapsed] = useState(0);
   const [playing, setPlaying] = useState(true);
@@ -65,7 +66,7 @@ function RecipePlayer({
     <Sheet open onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="max-h-[92dvh] rounded-t-3xl bg-panel text-panel-foreground">
         <SheetHeader>
-          <SheetTitle className="pr-10 text-panel-foreground">{recipe.name}</SheetTitle>
+          <SheetTitle className="pr-10 text-panel-foreground">{title}</SheetTitle>
         </SheetHeader>
         <div className="space-y-4 px-4 pb-6">
           <p className="text-sm leading-6 text-panel-muted">
@@ -112,7 +113,7 @@ function RecipePlayer({
             {done ? <RotateCcw className="size-5" /> : playing ? <Pause className="size-5" /> : <Play className="size-5" />}
             {done ? "もう一度" : playing ? "一時停止" : "再生"}
           </button>
-          <YouTubeCookButton name={recipe.name} />
+          <YouTubeCookButton name={title} />
         </div>
       </SheetContent>
     </Sheet>

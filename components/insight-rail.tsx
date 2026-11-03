@@ -6,6 +6,7 @@ import { useApp } from "@/components/app-state";
 import { SignalMark, Yen } from "@/components/bits";
 import { balanceScore, mealLabel, modeHint, percent } from "@/lib/format";
 import { daysBetween } from "@/lib/dates";
+import { avoidsFish, displayRecipeName } from "@/lib/household";
 import { buildShoppingList, cookedDaysOn, stockAside } from "@/lib/shopping";
 import { ingredients } from "@/lib/catalog";
 
@@ -63,7 +64,7 @@ export function InsightRail() {
       {dinner && dinnerRecipe ? (
         <div className="mt-6 max-w-lg rounded-3xl bg-card p-4">
           <p className="text-xs text-muted-foreground">今日の{mealLabel(dinner.meal)}</p>
-          <p className="mt-1 text-lg font-black">{dinnerRecipe.name}</p>
+          <p className="mt-1 text-lg font-black">{displayRecipeName(dinnerRecipe, avoidsFish(app.state.excludes))}</p>
           <p className="mt-1 text-sm text-muted-foreground">
             <Yen value={dinner.cost} /> · {dinnerRecipe.minutes}分 · バランス{" "}
             {balanceScore(plan!.nutrition, plan!.targets)}

@@ -130,7 +130,7 @@ export function ShopScreen() {
               const ingredient = getIngredient(row.ingredientId);
               return (
                 <li key={row.ingredientId} className="text-base font-bold">
-                  {ingredient?.name} {ingredient ? formatUnits(row.units, ingredient) : ""}
+                  {misoLabel(ingredient?.name ?? row.ingredientId)} {ingredient ? formatUnits(row.units, ingredient) : ""}
                 </li>
               );
             })}
@@ -232,7 +232,7 @@ export function ShopScreen() {
                         <Checkbox
                           checked={checked}
                           onCheckedChange={(value) => app.toggleCheck(line.ingredientId, Boolean(value))}
-                          aria-label={ingredient?.name}
+                          aria-label={misoLabel(ingredient?.name ?? line.ingredientId)}
                           className="size-6"
                         />
                         <span className={checked ? "flex-1 text-muted-foreground line-through" : "flex-1"}>

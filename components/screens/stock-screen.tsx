@@ -6,6 +6,7 @@ import { categoryLabel, getIngredient, ingredients } from "@/lib/catalog";
 import { useApp } from "@/components/app-state";
 import { BootScreen } from "@/components/bits";
 import { formatUnits, trimNum } from "@/lib/format";
+import { avoidsFish, plainMisoText } from "@/lib/household";
 import { MAX_RICE_KG, stockChoices } from "@/lib/stock";
 import type { Category, StockPlace } from "@/lib/types";
 
@@ -27,6 +28,8 @@ export function StockScreen() {
 
   const unitsOf = (ingredientId: string) =>
     app.state.stock.find((item) => item.ingredientId === ingredientId && item.place === place)?.units ?? 0;
+  const fishAside = avoidsFish(app.state.excludes);
+  const foodName = (name: string) => plainMisoText(name, fishAside);
 
   return (
     <div className="px-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-12">
@@ -74,17 +77,20 @@ export function StockScreen() {
               return (
                 <li key={item.ingredientId} className="flex items-center justify-between gap-3">
                   <span>
-                    <span className="block text-lg font-bold">{ingredient.name}</span>
+                    <span className="block text-lg font-bold">{foodName(ingredient.name)}</span>
                     <span className="text-base text-muted-foreground">
                       {formatUnits(item.units, ingredient)}
                       {ingredient.id === "rice" ? `（${trimNum((item.units * 75) / 1000)}kg）` : ""}
                     </span>
+                    {fishAside && ingredient.id === "miso" ? (
+                      <span className="mt-1 block text-base leading-7">家の味噌がだし入りでないか確かめてね</span>
+                    ) : null}
                   </span>
                   <span className="flex items-center gap-2">
                     <button
                       type="button"
                       className="size-12 rounded-2xl bg-muted text-2xl font-bold"
-                      aria-label={`${ingredient.name}を減らす`}
+                      aria-label={`${foodName(ingredient.name)}を減らす`}
                       onClick={() => app.setStock(item.ingredientId, place, item.units - 1)}
                     >
                       −
@@ -92,7 +98,7 @@ export function StockScreen() {
                     <button
                       type="button"
                       className="size-12 rounded-2xl bg-muted text-2xl font-bold"
-                      aria-label={`${ingredient.name}を増やす`}
+                      aria-label={`${foodName(ingredient.name)}を増やす`}
                       onClick={() => app.setStock(item.ingredientId, place, item.units + 1)}
                     >
                       ＋
@@ -134,7 +140,7 @@ export function StockScreen() {
             return (
               <li key={ingredient.id} className="rounded-2xl bg-card px-4 py-3">
                 <p className="text-lg font-bold">
-                  {ingredient.name}
+                  {foodName(ingredient.name)}
                   {have > 0 ? <span className="ml-2 text-base text-primary">{formatUnits(have, ingredient)}</span> : null}
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">

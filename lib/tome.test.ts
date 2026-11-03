@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { getIngredient, getRecipe, getStore, ingredients, recipes, storesIn } from "./catalog";
 import { expenseRangeLabel, lunchMoneyHint, planDayLabel, resolvePlanStart, weekIsOver, weekRangeLabel } from "./dates";
-import { CHEAP_EGG_DISHES, CHILD_PORTION, EGGS_PER_PACK, householdServings, MAX_WEEKLY_EGG_PACKS, plainMisoText, recipeCopy, TOME_PRESET, TWICE_A_WEEK_DISHES, usedItems, weeklyFromMonthly } from "./household";
+import { CHEAP_EGG_DISHES, CHILD_PORTION, displayRecipeName, EGGS_PER_PACK, householdServings, MAX_WEEKLY_EGG_PACKS, PLAIN_MISO_DISH_NAME, plainMisoText, recipeCopy, TOME_PRESET, TWICE_A_WEEK_DISHES, usedItems, weeklyFromMonthly } from "./household";
 import { formatUnits, marketHeading, seasonHeading } from "./format";
 import { consumeStock, MAX_STOCK_UNITS, readRiceKg, riceUnitsFromKg } from "./stock";
 import { buildPlan, dropDuplicateCookedDishes, ensureWeeklyDishes, isRecipeAllowed, keepCookedDays, recipeCost, syncLeftoverNote } from "./optimizer";
@@ -893,7 +893,8 @@ test("excluding fish renames miso, and dropping chicken breast leaves free days"
   assert.ok(morning);
   if (!morning) return;
   assert.equal(recipeCopy(morning, false, false).name, "豆腐と味噌汁");
-  assert.equal(recipeCopy(morning, false, true).name, "豆腐とだし入りでない味噌の汁");
+  assert.equal(recipeCopy(morning, false, true).name, "豆腐の味噌汁（だし入りでない味噌）");
+  assert.equal(displayRecipeName(morning, true), recipeCopy(morning, true, true).name);
   const book = createPriceBook("tome", TODAY, []);
   const result = buildPlan(
     {
@@ -921,6 +922,36 @@ test("excluding fish renames miso, and dropping chicken breast leaves free days"
   const miso = shop.pantry.find((row) => row.ingredientId === "miso");
   assert.ok(miso);
   assert.equal(plainMisoText(miso?.label ?? "", true).includes("だし入りでない味噌"), true);
+});
+
+test("fish exclusion uses one dish name everywhere", () => {
+  const morning = getRecipe("tofu-morning");
+  assert.ok(morning);
+  if (!morning) return;
+  assert.equal(displayRecipeName(morning, false), "豆腐と味噌汁");
+  assert.equal(displayRecipeName(morning, true), PLAIN_MISO_DISH_NAME);
+  assert.equal(recipeCopy(morning, false, true).name, PLAIN_MISO_DISH_NAME);
+  assert.equal(plainMisoText("味噌 大さじ28", false), "味噌 大さじ28");
+  assert.equal(plainMisoText("味噌 大さじ28", true), "だし入りでない味噌 大さじ28");
+  const files = [
+    "components/budget-advice.tsx",
+    "components/screens/home-screen.tsx",
+    "components/recipe-player.tsx",
+    "components/screens/meals-screen.tsx",
+    "components/screens/shop-screen.tsx",
+    "components/screens/stock-screen.tsx",
+    "components/stock-use-dialog.tsx",
+  ];
+  for (const file of files) {
+    const source = readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
+    assert.equal(source.includes(PLAIN_MISO_DISH_NAME), false, file);
+    assert.match(source, /displayRecipeName|recipeCopy|plainMisoText|fishAside/, file);
+  }
+  const household = readFileSync(new URL("./household.ts", import.meta.url), "utf8");
+  assert.equal(household.includes(PLAIN_MISO_DISH_NAME), true);
+  const dialog = readFileSync(new URL("../components/stock-use-dialog.tsx", import.meta.url), "utf8");
+  assert.match(dialog, /家の味噌がだし入りでないか確かめてね/);
+  assert.match(dialog, /味噌やわかめは減らしません/);
 });
 
 test("YouTube button is a search for the dish name", () => {

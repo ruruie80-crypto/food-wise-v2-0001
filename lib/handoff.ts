@@ -1,5 +1,6 @@
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import { getArea, getIngredient, getRecipe, getStore } from "./catalog";
+import { avoidsFish, displayRecipeName, plainMisoText } from "./household";
 import { addDays, expenseRangeLabel, formatWithWeekday } from "./dates";
 import { formatUnits, mealLabel, yen } from "./format";
 import { createPriceBook } from "./prices";
@@ -155,6 +156,7 @@ function renderText(record: HandoffRecord, today: string, stale: boolean): strin
     lines.push("", `献立: ${plan.focus === "cheap" ? "最安" : "バランス"} ${yen(plan.cost)}`);
     if (stale) lines.push("条件が変わったあとの献立です。受け取った側でも組み直せます。");
     const start = plan.startedOn ?? today;
+    const fishAside = avoidsFish(record.excludes ?? []);
     lines.push("", "【献立】");
     for (let day = 0; day < plan.days; day += 1) {
       const slots = plan.slots.filter((slot) => slot.dayIndex === day);
@@ -162,7 +164,9 @@ function renderText(record: HandoffRecord, today: string, stale: boolean): strin
       lines.push(formatWithWeekday(addDays(start, day)));
       for (const slot of slots) {
         const recipe = getRecipe(slot.recipeId);
-        lines.push(`${mealLabel(slot.meal)} ${recipe?.name ?? slot.recipeId} ${yen(slot.cost)}`);
+        lines.push(
+          `${mealLabel(slot.meal)} ${recipe ? displayRecipeName(recipe, fishAside) : slot.recipeId} ${yen(slot.cost)}`,
+        );
       }
     }
     const book = createPriceBook(record.areaId, today, record.observations);
@@ -178,7 +182,7 @@ function renderText(record: HandoffRecord, today: string, stale: boolean): strin
       lines.push("冷蔵庫・冷凍庫にあるので買わないもの:");
       for (const row of shop.covered) {
         const ingredient = getIngredient(row.ingredientId);
-        const name = ingredient?.name ?? row.ingredientId;
+        const name = plainMisoText(ingredient?.name ?? row.ingredientId, fishAside);
         const qty = ingredient ? formatUnits(row.units, ingredient) : "";
         lines.push(`- ${name} ${qty}`.replace(/\s+/g, " "));
       }
@@ -188,7 +192,7 @@ function renderText(record: HandoffRecord, today: string, stale: boolean): strin
       lines.push(store?.name ?? group.storeId);
       for (const line of group.lines) {
         const ingredient = getIngredient(line.ingredientId);
-        const name = ingredient?.name ?? line.ingredientId;
+        const name = plainMisoText(ingredient?.name ?? line.ingredientId, fishAside);
         const qty = line.buyLabel ?? (ingredient ? formatUnits(line.units, ingredient) : "");
         lines.push(`- ${name} ${qty} ${yen(line.linePrice)}`.replace(/\s+/g, " "));
       }

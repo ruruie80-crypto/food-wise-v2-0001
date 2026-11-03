@@ -15,11 +15,13 @@ export function StockUseDialog({
   onOpenChange,
   onUse,
   onKeep,
+  fishAside = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onUse: () => void;
   onKeep?: () => void;
+  fishAside?: boolean;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -27,7 +29,9 @@ export function StockUseDialog({
         <DialogHeader>
           <DialogTitle>使ったぶんを減らしますか</DialogTitle>
           <DialogDescription>
-            作った日の食材を、冷蔵庫から先に減らします。味噌やわかめは減らしません。献立を作っただけでは減らしません。
+            {fishAside
+              ? "作った日の食材を、冷蔵庫から先に減らします。だし入りでない味噌やわかめは減らしません。家の味噌がだし入りでないか確かめてね。献立を作っただけでは減らしません。"
+              : "作った日の食材を、冷蔵庫から先に減らします。味噌やわかめは減らしません。献立を作っただけでは減らしません。"}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>

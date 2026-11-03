@@ -29,6 +29,7 @@ import {
   householdServings,
   OPTIONAL_EGG_RECIPES,
   avoidsFish,
+  displayRecipeName,
   recipeCopy,
   TOME_PRESET,
   usedItems,
@@ -518,7 +519,7 @@ export function MealsScreen() {
                           ) ? (
                             <p className="text-sm font-bold">在庫を使います</p>
                           ) : null}
-                          <YouTubeCookButton name={recipe.name} />
+                          <YouTubeCookButton name={shown.name ?? recipe.name} />
                           <RecipeVideoButton recipeId={recipe.id} />
                           <button
                             type="button"
@@ -577,7 +578,7 @@ export function MealsScreen() {
                     >
                       <span>
                         <span className="block text-base font-bold">
-                          {option.recipe.name}
+                          {displayRecipeName(option.recipe, fishAside)}
                           {option.recipe.id === swap.recipeId ? " · 今" : ""}
                           {option.usesStock ? " · 在庫" : ""}
                         </span>
@@ -587,7 +588,7 @@ export function MealsScreen() {
                       </span>
                       <Yen value={option.cost} className="text-xl" />
                     </button>
-                    <YouTubeCookButton name={option.recipe.name} />
+                    <YouTubeCookButton name={displayRecipeName(option.recipe, fishAside)} />
                   </li>
                 ))
               : null}
@@ -595,6 +596,7 @@ export function MealsScreen() {
         </SheetContent>
       </Sheet>
       <StockUseDialog
+        fishAside={fishAside}
         open={cookDay != null}
         onOpenChange={(open) => {
           if (!open) setCookDay(null);

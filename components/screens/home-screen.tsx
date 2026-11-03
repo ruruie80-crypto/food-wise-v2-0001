@@ -21,7 +21,7 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { AreaStores } from "@/components/area-stores";
 import { YouTubeCookButton } from "@/components/youtube-button";
-import { avoidsFish, describeHousehold, recipeCopy } from "@/lib/household";
+import { avoidsFish, describeHousehold, displayRecipeName, recipeCopy } from "@/lib/household";
 import { BudgetAdvice } from "@/components/budget-advice";
 import { SkinPicker } from "@/components/skin-picker";
 import { StoreCheapest } from "@/components/store-cheapest";
@@ -44,6 +44,8 @@ export function HomeScreen() {
   const inPlanWeek = Boolean(plan && todayIndex >= 0 && todayIndex < plan.days);
   const spotlight = inPlanWeek ? pickSpotlight(plan?.slots ?? [], todayIndex, app.hour) : undefined;
   const recipe = spotlight ? getRecipe(spotlight.recipeId) : undefined;
+  const fishAside = avoidsFish(app.state.excludes);
+  const dishName = recipe ? displayRecipeName(recipe, fishAside) : "";
   const buys = ingredients
     .map((item) => app.book?.quote(item.id) ?? null)
     .filter((quote) => quote && quote.signal === "buy" && getIngredient(quote.ingredientId)?.category !== "seasoning")
@@ -171,7 +173,7 @@ export function HomeScreen() {
           eyebrow={inPlanWeek ? "今日" : "献立"}
           title={
             spotlight && recipe
-              ? `${mealLabel(spotlight.meal)}は${recipe.name}`
+              ? `${mealLabel(spotlight.meal)}は${dishName}`
               : plan && weekIsOver(planStart, app.today)
                 ? "この1週間は終わりました"
                 : "献立はまだありません"
@@ -185,15 +187,15 @@ export function HomeScreen() {
                   <p className="text-sm text-muted-foreground">
                     {planDayLabel(planStart, spotlight.dayIndex, app.today)}の{mealLabel(spotlight.meal)} · {recipe.minutes}分
                   </p>
-                  <p className="mt-1 text-xl font-black">{recipe.name}</p>
+                  <p className="mt-1 text-xl font-black">{dishName}</p>
                   <p className="mt-1 text-base leading-7 text-muted-foreground">
-                    {recipeCopy(recipe, app.state.excludes.includes("egg"), avoidsFish(app.state.excludes)).summary}
+                    {recipeCopy(recipe, app.state.excludes.includes("egg"), fishAside).summary}
                   </p>
                 </div>
                 <PriceSticker value={spotlight.cost} />
               </div>
             </Link>
-            <YouTubeCookButton name={recipe.name} />
+            <YouTubeCookButton name={dishName} />
           </div>
         ) : (
           <p className="mt-3 rounded-3xl bg-card p-4 text-sm leading-6 text-muted-foreground">
