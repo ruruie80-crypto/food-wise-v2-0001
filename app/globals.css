@@ -607,8 +607,16 @@ body [data-sonner-toast] [data-description] {
       padding: 0.5rem 0 0;
     }
 
+    .home-screen .home-today {
+      margin-top: 0.25rem;
+    }
+
     .home-screen .home-today-card {
-      padding: 0.5rem;
+      padding: 0.5rem 0.5rem 0;
+    }
+
+    .home-screen .home-today-card > a {
+      margin-top: 0.25rem !important;
     }
   }
 }

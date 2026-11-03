@@ -171,15 +171,32 @@ export function applyCookUndo(input: {
         if (part.mine.length > 0) uses[cookedMealKey(input.start, input.dayIndex, other)] = part.mine;
         leftover = part.rest;
       });
-    } else if (input.mealNeed.length > 0) {
-      stock = restoreStock(stock, input.mealNeed);
-      input.otherMeals.forEach((other, index) => {
-        const need = input.otherNeeds[index] ?? [];
-        if (need.length > 0) uses[cookedMealKey(input.start, input.dayIndex, other)] = need;
-      });
     }
   }
   return { keys: undone.keys, uses, stock };
+}
+
+export const LEGACY_UNDO_NOTE = "前の版で付けた印なので、在庫は戻りません。";
+
+/** 減らした量が記録にあるときだけ、取り消しで在庫を戻す。 */
+export function undoRestoresStock(
+  keys: string[],
+  uses: Record<string, StockTake[] | undefined>,
+  start: string,
+  dayIndex: number,
+  meal: MealType,
+): boolean {
+  const mealKey = cookedMealKey(start, dayIndex, meal);
+  const dayKey = `${start}:${dayIndex}`;
+  if (keys.includes(mealKey)) return (uses[mealKey]?.length ?? 0) > 0;
+  if (keys.includes(dayKey)) return (uses[dayKey]?.length ?? 0) > 0;
+  return false;
+}
+
+export function undoConfirmDetail(restores: boolean): string {
+  return restores
+    ? "印を外します。在庫を減らしていたときは、その分だけ戻します。"
+    : `印を外します。${LEGACY_UNDO_NOTE}`;
 }
 
 /** 1日まとめの印を外すときは、取り消した食事以外の印を残す。 */

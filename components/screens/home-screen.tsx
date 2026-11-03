@@ -75,7 +75,7 @@ export function HomeScreen() {
         <Link
           href="/alerts"
           aria-label="通知"
-          className="relative flex size-11 items-center justify-center rounded-full bg-card"
+          className="relative flex size-11 shrink-0 items-center justify-center rounded-full bg-card"
         >
           <Bell className="size-5" />
           {app.unreadCount > 0 ? (
@@ -116,17 +116,6 @@ export function HomeScreen() {
             : "献立を作ると、今日から7日で数えます。"}
         </p>
         <div className="home-budget-go">
-        {plan && lunchMoneyHint(plan.startedOn, app.today, plan.budget - plan.cost) ? (
-          <p className="home-aside mt-2 text-sm leading-6">
-            残りは週{yen(plan.budget - plan.cost)}（月にならすと約
-            {yen(Math.round(((plan.budget - plan.cost) / 7) * 30.4 / 100) * 100)}）です。お昼ごはん代には少なめかもしれません。
-          </p>
-        ) : null}
-        {app.stale && plan ? (
-          <p className="home-aside mt-2 rounded-xl bg-notice px-3 py-2 text-base leading-7 text-notice-foreground">
-            {planChangeNote(plan.sourceKey, sourceKey(app.state))}
-          </p>
-        ) : null}
         <div className="home-regen">
         <Button
           className="mt-2 h-11 w-full text-base"
@@ -181,6 +170,18 @@ export function HomeScreen() {
           <p className="mt-2 rounded-3xl bg-card p-3 text-base leading-6">{todayCardBody(planStatus, planStart)}</p>
         )}
       </section>
+
+      {plan && lunchMoneyHint(plan.startedOn, app.today, plan.budget - plan.cost) ? (
+        <p className="home-aside mt-3 text-sm leading-6">
+          残りは週{yen(plan.budget - plan.cost)}（月にならすと約
+          {yen(Math.round(((plan.budget - plan.cost) / 7) * 30.4 / 100) * 100)}）です。お昼ごはん代には少なめかもしれません。
+        </p>
+      ) : null}
+      {app.stale && plan ? (
+        <p className="home-aside mt-3 rounded-xl bg-notice px-3 py-2 text-base leading-7 text-notice-foreground">
+          {planChangeNote(plan.sourceKey, sourceKey(app.state))}
+        </p>
+      ) : null}
 
       {showChildAgeNotice(app.state) ? (
         <Link href="/meals" className="home-notice mt-4 block rounded-3xl bg-card p-4">

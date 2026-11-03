@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { getIngredient, getRecipe, getStore, ingredients, recipes, storesIn } from "./catalog";
 import { bottomNavHeightPx, compactHomeLayout, expenseRangeLabel, homePlanStatus, lunchMoneyHint, mealsDayHref, pageClearsNav, planDayDomId, planDayLabel, resolvePlanStart, todayCardBody, todayCardTitle, weekIsOver, weekRangeLabel } from "./dates";
-import { applyCookUndo, cookedKeysAfterRebuild, cookedMealsOn, isMealCooked, keysAfterUndo, mealStockNeed, readCookedKeys, restoreStock, stockTaken } from "./cooked";
+import { applyCookUndo, cookedKeysAfterRebuild, cookedMealsOn, isMealCooked, keysAfterUndo, LEGACY_UNDO_NOTE, mealStockNeed, readCookedKeys, restoreStock, stockTaken, undoConfirmDetail, undoRestoresStock } from "./cooked";
 import { CHEAP_EGG_DISHES, CHILD_PORTION, displayRecipeName, EGGS_PER_PACK, HOME_MISO_CHECK, householdServings, MAX_WEEKLY_EGG_PACKS, PLAIN_MISO_DISH_NAME, plainMisoText, recipeCopy, showChildAgeNotice, showUnaskedAge, TOME_PRESET, TWICE_A_WEEK_DISHES, usedItems, weeklyFromMonthly, withHomeMisoCheck } from "./household";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createElement } from "react";
@@ -1217,6 +1217,28 @@ test("undoing a cooked meal restores stock once, including a past meal", () => {
   assert.deepEqual(legacyThird.stock, legacyAgain.stock);
 });
 
+test("an old day mark without a saved amount does not invent stock", () => {
+  const start = "2026-11-03";
+  const before = [{ ingredientId: "egg", place: "fridge" as const, units: 1 }];
+  const unknown = applyCookUndo({
+    keys: [`${start}:0`],
+    uses: {},
+    stock: before,
+    start,
+    dayIndex: 0,
+    meal: "breakfast",
+    otherMeals: ["dinner"],
+    mealNeed: [{ ingredientId: "tofu", place: "fridge", units: 2 }],
+    otherNeeds: [[{ ingredientId: "pork", place: "freezer", units: 1 }]],
+  });
+  assert.deepEqual(unknown.stock, before);
+  assert.equal(unknown.keys.includes(`${start}:0`), false);
+  assert.equal(unknown.uses[`${start}:0:dinner`], undefined);
+  assert.equal(undoRestoresStock([`${start}:0`], {}, start, 0, "breakfast"), false);
+  assert.match(undoConfirmDetail(false), new RegExp(LEGACY_UNDO_NOTE));
+  assert.match(undoConfirmDetail(true), /その分だけ戻します/);
+});
+
 test("restored stock stops at the fridge limit", () => {
   const restored = restoreStock(
     [{ ingredientId: "rice", place: "fridge", units: MAX_STOCK_UNITS - 1 }],
@@ -1276,4 +1298,15 @@ test("a short screen moves the budget note and the meals link opens today", () =
   assert.match(home, /mealsDayHref\(spotlight\.dayIndex\)/);
   assert.match(meals, /planDayDomId\(day\)/);
   assert.match(home, /home-blurb-title/);
+  const todayCard = home.indexOf('className="home-today');
+  const notice = home.indexOf("home-aside");
+  assert.ok(todayCard > 0 && notice > todayCard);
+  const rendered = renderToStaticMarkup(
+    createElement("div", null, undoConfirmDetail(false), createElement("button", { type: "button" }, "やめる")),
+  );
+  assert.match(rendered, /前の版で付けた印なので、在庫は戻りません/);
+  assert.match(rendered, /やめる/);
+  assert.match(meals, /やめる/);
+  assert.match(meals, /undoConfirmDetail\(/);
+  assert.match(meals, /mealsDayHref|planDayDomId\(day\)/);
 });

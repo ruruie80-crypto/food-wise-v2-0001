@@ -22,7 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Slider } from "@/components/ui/slider";
 import { CookedMark, cookControl } from "@/components/cooked-mark";
-import { isMealCooked } from "@/lib/cooked";
+import { isMealCooked, undoConfirmDetail, undoRestoresStock } from "@/lib/cooked";
 import { addDays, planDayDomId, planDayLabel, weekIsOver } from "@/lib/dates";
 import {
   MODE_LABEL,
@@ -633,7 +633,19 @@ export function MealsScreen() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>作ったを取り消しますか</DialogTitle>
-            <DialogDescription>印を外します。在庫を減らしていたときは、その分だけ戻します。</DialogDescription>
+            <DialogDescription>
+              {undoConfirmDetail(
+                undoTarget
+                  ? undoRestoresStock(
+                      app.state.cookedKeys,
+                      app.state.cookedUses,
+                      plan?.startedOn ?? app.today,
+                      undoTarget.day,
+                      undoTarget.meal,
+                    )
+                  : true,
+              )}
+            </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button type="button" variant="outline" className="min-h-11" onClick={() => setUndoTarget(null)}>
