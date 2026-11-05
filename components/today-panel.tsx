@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { getIngredient, storesIn } from "@/lib/catalog";
-import { yen } from "@/lib/format";
+import { marketHeading, seasonHeading, yen } from "@/lib/format";
 import type { MarketQuote } from "@/lib/market";
 import { inSeason, monthOf, SEASON_SOURCE, SEASON_URL } from "@/lib/season";
 
@@ -64,13 +64,13 @@ function rangeLabel(item: MarketQuote): string {
   return parts.join(" / ");
 }
 
-export function SeasonCard({ today }: { today: string }) {
+export function SeasonCard({ today, areaId = "" }: { today: string; areaId?: string }) {
   const month = monthOf(today);
   const items = inSeason(month);
   return (
     <section className="mt-6">
       <p className="text-[11px] font-bold tracking-[0.16em] text-primary">旬</p>
-      <h2 className="text-lg font-black">{month}月の仙台周辺</h2>
+      <h2 className="text-lg font-black">{seasonHeading(month, areaId)}</h2>
       <p className="mt-1 text-xs leading-5 text-muted-foreground">
         {SEASON_SOURCE}です。その日の入荷ではありません。
       </p>
@@ -80,18 +80,18 @@ export function SeasonCard({ today }: { today: string }) {
             <Link
               key={item.name}
               href={`/prices/${item.ingredientId}`}
-              className="rounded-full bg-chip px-3 py-1.5 text-sm font-bold"
+              className="inline-flex min-h-11 items-center rounded-full bg-chip px-3 text-sm font-bold"
             >
               {item.name}
             </Link>
           ) : (
-            <span key={item.name} className="rounded-full bg-card px-3 py-1.5 text-sm font-bold">
+            <span key={item.name} className="inline-flex min-h-11 items-center rounded-full bg-card px-3 text-sm font-bold">
               {item.name}
             </span>
           ),
         )}
       </div>
-      <a href={SEASON_URL} target="_blank" rel="noreferrer" className="mt-3 inline-block text-xs font-bold text-primary">
+      <a href={SEASON_URL} target="_blank" rel="noreferrer" className="mt-3 inline-flex min-h-11 items-center text-sm font-bold text-primary">
         東北農政局の旬の表
       </a>
     </section>
@@ -104,7 +104,7 @@ export function MarketCard({ areaId }: { areaId: string }) {
   return (
     <section className="mt-6 rounded-3xl bg-card p-4">
       <p className="text-[11px] font-bold tracking-[0.16em] text-primary">卸売</p>
-      <h2 className="text-lg font-black">きょうの仙台市場</h2>
+      <h2 className="text-lg font-black">{marketHeading(areaId)}</h2>
       {market.status === "loading" ? <p className="mt-2 text-sm text-muted-foreground">日報を開いています。</p> : null}
       {market.status === "error" ? (
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
@@ -146,7 +146,7 @@ export function MarketCard({ areaId }: { areaId: string }) {
               );
             })}
           </ul>
-          <a href={market.report.sourceUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs font-bold text-primary">
+          <a href={market.report.sourceUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex min-h-11 items-center text-sm font-bold text-primary">
             青果部の日報（PDF）
           </a>
         </>
@@ -160,7 +160,7 @@ export function MarketCard({ areaId }: { areaId: string }) {
   );
 }
 
-export function MarketHint({ ingredientId }: { ingredientId: string }) {
+export function MarketHint({ ingredientId, areaId = "" }: { ingredientId: string; areaId?: string }) {
   const market = useMarket();
   if (market.status !== "ready") return null;
   const item = market.report.items.find((row) => row.ingredientId === ingredientId);
@@ -168,7 +168,7 @@ export function MarketHint({ ingredientId }: { ingredientId: string }) {
   const ingredient = getIngredient(ingredientId);
   return (
     <section className="mt-4 rounded-3xl bg-chip p-4">
-      <p className="text-[11px] font-bold tracking-[0.14em] text-primary">きょうの仙台市場</p>
+      <p className="text-[11px] font-bold tracking-[0.14em] text-primary">{marketHeading(areaId)}</p>
       <p className="mt-1 font-black">
         {item.origin} · {item.packLabel} · {rangeLabel(item)}
       </p>

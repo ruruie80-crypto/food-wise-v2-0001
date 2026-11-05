@@ -38,6 +38,11 @@ function planAt(budget: number, people = 1) {
 
 test("every recipe points at a real ingredient", () => {
   for (const recipe of recipes) {
+    if (recipe.id === "free-night") {
+      assert.equal(recipe.items.length, 0);
+      assert.ok(recipe.steps.length >= 1);
+      continue;
+    }
     assert.ok(recipe.steps.length >= 2, recipe.id);
     for (const item of recipe.items) {
       assert.ok(getIngredient(item.ingredientId), `${recipe.id} missing ${item.ingredientId}`);
@@ -172,7 +177,13 @@ test("shopping total matches the priced ingredients", () => {
   if (!result.ok) return;
   const prices = book();
   const list = buildShoppingList(result.balanced, prices);
-  assert.ok(Math.abs(list.multiTotal - result.balanced.cost) <= 3, `${list.multiTotal} vs ${result.balanced.cost}`);
+  const lines = list.groups.flatMap((group) => group.lines);
+  assert.equal(
+    list.multiTotal,
+    lines.reduce((sum, line) => sum + line.linePrice, 0) + list.seasoningYen,
+  );
+  assert.ok(lines.every((line) => line.ingredientId !== "wakame" && line.ingredientId !== "miso"));
+  assert.ok(lines.filter((line) => line.ingredientId === "egg").every((line) => line.units % 10 === 0));
   assert.ok(list.savings >= 0);
   assert.ok(list.groups.length >= 2);
 });

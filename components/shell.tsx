@@ -3,7 +3,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, Camera, House, ShoppingBasket, Tag, Utensils } from "lucide-react";
+import { Bell, Camera, House, Refrigerator, ShoppingBasket, Tag, Utensils } from "lucide-react";
 import { Onboarding } from "@/components/onboarding";
 import { InsightRail } from "@/components/insight-rail";
 import { useApp } from "@/components/app-state";
@@ -15,6 +15,7 @@ const NAV = [
   { href: "/prices", label: "底値", icon: Tag },
   { href: "/meals", label: "献立", icon: Utensils },
   { href: "/shop", label: "買う", icon: ShoppingBasket },
+  { href: "/stock", label: "冷蔵庫", icon: Refrigerator },
 ];
 
 function isActive(pathname: string, href: string): boolean {
@@ -24,7 +25,7 @@ function isActive(pathname: string, href: string): boolean {
 
 export function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mx-auto min-h-dvh w-full max-w-[480px] bg-background lg:grid lg:h-dvh lg:max-w-none lg:grid-cols-[92px_minmax(320px,460px)_minmax(280px,1fr)] lg:overflow-hidden lg:bg-canvas">
+    <div className="readable-app mx-auto min-h-dvh w-full max-w-[480px] bg-background lg:grid lg:h-dvh lg:max-w-none lg:grid-cols-[92px_minmax(320px,460px)_minmax(280px,1fr)] lg:overflow-hidden lg:bg-canvas">
       <Suspense fallback={<div className="hidden lg:block" />}>
         <SideNav />
       </Suspense>
@@ -94,7 +95,7 @@ function BottomNav() {
   const pathname = usePathname();
   return (
     <nav
-      className="fixed bottom-0 left-1/2 z-30 grid w-full max-w-[480px] -translate-x-1/2 grid-cols-5 border-t border-border bg-card/95 px-1 pt-1 pb-[max(0.4rem,env(safe-area-inset-bottom))] backdrop-blur lg:hidden"
+      className="fixed bottom-0 left-1/2 z-30 grid w-full max-w-[480px] -translate-x-1/2 grid-cols-[minmax(0,1fr)_minmax(3.6rem,1.35fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] border-t border-border bg-card/95 px-0.5 pt-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] backdrop-blur lg:hidden"
       aria-label="主要"
     >
       {NAV.map((item) => {
@@ -107,21 +108,21 @@ function BottomNav() {
             href={item.href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "flex flex-col items-center gap-0.5 rounded-xl py-1 text-[10px] font-medium",
+              "flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl px-0 py-0.5 text-sm font-medium",
               active ? "text-primary" : "text-muted-foreground",
             )}
           >
             <span
               className={cn(
-                "flex size-8 items-center justify-center rounded-full",
+                "flex size-7 items-center justify-center rounded-full",
                 scan &&
-                  "-mt-4 size-12 border-4 border-card bg-primary text-panel-accent shadow-[0_8px_16px_var(--primary-shadow)]",
+                  "-mt-3 size-10 border-4 border-card bg-primary text-panel-accent shadow-[0_8px_16px_var(--primary-shadow)]",
                 !scan && active && "bg-chip",
               )}
             >
               <Icon className={scan ? "size-5" : "size-4"} />
             </span>
-            {item.label}
+            <span className="max-w-full whitespace-nowrap text-center text-sm leading-none">{item.label}</span>
           </Link>
         );
       })}

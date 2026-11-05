@@ -7,8 +7,11 @@ import { Yen } from "@/components/bits";
 import { RecipeVideoButton } from "@/components/recipe-player";
 import { cookingMethod, methodsInPlan, plannedFoods } from "@/lib/advice";
 import { ingredientTargetPercents, nutrientRows } from "@/lib/nutrients";
-import { addDays, formatWithWeekday } from "@/lib/dates";
+import { formatWithWeekday, planDayLabel } from "@/lib/dates";
 import { formatUnits, mealLabel, trimNum, yen } from "@/lib/format";
+import { CookedMark } from "@/components/cooked-mark";
+import { isMealCooked } from "@/lib/cooked";
+import { avoidsFish, plainMisoText, recipeCopy } from "@/lib/household";
 import type { Plan } from "@/lib/types";
 
 export function BudgetAdvice({ variant }: { variant: "compact" | "full" }) {
@@ -17,25 +20,31 @@ export function BudgetAdvice({ variant }: { variant: "compact" | "full" }) {
   if (!app.ready || !app.book || !app.today || !plan) return null;
   const foods = plannedFoods(plan, app.book.priceOf);
   const methods = methodsInPlan(plan);
+  const fishAside = avoidsFish(app.state.excludes);
+  const eggsAside = app.state.excludes.includes("egg");
+  const dishName = (recipe: { id: string; name: string; summary: string; steps: string[] }) =>
+    recipeCopy(recipe, eggsAside, fishAside).name ?? recipe.name;
+  const foodName = (name: string | undefined, id: string) => plainMisoText(name ?? id, fishAside);
   if (variant === "compact") {
     return (
       <section className="mt-6">
         <p className="text-[11px] font-bold tracking-[0.16em] text-primary">この予算から</p>
         <h2 className="text-lg font-black">1週間の献立</h2>
-        <p className="mt-1 text-xs leading-5 text-muted-foreground">
-          今週 {yen(plan.budget)} のうち、献立は {yen(plan.cost)} です。作り方は各皿の動画です。
+        <p className="mt-1 text-sm leading-6 text-muted-foreground">
+          今週 {yen(plan.budget)} のうち、献立は {yen(plan.cost)} です。
+          {formatWithWeekday(plan.startedOn ?? app.today)}から7日です。作り方は各皿の動画です。
         </p>
         <ul className="mt-2 flex flex-wrap gap-2">
           {foods.slice(0, 6).map((food) => (
             <li key={food.ingredientId} className="rounded-full bg-card px-3 py-1 text-sm font-bold">
-              {getIngredient(food.ingredientId)?.name}
+              {foodName(getIngredient(food.ingredientId)?.name, food.ingredientId)}
             </li>
           ))}
         </ul>
         <ol className="mt-3 space-y-2">
           {Array.from({ length: plan.days }, (_, day) => {
             const slots = plan.slots.filter((slot) => slot.dayIndex === day);
-            const label = day === 0 ? "今日" : day === 1 ? "明日" : formatWithWeekday(addDays(app.today, day));
+            const label = planDayLabel(plan.startedOn ?? app.today, day, app.today);
             return (
               <li key={day} className="rounded-3xl bg-card p-4">
                 <p className="text-sm font-black">{label}</p>
@@ -43,11 +52,13 @@ export function BudgetAdvice({ variant }: { variant: "compact" | "full" }) {
                   {slots.map((slot) => {
                     const recipe = getRecipe(slot.recipeId);
                     return (
-                      <li key={`${slot.meal}-${slot.recipeId}`} className="flex items-center justify-between gap-3 text-sm">
-                        <span>
-                          <span className="text-muted-foreground">{mealLabel(slot.meal)}</span> {recipe?.name}
-                          <span className="mt-0.5 block text-xs text-muted-foreground">{cookingMethod(slot.recipeId)}</span>
-                        </span>
+                      <li key={`${slot.meal}-${slot.recipeId}`} className="text-sm">
+                        <p className="break-keep text-base leading-7">
+                          <span className="text-muted-foreground">{mealLabel(slot.meal)}</span>{" "}
+                          {recipe ? dishName(recipe) : slot.recipeId}
+                          <CookedMark cooked={isMealCooked(app.state.cookedKeys, plan.startedOn ?? app.today, day, slot.meal)} />
+                        </p>
+                        <p className="text-sm text-muted-foreground">{cookingMethod(slot.recipeId)}</p>
                         <RecipeVideoButton recipeId={slot.recipeId} />
                       </li>
                     );
@@ -57,7 +68,7 @@ export function BudgetAdvice({ variant }: { variant: "compact" | "full" }) {
             );
           })}
         </ol>
-        <Link href="/meals" className="mt-3 inline-block text-sm font-bold text-primary">
+        <Link href="/meals" className="mt-3 inline-flex min-h-11 items-center text-base font-bold text-primary">
           食材と7日分を見る
         </Link>
       </section>
@@ -72,14 +83,17 @@ export function BudgetAdvice({ variant }: { variant: "compact" | "full" }) {
         <ul className="mt-3 divide-y divide-border rounded-3xl bg-card px-3">
           {foods.map((food) => {
             const ingredient = getIngredient(food.ingredientId);
-            const names = food.recipeIds.map((id) => getRecipe(id)?.name).filter((name): name is string => Boolean(name));
+            const names = food.recipeIds
+              .map((id) => getRecipe(id))
+              .filter((recipe): recipe is NonNullable<typeof recipe> => Boolean(recipe))
+              .map((recipe) => dishName(recipe));
             const dishes = names.length <= 2 ? names.join("、") : `${names.slice(0, 2).join("、")} ほか${names.length - 2}品`;
             const marks = ingredientTargetPercents(plan, food.ingredientId);
             return (
               <li key={food.ingredientId}>
                 <Link href={`/prices/${food.ingredientId}`} className="flex items-start justify-between gap-3 py-3">
                   <span>
-                    <span className="font-bold">{ingredient?.name ?? food.ingredientId}</span>
+                    <span className="font-bold">{foodName(ingredient?.name, food.ingredientId)}</span>
                     <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
                       {ingredient ? formatUnits(food.units, ingredient) : ""} · {dishes}
                     </span>
@@ -100,7 +114,7 @@ export function BudgetAdvice({ variant }: { variant: "compact" | "full" }) {
           })}
         </ul>
       </section>
-      <NutrientBoard plan={plan} />
+      <NutrientBoard plan={plan} fishAside={fishAside} />
       <section className="mt-6" id="methods">
         <p className="text-[11px] font-bold tracking-[0.16em] text-primary">調理法</p>
         <h2 className="text-lg font-black">この週の作り方</h2>
@@ -115,7 +129,7 @@ export function BudgetAdvice({ variant }: { variant: "compact" | "full" }) {
                   return (
                     <li key={recipeId} className="flex items-center justify-between gap-3">
                       <span>
-                        <span className="block text-sm font-bold">{recipe.name}</span>
+                        <span className="block text-sm font-bold">{dishName(recipe)}</span>
                         <span className="text-xs text-muted-foreground">{recipe.minutes}分 · {recipe.steps.length}手順</span>
                       </span>
                       <RecipeVideoButton recipeId={recipeId} />
@@ -131,7 +145,7 @@ export function BudgetAdvice({ variant }: { variant: "compact" | "full" }) {
   );
 }
 
-function NutrientBoard({ plan }: { plan: Plan }) {
+function NutrientBoard({ plan, fishAside }: { plan: Plan; fishAside: boolean }) {
   const rows = nutrientRows(plan);
   return (
     <section className="mt-6">
@@ -158,7 +172,11 @@ function NutrientBoard({ plan }: { plan: Plan }) {
             <ul className="mt-3 space-y-1">
               {row.sources.slice(0, 4).map((source) => (
                 <li key={source.ingredientId} className="flex items-center justify-between gap-3 text-sm">
-                  <span>{source.ingredientId === "seasoning" ? "調味" : getIngredient(source.ingredientId)?.name}</span>
+                  <span>
+                    {source.ingredientId === "seasoning"
+                      ? "調味"
+                      : plainMisoText(getIngredient(source.ingredientId)?.name ?? source.ingredientId, fishAside)}
+                  </span>
                   <span className="font-bold text-primary">{source.sharePercent}%</span>
                 </li>
               ))}

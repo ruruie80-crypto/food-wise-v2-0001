@@ -1,12 +1,47 @@
 "use client";
 
 import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useSyncExternalStore } from "react";
-import { areas } from "@/lib/catalog";
-import { tokyoHour, tokyoToday } from "@/lib/dates";
+import { areas, getIngredient, storesIn } from "@/lib/catalog";
+import { resolvePlanStart, tokyoHour, tokyoToday } from "@/lib/dates";
 import { buildAlerts } from "@/lib/alerts";
-import { buildPlan, replacePlanSlot, type PlanResult } from "@/lib/optimizer";
+import {
+  type BudgetScope,
+  type ChildStage,
+  type DairyPolicy,
+  type EggToppingPolicy,
+  householdServings,
+  MAX_WEEKLY_BUDGET,
+  OTHER_DAIRY_IDS,
+  type ThighPolicy,
+  TOME_PRESET,
+  WEEKLY_DISHES,
+  weeklyFromMonthly,
+} from "@/lib/household";
+import { consumeStock, MAX_STOCK_UNITS } from "@/lib/stock";
+import {
+  cookedKeysAfterRebuild,
+  cookedMealKey,
+  mealIsLocked,
+  readCookedKeys,
+  readCookedModes,
+  readCookedUses,
+  stockTaken,
+  undoCookedMealState,
+  type CookedMode,
+  type StockTake,
+} from "@/lib/cooked";
+import { buildShoppingList, cookedDaysOn, cookedMealsOn, stockAside } from "@/lib/shopping";
+import {
+  buildPlan,
+  dropDuplicateCookedDishes,
+  ensureWeeklyDishes,
+  keepCookedDays,
+  replacePlanSlot,
+  syncLeftoverNote,
+  type PlanResult,
+} from "@/lib/optimizer";
 import { createPriceBook, type PriceBook } from "@/lib/prices";
-import { isSkin, skinThemeColor, type SkinId } from "@/lib/skins";
+import { isBrightSkin, isSkin, skinThemeColor, type SkinId } from "@/lib/skins";
 import type {
   AlertItem,
   MealMode,
@@ -15,6 +50,8 @@ import type {
   Plan,
   PlanFocus,
   Prefs,
+  StockItem,
+  StockPlace,
 } from "@/lib/types";
 
 const STORAGE_KEY = "sokone-gohan-v1";
@@ -68,6 +105,21 @@ export type Persisted = {
   mode: MealMode;
   prefs: Prefs;
   excludes: string[];
+  adults: number;
+  children: number;
+  childStage: ChildStage;
+  childAgeSet: boolean;
+  monthlyBudget: number | null;
+  budgetScope: BudgetScope;
+  thighPolicy: ThighPolicy;
+  dairyPolicy: DairyPolicy;
+  eggToppingPolicy: EggToppingPolicy;
+  preferredStoreId: string | null;
+  stock: StockItem[];
+  cookedKeys: string[];
+  cookedUses: Record<string, StockTake[]>;
+  cookedModes: Record<string, CookedMode>;
+  packAdded: Record<string, { units: number; place: StockPlace }>;
   observations: Observation[];
   balanced: Plan | null;
   cheap: Plan | null;
@@ -97,13 +149,27 @@ type AppContextValue = {
   alerts: AlertItem[];
   unreadCount: number;
   setBudget: (value: number) => void;
+  setMonthlyBudget: (value: number | null) => void;
   setPeople: (value: number) => void;
+  setAdults: (value: number) => void;
+  setChildren: (value: number) => void;
+  setChildStage: (stage: ChildStage) => void;
+  setBudgetScope: (scope: BudgetScope) => void;
+  setThighPolicy: (policy: ThighPolicy) => void;
+  setDairyPolicy: (policy: DairyPolicy) => void;
+  setEggTopping: (policy: EggToppingPolicy) => PlanResult | undefined;
+  setPreferredStore: (storeId: string | null) => void;
+  applyTomePreset: () => void;
   setMode: (mode: MealMode) => void;
   setArea: (areaId: string) => void;
+  setStock: (ingredientId: string, place: StockPlace, units: number) => void;
+  consumeCookedMeal: (dayIndex: number, meal: MealType) => void;
+  keepCookedMeal: (dayIndex: number, meal: MealType) => void;
+  undoCookedMeal: (dayIndex: number, meal: MealType) => void;
   togglePref: (key: keyof Prefs) => void;
   toggleExclusion: (ids: string[]) => void;
   setFocus: (focus: PlanFocus) => void;
-  generate: () => PlanResult;
+  generate: (overrides?: { eggToppingPolicy?: EggToppingPolicy }) => PlanResult;
   addObservations: (rows: ObservationDraft[]) => { ingredientId: string; price: number }[];
   removeObservation: (id: string) => void;
   toggleCheck: (ingredientId: string, checked: boolean) => void;
@@ -124,8 +190,23 @@ function defaultState(): Persisted {
     people: 1,
     budget: 5000,
     mode: "dinner_breakfast",
-    prefs: { quick: false, moreVeg: false, highProtein: false, washoku: false },
+    prefs: { quick: false, moreVeg: false, highProtein: false, washoku: false, lessFat: false, noMilk: false },
     excludes: [],
+    adults: 1,
+    children: 0,
+    childStage: "young",
+    childAgeSet: false,
+    monthlyBudget: null,
+    budgetScope: "unset",
+    thighPolicy: "unset",
+    dairyPolicy: "unset",
+    eggToppingPolicy: "avoid",
+    preferredStoreId: null,
+    stock: [],
+    cookedKeys: [],
+    cookedUses: {},
+    cookedModes: {},
+    packAdded: {},
     observations: [],
     balanced: null,
     cheap: null,
@@ -153,17 +234,54 @@ function sanitize(raw: unknown): Persisted {
     data.mode === "dinner" || data.mode === "full" || data.mode === "dinner_breakfast"
       ? data.mode
       : base.mode;
-  const people = typeof data.people === "number" ? Math.min(4, Math.max(1, Math.round(data.people))) : 1;
-  const budget = typeof data.budget === "number" ? Math.min(20000, Math.max(500, Math.round(data.budget))) : 5000;
-  const prefs = { ...base.prefs, ...(data.prefs ?? {}) };
+  const legacyPeople = clampCount(data.people, 1, 4, 1);
+  const adults = clampCount(data.adults, 1, 4, legacyPeople);
+  const children = clampCount(data.children, 0, 4, 0);
+  const childStage: ChildStage =
+    data.childStage === "teen" || data.childStage === "young" ? data.childStage : areaId === "tome" ? "teen" : "young";
+  const people = householdServings(adults, children, childStage);
+  let budget = typeof data.budget === "number" ? Math.min(MAX_WEEKLY_BUDGET, Math.max(500, Math.round(data.budget))) : 5000;
+  const monthlyBudget =
+    typeof data.monthlyBudget === "number" && data.monthlyBudget > 0
+      ? Math.min(300_000, Math.round(data.monthlyBudget))
+      : null;
+  if (areaId === "tome" && monthlyBudget === TOME_PRESET.monthlyBudget && budget === 18_700) {
+    budget = weeklyFromMonthly(monthlyBudget);
+  }
+  const prefs = {
+    ...base.prefs,
+    ...(data.prefs ?? {}),
+    lessFat: Boolean(data.prefs?.lessFat),
+    noMilk: Boolean(data.prefs?.noMilk),
+  };
+  let skin = isSkin(data.skin) ? data.skin : base.skin;
+  if (areaId === "tome" && !isBrightSkin(skin)) skin = "kami";
   return {
     ...base,
     areaId,
     people,
+    adults,
+    children,
+    childStage,
+    childAgeSet: Boolean(data.childAgeSet),
     budget,
+    monthlyBudget,
+    budgetScope: data.budgetScope === "food" || data.budgetScope === "all" ? data.budgetScope : "unset",
+    thighPolicy: data.thighPolicy === "avoid" || data.thighPolicy === "allow" ? data.thighPolicy : "unset",
+    dairyPolicy: data.dairyPolicy === "milkOnly" || data.dairyPolicy === "allDairy" ? data.dairyPolicy : "unset",
+    eggToppingPolicy: data.eggToppingPolicy === "allow" ? "allow" : "avoid",
+    preferredStoreId:
+      typeof data.preferredStoreId === "string" && storesIn(areaId).some((store) => store.id === data.preferredStoreId)
+        ? data.preferredStoreId
+        : null,
     mode,
     prefs,
     excludes: Array.isArray(data.excludes) ? data.excludes.filter((id) => typeof id === "string") : [],
+    stock: Array.isArray(data.stock) ? data.stock.filter(isStockItem) : [],
+    cookedKeys: readCookedKeys(data.cookedKeys),
+    cookedUses: readCookedUses(data.cookedUses),
+    cookedModes: readCookedModes(data.cookedModes),
+    packAdded: sanitizePackAdded(data.packAdded),
     observations: Array.isArray(data.observations) ? data.observations.filter(isObservation) : [],
     balanced: isPlan(data.balanced) ? data.balanced : null,
     cheap: isPlan(data.cheap) ? data.cheap : null,
@@ -172,8 +290,39 @@ function sanitize(raw: unknown): Persisted {
     onboarded: Boolean(data.onboarded),
     readAlertIds: Array.isArray(data.readAlertIds) ? data.readAlertIds.filter((id) => typeof id === "string") : [],
     premiumPreview: Boolean(data.premiumPreview),
-    skin: isSkin(data.skin) ? data.skin : base.skin,
+    skin,
   };
+}
+
+function clampCount(value: unknown, min: number, max: number, fallback: number): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
+  return Math.min(max, Math.max(min, Math.round(value)));
+}
+
+function sanitizePackAdded(value: unknown): Persisted["packAdded"] {
+  if (!value || typeof value !== "object") return {};
+  const out: Persisted["packAdded"] = {};
+  for (const [id, row] of Object.entries(value as Record<string, unknown>)) {
+    if (!row || typeof row !== "object") continue;
+    const item = row as { units?: unknown; place?: unknown };
+    if (typeof item.units !== "number" || (item.place !== "fridge" && item.place !== "freezer")) continue;
+    if (item.units <= 0) continue;
+    out[id] = { units: Math.min(MAX_STOCK_UNITS, item.units), place: item.place };
+  }
+  return out;
+}
+
+function isStockItem(value: unknown): value is StockItem {
+  if (!value || typeof value !== "object") return false;
+  const row = value as StockItem;
+  return (
+    typeof row.ingredientId === "string" &&
+    (row.place === "fridge" || row.place === "freezer") &&
+    typeof row.units === "number" &&
+    Number.isFinite(row.units) &&
+    row.units > 0 &&
+    row.units <= MAX_STOCK_UNITS
+  );
 }
 
 function isObservation(value: unknown): value is Observation {
@@ -191,16 +340,62 @@ function isObservation(value: unknown): value is Observation {
 export function sourceKey(state: Persisted): string {
   return [
     state.areaId,
+    state.adults,
+    state.children,
+    state.childStage,
+    state.thighPolicy,
+    state.dairyPolicy,
+    state.eggToppingPolicy,
     state.people,
     state.budget,
+    state.monthlyBudget ?? "",
     state.mode,
     state.prefs.quick,
     state.prefs.moreVeg,
     state.prefs.highProtein,
     state.prefs.washoku,
+    state.prefs.lessFat,
+    state.prefs.noMilk,
     state.excludes.slice().sort().join(","),
     state.observations.map((row) => row.id).join(","),
   ].join("|");
+}
+
+const CHANGE_LABELS: { label: string; indexes: number[] }[] = [
+  { label: "地域", indexes: [0] },
+  { label: "人数", indexes: [1, 2, 3, 7] },
+  { label: "鶏ももの設定", indexes: [4] },
+  { label: "乳製品の設定", indexes: [5] },
+  { label: "納豆・冷奴の卵", indexes: [6] },
+  { label: "予算", indexes: [8, 9] },
+  { label: "朝と夜の範囲", indexes: [10] },
+  { label: "献立の好み", indexes: [11, 12, 13, 14, 15, 16] },
+  { label: "きらいな食べ物の設定", indexes: [17] },
+  { label: "値札", indexes: [18] },
+];
+
+/** 作り直す前に、何が変わったかを一文で返す。変わっていなければ空。 */
+export function planChangeNote(savedKey: string, currentKey: string): string {
+  if (!savedKey || savedKey === currentKey || samePlanAsideFromStock(savedKey, currentKey)) return "";
+  const saved = savedKey.split("|");
+  const current = currentKey.split("|");
+  if (saved.length !== current.length) return "条件が変わりました。献立を作り直してください。";
+  const reasons = CHANGE_LABELS.filter((item) => item.indexes.some((index) => saved[index] !== current[index])).map(
+    (item) => item.label,
+  );
+  if (reasons.length === 0) return "条件が変わりました。献立を作り直してください。";
+  if (reasons.length === 1) return `${reasons[0]}が変わりました。献立を作り直してください。`;
+  return `${reasons.slice(0, 2).join("と")}が変わりました。献立を作り直してください。`;
+}
+
+/** 保存済みの鍵が、在庫の欄だけ違うときは、予算や値札は変わっていない。 */
+export function samePlanAsideFromStock(savedKey: string, currentKey: string): boolean {
+  if (savedKey === currentKey) return true;
+  const saved = savedKey.split("|");
+  const current = currentKey.split("|");
+  if (saved.length !== current.length + 1) return false;
+  const stripped = [...saved.slice(0, -2), saved[saved.length - 1]].join("|");
+  return stripped === currentKey;
 }
 
 function uid(): string {
@@ -213,6 +408,45 @@ function safeParse(raw: string): unknown {
   } catch {
     return null;
   }
+}
+
+function tomeHousehold(current: Persisted): Partial<Persisted> {
+  return {
+    adults: TOME_PRESET.adults,
+    children: TOME_PRESET.children,
+    childStage: TOME_PRESET.childStage,
+    childAgeSet: false,
+    people: householdServings(TOME_PRESET.adults, TOME_PRESET.children, TOME_PRESET.childStage),
+    monthlyBudget: TOME_PRESET.monthlyBudget,
+    budget: TOME_PRESET.budget,
+    mode: TOME_PRESET.mode,
+    prefs: { ...current.prefs, lessFat: true, noMilk: true },
+  };
+}
+
+function isUntouchedTomePreset(current: Persisted): boolean {
+  return (
+    current.adults === TOME_PRESET.adults &&
+    current.children === TOME_PRESET.children &&
+    current.childStage === TOME_PRESET.childStage &&
+    current.monthlyBudget === TOME_PRESET.monthlyBudget &&
+    current.budget === TOME_PRESET.budget &&
+    current.mode === TOME_PRESET.mode &&
+    current.prefs.lessFat === true &&
+    current.prefs.noMilk === true
+  );
+}
+
+function factoryHousehold(): Partial<Persisted> {
+  return {
+    adults: 1,
+    children: 0,
+    childStage: "young",
+    people: 1,
+    monthlyBudget: null,
+    budget: 5000,
+    mode: "dinner_breakfast",
+  };
 }
 
 export function AppStateProvider({ children }: { children: React.ReactNode }) {
@@ -234,7 +468,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   );
 
   const activePlan = state.focus === "cheap" ? state.cheap : state.balanced;
-  const stale = Boolean(activePlan && activePlan.sourceKey !== sourceKey(state));
+  const stale = Boolean(activePlan && !samePlanAsideFromStock(activePlan.sourceKey, sourceKey(state)));
   const alerts = useMemo(
     () => (book && today ? buildAlerts(today, book, activePlan, state.observations, state.areaId) : []),
     [book, today, activePlan, state.observations, state.areaId],
@@ -243,32 +477,89 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   const patch = (partial: Partial<Persisted>) => update((current) => ({ ...current, ...partial }));
 
-  const generate = (): PlanResult => {
-    if (!today) return { ok: false, error: "日付を取得しています。" };
+  const generate = (overrides?: { eggToppingPolicy?: EggToppingPolicy }): PlanResult => {
+    const eggToppingPolicy = overrides?.eggToppingPolicy ?? state.eggToppingPolicy;
+    if (!today) {
+      if (overrides?.eggToppingPolicy) patch({ eggToppingPolicy });
+      return { ok: false, error: "日付を取得しています。" };
+    }
     const lookup = createPriceBook(state.areaId, today, state.observations);
-    const key = sourceKey(state);
+    const key = sourceKey({ ...state, eggToppingPolicy });
+    const previous = state.focus === "cheap" ? state.cheap : state.balanced;
+    const { startedOn, continueWeek } = resolvePlanStart(previous?.startedOn, today);
+    const cooked = continueWeek ? cookedDaysOn(state.cookedKeys, startedOn) : [];
+    const cookedMeals = continueWeek ? cookedMealsOn(state.cookedKeys, startedOn) : [];
+    const cookedRecipes = new Set(
+      (previous?.slots ?? [])
+        .filter((slot) => mealIsLocked(slot.dayIndex, slot.meal, cooked, cookedMeals))
+        .map((slot) => slot.recipeId),
+    );
+    const weekly = (state.areaId === "tome" ? WEEKLY_DISHES : []).filter((id) => !cookedRecipes.has(id));
+    const prefs = { ...state.prefs, allowSkinlessThigh: state.thighPolicy === "allow" };
+    const excludes =
+      state.dairyPolicy === "allDairy" ? [...new Set([...state.excludes, ...OTHER_DAIRY_IDS])] : state.excludes;
     const result = buildPlan(
       {
         budget: state.budget,
-        people: state.people,
+        people: householdServings(state.adults, state.children, state.childStage),
         days: 7,
         mode: state.mode,
-        prefs: state.prefs,
-        excludes: state.excludes,
+        prefs,
+        excludes,
+        stock: stockAside(state.stock, continueWeek ? state.packAdded : {}),
+        weeklyDishes: weekly,
+        fullPortions: state.childStage === "teen" && state.children > 0,
+        allowOptionalEggs: eggToppingPolicy === "allow" && !state.excludes.includes("egg"),
         sourceKey: key,
       },
       lookup,
     );
-    if (!result.ok) return result;
+    if (!result.ok) {
+      if (overrides?.eggToppingPolicy) patch({ eggToppingPolicy });
+      return result;
+    }
+    const lock = (plan: Plan) =>
+      syncLeftoverNote(
+        ensureWeeklyDishes(
+          dropDuplicateCookedDishes(
+            keepCookedDays(
+              { ...plan, sourceKey: key, startedOn },
+              continueWeek ? previous : null,
+              cooked,
+              lookup.priceOf,
+              cookedMeals,
+            ),
+            cooked,
+            WEEKLY_DISHES,
+            lookup.priceOf,
+            prefs,
+            excludes,
+            cookedMeals,
+          ),
+          state.areaId === "tome" ? WEEKLY_DISHES : [],
+          cooked,
+          lookup.priceOf,
+          prefs,
+          excludes,
+          cookedMeals,
+        ),
+      );
+    const balanced = lock(result.balanced);
+    const cheap = lock(result.cheap);
     update((current) => ({
       ...current,
-      balanced: { ...result.balanced, sourceKey: key },
-      cheap: { ...result.cheap, sourceKey: key },
+      eggToppingPolicy,
+      balanced,
+      cheap,
       focus: "balanced",
       checks: {},
+      cookedKeys: cookedKeysAfterRebuild(current.cookedKeys, continueWeek),
+      cookedUses: continueWeek ? current.cookedUses : {},
+      cookedModes: continueWeek ? current.cookedModes : {},
+      packAdded: continueWeek ? current.packAdded : {},
       onboarded: true,
     }));
-    return result;
+    return { ok: true, balanced, cheap };
   };
 
   const value: AppContextValue = {
@@ -281,10 +572,135 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     stale,
     alerts,
     unreadCount,
-    setBudget: (budget) => patch({ budget: Math.min(20000, Math.max(0, Math.round(Number.isFinite(budget) ? budget : 0))) }),
-    setPeople: (people) => patch({ people: Math.min(4, Math.max(1, people)) }),
+    setBudget: (budget) =>
+      patch({
+        budget: Math.min(MAX_WEEKLY_BUDGET, Math.max(0, Math.round(Number.isFinite(budget) ? budget : 0))),
+      }),
+    setMonthlyBudget: (monthly) => {
+      if (monthly == null || !Number.isFinite(monthly) || monthly <= 0) {
+        patch({ monthlyBudget: null });
+        return;
+      }
+      const rounded = Math.min(300_000, Math.round(monthly));
+      const weekly = weeklyFromMonthly(rounded);
+      patch({
+        monthlyBudget: rounded,
+        budget: Math.min(MAX_WEEKLY_BUDGET, Math.max(500, weekly)),
+      });
+    },
+    setPeople: (people) => {
+      const adults = Math.min(4, Math.max(1, Math.round(people)));
+      patch({ adults, children: 0, people: adults });
+    },
+    setAdults: (adults) =>
+      update((current) => {
+        const next = Math.min(4, Math.max(1, Math.round(adults)));
+        return { ...current, adults: next, people: householdServings(next, current.children, current.childStage) };
+      }),
+    setChildren: (children) =>
+      update((current) => {
+        const next = Math.min(4, Math.max(0, Math.round(children)));
+        return { ...current, children: next, people: householdServings(current.adults, next, current.childStage) };
+      }),
+    setChildStage: (childStage) =>
+      update((current) => ({
+        ...current,
+        childStage,
+        childAgeSet: true,
+        people: householdServings(current.adults, current.children, childStage),
+      })),
+    setBudgetScope: (budgetScope) => patch({ budgetScope }),
+    setThighPolicy: (thighPolicy) => patch({ thighPolicy }),
+    setDairyPolicy: (dairyPolicy) => patch({ dairyPolicy }),
+    setEggTopping: (eggToppingPolicy) => {
+      if (state.balanced || state.cheap) return generate({ eggToppingPolicy });
+      patch({ eggToppingPolicy });
+      return undefined;
+    },
+    setPreferredStore: (preferredStoreId) => patch({ preferredStoreId }),
+    applyTomePreset: () =>
+      update((current) => ({
+        ...current,
+        ...tomeHousehold(current),
+      })),
     setMode: (mode) => patch({ mode }),
-    setArea: (areaId) => patch({ areaId }),
+    setArea: (areaId) =>
+      update((current) => {
+        if (areaId === "tome") {
+          return {
+            ...current,
+            ...tomeHousehold(current),
+            areaId,
+            skin: isBrightSkin(current.skin) ? current.skin : "kami",
+          };
+        }
+        if (current.areaId === "tome" && isUntouchedTomePreset(current)) {
+          return { ...current, ...factoryHousehold(), areaId };
+        }
+        return { ...current, areaId };
+      }),
+    consumeCookedMeal: (dayIndex, meal) =>
+      update((current) => {
+        const plan = current.focus === "cheap" ? current.cheap : current.balanced;
+        if (!plan || !today) return current;
+        const start = plan.startedOn ?? today;
+        if (mealIsLocked(dayIndex, meal, cookedDaysOn(current.cookedKeys, start), cookedMealsOn(current.cookedKeys, start))) {
+          return current;
+        }
+        const key = cookedMealKey(start, dayIndex, meal);
+        const stock = consumeStock(current.stock, plan, dayIndex, current.packAdded, meal);
+        return {
+          ...current,
+          stock,
+          cookedKeys: [...current.cookedKeys, key],
+          cookedUses: { ...current.cookedUses, [key]: stockTaken(current.stock, stock) },
+          cookedModes: { ...current.cookedModes, [key]: "used" },
+        };
+      }),
+    keepCookedMeal: (dayIndex, meal) =>
+      update((current) => {
+        const plan = current.focus === "cheap" ? current.cheap : current.balanced;
+        if (!plan || !today) return current;
+        const start = plan.startedOn ?? today;
+        if (mealIsLocked(dayIndex, meal, cookedDaysOn(current.cookedKeys, start), cookedMealsOn(current.cookedKeys, start))) {
+          return current;
+        }
+        const key = cookedMealKey(start, dayIndex, meal);
+        return {
+          ...current,
+          cookedKeys: [...current.cookedKeys, key],
+          cookedModes: { ...current.cookedModes, [key]: "kept" },
+        };
+      }),
+    undoCookedMeal: (dayIndex, meal) =>
+      update((current) => {
+        const plan = current.focus === "cheap" ? current.cheap : current.balanced;
+        const next = undoCookedMealState({
+          plan,
+          today,
+          dayIndex,
+          meal,
+          keys: current.cookedKeys,
+          uses: current.cookedUses,
+          modes: current.cookedModes,
+          stock: current.stock,
+        });
+        if (!next) return current;
+        return {
+          ...current,
+          cookedKeys: next.keys,
+          cookedUses: next.uses,
+          cookedModes: next.modes,
+          stock: next.stock,
+        };
+      }),
+    setStock: (ingredientId, place, units) =>
+      update((current) => {
+        const nextUnits = Math.round(units * 10) / 10;
+        const stock = current.stock.filter((item) => !(item.ingredientId === ingredientId && item.place === place));
+        if (nextUnits > 0) stock.push({ ingredientId, place, units: Math.min(MAX_STOCK_UNITS, nextUnits) });
+        return { ...current, stock };
+      }),
     togglePref: (key) =>
       update((current) => ({ ...current, prefs: { ...current.prefs, [key]: !current.prefs[key] } })),
     toggleExclusion: (ids) =>
@@ -324,7 +740,51 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         observations: current.observations.filter((row) => row.id !== id),
       })),
     toggleCheck: (ingredientId, checked) =>
-      update((current) => ({ ...current, checks: { ...current.checks, [ingredientId]: checked } })),
+      update((current) => {
+        const checks = { ...current.checks, [ingredientId]: checked };
+        const packAdded = { ...current.packAdded };
+        let stock = current.stock;
+        const added = packAdded[ingredientId];
+        if (!checked && added) {
+          stock = stock
+            .map((item) =>
+              item.ingredientId === ingredientId && item.place === added.place
+                ? { ...item, units: Math.round((item.units - added.units) * 10) / 10 }
+                : item,
+            )
+            .filter((item) => item.units > 0.05);
+          delete packAdded[ingredientId];
+          return { ...current, checks, stock, packAdded };
+        }
+        const plan = current.focus === "cheap" ? current.cheap : current.balanced;
+        if (checked && plan && today) {
+          const lookup = createPriceBook(current.areaId, today, current.observations);
+          const start = plan.startedOn ?? today;
+          const list = buildShoppingList(
+            plan,
+            lookup,
+            stockAside(current.stock, current.packAdded),
+            current.preferredStoreId,
+            cookedDaysOn(current.cookedKeys, start),
+            cookedMealsOn(current.cookedKeys, start),
+          );
+          const line = list.groups.flatMap((group) => group.lines).find((item) => item.ingredientId === ingredientId);
+          const extra = line && line.neededUnits != null ? line.units - line.neededUnits : 0;
+          if (extra > 0.05) {
+            const ingredient = getIngredient(ingredientId);
+            const place = ingredient?.category === "meat" || ingredient?.category === "fish" ? "freezer" : "fridge";
+            const rounded = Math.round(extra * 10) / 10;
+            const existing = stock.find((item) => item.ingredientId === ingredientId && item.place === place);
+            stock = existing
+              ? stock.map((item) =>
+                  item === existing ? { ...item, units: Math.min(MAX_STOCK_UNITS, Math.round((item.units + rounded) * 10) / 10) } : item,
+                )
+              : [...stock, { ingredientId, place, units: Math.min(MAX_STOCK_UNITS, rounded) }];
+            packAdded[ingredientId] = { units: rounded, place };
+          }
+        }
+        return { ...current, checks, stock, packAdded };
+      }),
     replaceSlot: (dayIndex, meal, recipeId) => {
       if (!today) return;
       const lookup = createPriceBook(state.areaId, today, state.observations);

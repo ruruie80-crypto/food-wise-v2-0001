@@ -149,7 +149,7 @@ export function ScanScreen() {
     <div className="px-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-8">
       <p className="text-[11px] font-bold tracking-[0.16em] text-primary">スキャン</p>
       <h1 className="text-[1.7rem] font-black tracking-tight">値札を底値にする</h1>
-      <div className="mt-3 grid grid-cols-2 rounded-full bg-card p-1">
+      <div className="mt-3 grid grid-cols-2 rounded-full bg-card p-1" role="group" aria-label="読み取る種類">
         {(
           [
             ["receipt", "レシート"],
@@ -159,12 +159,13 @@ export function ScanScreen() {
           <button
             key={value}
             type="button"
+            aria-pressed={mode === value}
             onClick={() => {
               setMode(value);
               setPhase("capture");
             }}
             className={cn(
-              "rounded-full py-2 text-sm font-bold",
+              "min-h-11 rounded-full py-2 text-sm font-bold",
               mode === value ? "bg-primary text-primary-foreground" : "text-muted-foreground",
             )}
           >
@@ -291,11 +292,12 @@ export function ScanScreen() {
             // eslint-disable-next-line @next/next/no-img-element
             <img src={preview} alt="撮った値札" className="mt-3 max-h-48 w-full rounded-2xl object-cover" />
           ) : null}
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label="店">
             {localStores.map((store) => (
               <button
                 key={store.id}
                 type="button"
+                aria-pressed={activeStoreId === store.id}
                 onClick={() => setStoreId(store.id)}
                 className={cn(
                   "rounded-full px-3 py-1.5 text-sm font-bold",
@@ -370,7 +372,7 @@ export function ScanScreen() {
                 <li key={item.id}>
                   <button
                     type="button"
-                    className="flex w-full items-center justify-between rounded-xl px-2 py-2 text-left hover:bg-muted"
+                    className="flex min-h-11 w-full items-center justify-between rounded-xl px-2 py-2 text-left text-base hover:bg-muted"
                     onClick={() => {
                       const quote = app.book?.quote(item.id);
                       setLines((current) => [

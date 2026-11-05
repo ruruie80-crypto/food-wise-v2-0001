@@ -19,6 +19,15 @@ export function formatUnits(units: number, ingredient: Ingredient): string {
   if (ingredient.unitKind === "tbsp") {
     return `大さじ${trimNum(units)}`;
   }
+  if (ingredient.unitKind === "count") {
+    const suffix = ingredient.unitSuffix;
+    if (!(units > 0)) return `0${suffix}`;
+    if (units < 1) return `1${suffix}弱`;
+    const whole = Math.floor(units + 1e-9);
+    const fraction = units - whole;
+    if (fraction >= 0.05) return `${whole}${suffix}と少し`;
+    return `${whole}${suffix}`;
+  }
   return `${trimNum(units)}${ingredient.unitSuffix}`;
 }
 
@@ -52,6 +61,16 @@ export const MODE_LABEL: Record<MealMode, string> = {
   dinner_breakfast: "朝と夕食",
   full: "朝昼夕",
 };
+
+export function seasonHeading(month: number, areaId: string): string {
+  if (areaId === "tome") return `${month}月の宮城の旬（仙台周辺の表）`;
+  return `${month}月の仙台周辺`;
+}
+
+export function marketHeading(areaId: string): string {
+  if (areaId === "tome") return "きょうの宮城の市場（仙台市場の値段）";
+  return "きょうの仙台市場";
+}
 
 export function modeHint(mode: MealMode): string {
   if (mode === "dinner") return "夕食だけの食費です。";

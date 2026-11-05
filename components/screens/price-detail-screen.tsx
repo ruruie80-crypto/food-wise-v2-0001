@@ -16,6 +16,7 @@ import { unitTargetPercents } from "@/lib/nutrients";
 import { dayTarget } from "@/lib/optimizer";
 import { proteinYen } from "@/lib/prices";
 import { MODE_LABEL, yen } from "@/lib/format";
+import { avoidsFish, plainMisoText } from "@/lib/household";
 import { cn } from "@/lib/utils";
 
 export function PriceDetailScreen({ id }: { id: string }) {
@@ -32,12 +33,13 @@ export function PriceDetailScreen({ id }: { id: string }) {
     return (
       <div className="px-4 pt-8">
         <p>その品目は帳面にありません。</p>
-        <Link href="/prices" className="mt-3 inline-block font-bold text-primary">
+        <Link href="/prices" className="mt-3 inline-flex min-h-11 items-center text-base font-bold text-primary">
           底値帳へ
         </Link>
       </div>
     );
   }
+  const fishAside = avoidsFish(app.state.excludes);
   const area = getArea(app.state.areaId);
   const localStores = storesIn(area.id);
   const recordStoreId = localStores.some((item) => item.id === storeId) ? storeId : localStores[0]?.id ?? "";
@@ -71,13 +73,13 @@ export function PriceDetailScreen({ id }: { id: string }) {
 
   return (
     <div className="px-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-10">
-      <Link href="/prices" className="text-sm font-bold text-primary">
+      <Link href="/prices" className="inline-flex min-h-11 items-center text-base font-bold text-primary">
         底値帳へ戻る
       </Link>
       <div className="mt-3 flex items-start justify-between gap-3">
         <div>
           <CategoryDot category={ingredient.category} />
-          <h1 className="mt-1 text-[1.7rem] font-black tracking-tight">{ingredient.name}</h1>
+          <h1 className="mt-1 text-[1.7rem] font-black tracking-tight">{plainMisoText(ingredient.name, fishAside)}</h1>
           <p className="text-sm text-muted-foreground">
             {store?.name} · {ingredient.unitLabel}
           </p>
@@ -126,7 +128,7 @@ export function PriceDetailScreen({ id }: { id: string }) {
         {caption ? <p className="mt-2 text-xs leading-5 text-muted-foreground">{caption}</p> : null}
       </section>
 
-      <MarketHint ingredientId={id} />
+      <MarketHint ingredientId={id} areaId={app.state.areaId} />
 
       <section className="mt-4 rounded-3xl bg-card p-4">
         <p className="text-sm font-bold">{area.priceBasis === "survey" ? "この生活圏の店" : "店ごとの今週"}</p>
@@ -242,11 +244,12 @@ export function PriceDetailScreen({ id }: { id: string }) {
             <SheetTitle>{ingredient.name}を記録</SheetTitle>
           </SheetHeader>
           <div className="space-y-3 px-4 pb-6">
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2" role="group" aria-label="記録する店">
               {localStores.map((item) => (
                 <button
                   key={item.id}
                   type="button"
+                  aria-pressed={recordStoreId === item.id}
                   onClick={() => setStoreId(item.id)}
                   className={cn(
                     "rounded-full px-3 py-1.5 text-sm font-bold",
@@ -331,7 +334,7 @@ function HistoryChart({
         <g key={point.date}>
           <circle cx={x(index)} cy={y(point.price)} r={index === series.length - 1 ? 4 : 2.4} fill={index === series.length - 1 ? "var(--accent)" : "var(--primary)"} stroke="var(--foreground)" strokeWidth="1" />
           {index % 3 === 0 || index === series.length - 1 ? (
-            <text x={x(index)} y={height - 4} textAnchor="middle" fontSize="10" fill="var(--muted-foreground)">
+            <text x={x(index)} y={height - 2} textAnchor="middle" fontSize="14" fill="var(--muted-foreground)">
               {formatShort(point.date)}
             </text>
           ) : null}

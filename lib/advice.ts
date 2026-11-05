@@ -1,4 +1,5 @@
 import { getIngredient, getRecipe } from "./catalog";
+import { usedItems } from "./household";
 import type { Plan } from "./types";
 
 const METHODS: Record<string, string> = {
@@ -7,6 +8,7 @@ const METHODS: Record<string, string> = {
   "saba-daikon": "煮る",
   "iwashi-tomato": "煮て絡める",
   soboro: "炒り煮",
+  hamburg: "焼く",
   mapo: "煮る",
   niratama: "炒める",
   "komatsu-egg": "炒める",
@@ -16,6 +18,11 @@ const METHODS: Record<string, string> = {
   "aji-teishoku": "焼く",
   tonjiru: "煮る",
   hiyayakko: "冷やす",
+  "chicken-tofu": "炒める",
+  "tofu-nimono": "煮る",
+  "chicken-komatsu": "炒める",
+  "chicken-sprouts": "炒める",
+  "free-night": "自由",
   nabe: "煮る",
   thigh: "焼く",
   "tamago-don": "のせる",
@@ -46,7 +53,7 @@ export function plannedFoods(plan: Plan, priceOf: (ingredientId: string) => numb
   for (const slot of plan.slots) {
     const recipe = getRecipe(slot.recipeId);
     if (!recipe) continue;
-    for (const item of recipe.items) {
+    for (const item of usedItems(recipe.id, recipe.items, plan.allowOptionalEggs === true)) {
       const row = totals.get(item.ingredientId) ?? { units: 0, recipeIds: [] };
       row.units += item.units * plan.people * plan.portion;
       if (!row.recipeIds.includes(recipe.id)) row.recipeIds.push(recipe.id);

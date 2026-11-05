@@ -1,10 +1,11 @@
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import { getArea, getIngredient, getRecipe, getStore } from "./catalog";
-import { addDays, formatWithWeekday, weekRangeLabel } from "./dates";
+import { avoidsFish, displayRecipeName, plainMisoText } from "./household";
+import { addDays, expenseRangeLabel, formatWithWeekday } from "./dates";
 import { formatUnits, mealLabel, yen } from "./format";
 import { createPriceBook } from "./prices";
-import { buildShoppingList } from "./shopping";
-import type { MealMode, Observation, Plan, PlanFocus, Prefs } from "./types";
+import { buildShoppingList, cookedDaysOn, cookedMealsOn, stockAside } from "./shopping";
+import type { MealMode, Observation, Plan, PlanFocus, Prefs, StockItem } from "./types";
 
 export const HANDOFF_KIND = "sokone-gohan-handoff";
 const MAX_BYTES = 200_000;
@@ -36,6 +37,12 @@ export type HandoffRecord = {
   onboarded: boolean;
   readAlertIds: string[];
   premiumPreview: boolean;
+  adults?: number;
+  children?: number;
+  monthlyBudget?: number | null;
+  stock?: StockItem[];
+  cookedKeys?: string[];
+  packAdded?: Record<string, { units: number; place: StockItem["place"] }>;
 };
 
 export type HandoffFile = {
@@ -135,9 +142,12 @@ function renderText(record: HandoffRecord, today: string, stale: boolean): strin
       : "入っている相場は見本と、書き出した端末で読んだ値札です。実在の店の本日の売価ではありません。",
     "",
     `生活圏: ${area.prefecture} ${area.name}`,
-    `人数: ${record.people}人`,
+    typeof record.adults === "number" && (record.children ?? 0) > 0
+      ? `家族: 大人${record.adults}人・子ども${record.children}人（子どもは大人の0.6人分、合わせて${record.people}人分）`
+      : `人数: ${record.people}人`,
+    ...(typeof record.monthlyBudget === "number" ? [`1か月の食費: ${yen(record.monthlyBudget)}`] : []),
     `今週の食費: ${yen(record.budget)}`,
-    weekRangeLabel(today),
+    expenseRangeLabel(today, plan?.startedOn),
   ];
 
   if (!plan) {
@@ -145,29 +155,54 @@ function renderText(record: HandoffRecord, today: string, stale: boolean): strin
   } else {
     lines.push("", `献立: ${plan.focus === "cheap" ? "最安" : "バランス"} ${yen(plan.cost)}`);
     if (stale) lines.push("条件が変わったあとの献立です。受け取った側でも組み直せます。");
+    const start = plan.startedOn ?? today;
+    const fishAside = avoidsFish(record.excludes ?? []);
     lines.push("", "【献立】");
     for (let day = 0; day < plan.days; day += 1) {
       const slots = plan.slots.filter((slot) => slot.dayIndex === day);
       if (slots.length === 0) continue;
-      lines.push(formatWithWeekday(addDays(today, day)));
+      lines.push(formatWithWeekday(addDays(start, day)));
       for (const slot of slots) {
         const recipe = getRecipe(slot.recipeId);
-        lines.push(`${mealLabel(slot.meal)} ${recipe?.name ?? slot.recipeId} ${yen(slot.cost)}`);
+        lines.push(
+          `${mealLabel(slot.meal)} ${recipe ? displayRecipeName(recipe, fishAside) : slot.recipeId} ${yen(slot.cost)}`,
+        );
       }
     }
     const book = createPriceBook(record.areaId, today, record.observations);
-    const shop = buildShoppingList(plan, book);
+    const shop = buildShoppingList(
+      plan,
+      book,
+      stockAside(record.stock ?? [], record.packAdded),
+      null,
+      cookedDaysOn(record.cookedKeys ?? [], start),
+      cookedMealsOn(record.cookedKeys ?? [], start),
+    );
     lines.push("", "【買い物】");
+    if (shop.covered.length > 0) {
+      lines.push("冷蔵庫・冷凍庫にあるので買わないもの:");
+      for (const row of shop.covered) {
+        const ingredient = getIngredient(row.ingredientId);
+        const name = plainMisoText(ingredient?.name ?? row.ingredientId, fishAside);
+        const qty = ingredient ? formatUnits(row.units, ingredient) : "";
+        lines.push(`- ${name} ${qty}`.replace(/\s+/g, " "));
+      }
+    }
     for (const group of shop.groups) {
       const store = getStore(group.storeId);
       lines.push(store?.name ?? group.storeId);
       for (const line of group.lines) {
         const ingredient = getIngredient(line.ingredientId);
-        const name = ingredient?.name ?? line.ingredientId;
-        const qty = ingredient ? formatUnits(line.units, ingredient) : "";
+        const name = plainMisoText(ingredient?.name ?? line.ingredientId, fishAside);
+        const qty = line.buyLabel ?? (ingredient ? formatUnits(line.units, ingredient) : "");
         lines.push(`- ${name} ${qty} ${yen(line.linePrice)}`.replace(/\s+/g, " "));
       }
     }
+    if (shop.pantry.length > 0) {
+      lines.push("家にあれば不要:");
+      for (const row of shop.pantry) lines.push(`- ${row.label}`);
+    }
+    lines.push(`小計 ${yen(shop.multiTotal - shop.seasoningYen)}`);
     if (shop.seasoningYen > 0) lines.push(`調味料の見込み ${yen(shop.seasoningYen)}`);
     lines.push(`合計 ${yen(shop.multiTotal)}`);
     if (shop.single && shop.savings > 0) {

@@ -1,4 +1,5 @@
 import { categoryLabel, getIngredient, getRecipe, getStore, storesIn } from "./catalog";
+import { usedItems } from "./household";
 import { addDays, formatWithWeekday, weekdayIndex, weekdayName } from "./dates";
 import { yen } from "./format";
 import type { PriceBook } from "./prices";
@@ -60,7 +61,7 @@ export function buildAlerts(
     for (const slot of plan.slots) {
       const recipe = getRecipe(slot.recipeId);
       if (!recipe) continue;
-      for (const item of recipe.items) {
+      for (const item of usedItems(recipe.id, recipe.items, plan.allowOptionalEggs === true)) {
         if (seen.has(item.ingredientId)) continue;
         const quote = book.quote(item.ingredientId);
         if (quote?.signal !== "wait") continue;

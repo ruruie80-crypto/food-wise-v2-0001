@@ -42,13 +42,13 @@ export function StoreCheapest() {
       {identical ? (
         <ul className="mt-3 flex flex-wrap gap-2">
           {stores.map((store) => (
-            <li key={store.id} className="rounded-full bg-card px-3 py-1.5 text-xs font-bold">
+            <li key={store.id} className="inline-flex min-h-11 items-center rounded-full bg-card px-3 text-sm font-bold">
               {store.name}
             </li>
           ))}
         </ul>
       ) : (
-        <div className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1">
+        <div className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1" role="group" aria-label="店ごとの底値">
           {boards.map((board) => {
             const active = board.store.id === selected.store.id;
             const wins = board.picks.filter((pick) => pick.onlyHere).length;
@@ -59,7 +59,7 @@ export function StoreCheapest() {
                 aria-pressed={active}
                 onClick={() => setPicked(board.store.id)}
                 className={cn(
-                  "shrink-0 rounded-full px-3 py-1.5 text-sm font-bold",
+                  "inline-flex min-h-11 shrink-0 items-center rounded-full px-3 text-sm font-bold",
                   active ? "bg-primary text-primary-foreground" : "bg-card",
                 )}
               >

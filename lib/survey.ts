@@ -85,8 +85,8 @@ const rows: Record<string, Row> = {
   pasta: perKg(678, 100, "スパゲッティ", "100g"),
   udon: perKg(445, 200, "ゆでうどん", "1玉"),
   wakame: {
-    yen: Math.round((2431 * 5) / 100),
-    caption: "わかめは100g 2,431円です。1食を乾燥5gとして割っています。",
+    yen: Math.round((2431 * 1.5) / 100),
+    caption: "わかめは100g 2,431円です。みそ汁1杯を乾燥1.5g（1〜2gのあいだ）として割っています。",
   },
   miso: {
     yen: Math.round((490 * 18) / 750),

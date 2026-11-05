@@ -8,6 +8,7 @@ import { useApp } from "@/components/app-state";
 import { BootScreen, CategoryDot, SignalMark, Sparkline, Yen } from "@/components/bits";
 import { StoreCheapest } from "@/components/store-cheapest";
 import { signedPercent } from "@/lib/format";
+import { avoidsFish, plainMisoText } from "@/lib/household";
 import { inSeason, monthOf } from "@/lib/season";
 import { Input } from "@/components/ui/input";
 import type { Category } from "@/lib/types";
@@ -17,6 +18,7 @@ export function PricesScreen() {
   const app = useApp();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<Category | "all">("all");
+  const fishAside = avoidsFish(app.state.excludes);
   const rows = useMemo(() => {
     if (!app.book) return [];
     const needle = query.trim().toLowerCase();
@@ -49,7 +51,7 @@ export function PricesScreen() {
               key={item.name}
               type="button"
               onClick={() => setQuery(item.name)}
-              className="rounded-full bg-chip px-3 py-1 text-xs font-bold"
+              className="inline-flex min-h-11 items-center rounded-full bg-chip px-3 text-sm font-bold"
             >
               旬 · {item.name}
             </button>
@@ -63,7 +65,7 @@ export function PricesScreen() {
         aria-label="品目を探す"
         className="mt-4 h-11 bg-card text-base"
       />
-      <div className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1">
+      <div className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1" role="group" aria-label="品目の分類">
         <FilterChip active={category === "all"} onClick={() => setCategory("all")}>
           すべて
         </FilterChip>
@@ -84,7 +86,7 @@ export function PricesScreen() {
                 <Link href={`/prices/${item.id}`} className="flex items-center gap-3 py-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-bold">{item.name}</span>
+                      <span className="font-bold">{plainMisoText(item.name, fishAside)}</span>
                       {quote.signal === "buy" ? <SignalMark signal="buy" /> : null}
                     </div>
                     <CategoryDot category={item.category} />
@@ -126,9 +128,10 @@ function FilterChip({
   return (
     <button
       type="button"
+      aria-pressed={active}
       onClick={onClick}
       className={cn(
-        "shrink-0 rounded-full px-3 py-1.5 text-sm font-bold",
+        "inline-flex min-h-11 shrink-0 items-center rounded-full px-3 text-sm font-bold",
         active ? "bg-primary text-primary-foreground" : "bg-card text-foreground",
       )}
     >

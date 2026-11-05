@@ -57,6 +57,10 @@ export type Recipe = {
   items: { ingredientId: string; units: number }[];
   extraYen: number;
   extraSalt: number;
+  /** 牛乳を材料に使う皿。無いときは使わない。 */
+  usesMilk?: boolean;
+  /** いつもの皿が週の回数に足りないときだけ使う。 */
+  spare?: boolean;
 };
 
 export type Store = {
@@ -75,6 +79,18 @@ export type Store = {
   address?: string;
   phone?: string;
   sourceUrl?: string;
+  /** ユーザーが自分で開く公式のチラシページ。アプリは中身を取らない。 */
+  flyerUrl?: string;
+  flyerLabel?: string;
+  flyerNote?: string;
+};
+
+export type StockPlace = "fridge" | "freezer";
+
+export type StockItem = {
+  ingredientId: string;
+  place: StockPlace;
+  units: number;
 };
 
 export type Area = {
@@ -103,6 +119,12 @@ export type Prefs = {
   moreVeg: boolean;
   highProtein: boolean;
   washoku: boolean;
+  /** 豚こま・豚ひき肉・鶏ももを献立から外す。未設定はオフ。 */
+  lessFat?: boolean;
+  /** 牛乳を使う皿を外す。未設定はオフ。 */
+  noMilk?: boolean;
+  /** 脂身ひかえめでも、皮なしの鶏ももは残す。 */
+  allowSkinlessThigh?: boolean;
 };
 
 export type PlanSlot = {
@@ -127,6 +149,10 @@ export type Plan = {
   targets: Nutrition;
   notes: string[];
   sourceKey: string;
+  /** 献立の1日目。日付が変わっても、この日を起点に数える。 */
+  startedOn?: string;
+  /** 納豆・冷奴の卵を、この献立の金額と買い物に入れる。 */
+  allowOptionalEggs?: boolean;
 };
 
 export type Quote = {
@@ -153,6 +179,10 @@ export type ShopLine = {
   storeId: string;
   unitPrice: number;
   linePrice: number;
+  /** 店で買うときの呼び方。卵はパック、尾は切り上げ。 */
+  buyLabel?: string;
+  /** 切り上げる前に、献立で使う量。 */
+  neededUnits?: number;
 };
 
 export type ShopStoreGroup = {
@@ -167,6 +197,10 @@ export type ShopList = {
   multiTotal: number;
   single: { storeId: string; total: number } | null;
   savings: number;
+  /** 冷蔵庫・冷凍庫でまかなう量。買い物リストには出さない。 */
+  covered: { ingredientId: string; units: number }[];
+  /** わかめ・味噌。家にあれば買わない。店の合計には入れない。 */
+  pantry: { ingredientId: string; label: string; approxYen: number }[];
 };
 
 export type AlertItem = {

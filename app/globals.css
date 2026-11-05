@@ -486,6 +486,141 @@
   animation: cook-sway 1.1s ease-in-out infinite;
 }
 
+/* 11〜12px の指定を 14px にする。シートは body 直下に出るので、画面全体にかける。 */
+body .text-xs,
+body .text-\[10px\],
+body .text-\[11px\] {
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+body [data-sonner-toast],
+body [data-sonner-toast] [data-title],
+body [data-sonner-toast] [data-description] {
+  font-size: 0.875rem !important;
+  line-height: 1.45 !important;
+}
+
+.home-blurb-title {
+  display: none;
+}
+
+/* 740px（Safariのバーあり）まで説明文を今日カードの下へ。844pxと874pxはこの外。 */
+@media (max-height: 780px) {
+  .home-screen {
+    display: flex;
+    flex-direction: column;
+    padding-top: 0.5rem;
+  }
+
+  .home-screen .home-budget,
+  .home-screen .home-budget-face,
+  .home-screen .home-budget-go {
+    display: contents;
+  }
+
+  .home-screen .home-budget-top,
+  .home-screen .home-regen {
+    order: 1;
+    background-color: var(--card);
+    padding-right: 1rem;
+    padding-left: 1rem;
+  }
+
+  .home-screen .home-budget-top {
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    background-image: radial-gradient(circle at 12px 0, transparent 9px, var(--card) 9.5px);
+    background-size: 24px 14px;
+    background-repeat: repeat-x;
+  }
+
+  .home-screen .home-regen {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom-left-radius: 1.5rem;
+    border-bottom-right-radius: 1.5rem;
+    box-shadow: 0 10px 30px rgba(28, 25, 21, 0.05);
+  }
+
+  .home-screen .home-regen > * {
+    margin-top: 0 !important;
+  }
+
+  .home-screen .home-today {
+    order: 2;
+    margin-top: 0.5rem;
+  }
+
+  .home-screen .home-notice,
+  .home-screen .home-actions {
+    order: 3;
+  }
+
+  .home-screen .home-blurb,
+  .home-screen .home-blurb-title,
+  .home-screen .home-aside {
+    order: 4;
+    margin-top: 0.5rem;
+  }
+
+  .home-screen .home-blurb-title {
+    display: block;
+  }
+
+  .home-screen .home-after {
+    order: 5;
+  }
+
+  .home-screen .home-overlays {
+    order: 6;
+  }
+
+  @media (max-height: 600px) {
+    .home-screen {
+      padding-top: 0.25rem;
+    }
+
+    .home-screen header h1 {
+      font-size: 1.4rem;
+    }
+
+    .home-screen header button {
+      margin-top: 0;
+    }
+
+    .home-screen .font-price {
+      font-size: 1.75rem;
+    }
+
+    .home-screen .home-budget-top {
+      padding-bottom: 0.5rem;
+      border-bottom-right-radius: 1.5rem;
+      border-bottom-left-radius: 1.5rem;
+      box-shadow: 0 10px 30px rgba(28, 25, 21, 0.05);
+    }
+
+    .home-screen .home-regen {
+      order: 3;
+      background: transparent;
+      box-shadow: none;
+      padding: 0.5rem 0 0;
+    }
+
+    .home-screen .home-today {
+      margin-top: 0.25rem;
+    }
+
+    .home-screen .home-today-card {
+      padding: 0.5rem 0.5rem 0;
+    }
+
+    .home-screen .home-today-card > a {
+      margin-top: 0.25rem !important;
+    }
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .cook-bubble,
   .cook-pan,

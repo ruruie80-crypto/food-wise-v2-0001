@@ -55,6 +55,28 @@ export function formatMonthDay(iso: string): string {
   return `${month}月${day}日`;
 }
 
+export function planDayDomId(dayIndex: number): string {
+  return `plan-day-${dayIndex}`;
+}
+
+export function mealsDayHref(dayIndex: number): string {
+  return `/meals#${planDayDomId(dayIndex)}`;
+}
+
+/** 下メニューの実寸。上の余白4px、高さ44pxの列、下の余白4px、上の線1px。前回の画面では57pxだった。 */
+export function bottomNavHeightPx(): number {
+  return 4 + 44 + 4 + 1 + 4;
+}
+
+export function pageClearsNav(clearancePx: number, navPx = bottomNavHeightPx()): boolean {
+  return clearancePx > navPx;
+}
+
+/** 844pxと874pxは今の並び。740px（Safariのバーあり）以下は説明文を下に回す。 */
+export function compactHomeLayout(viewportHeight: number): boolean {
+  return viewportHeight <= 780;
+}
+
 export function formatShort(iso: string): string {
   const [, month, day] = iso.split("-").map(Number);
   return `${month}/${day}`;
@@ -65,10 +87,83 @@ export function formatWithWeekday(iso: string): string {
   return `${month}/${day}（${weekdayName(iso)}）`;
 }
 
+export function planDayLabel(startedOn: string, dayIndex: number, today: string): string {
+  const date = addDays(startedOn, dayIndex);
+  if (date === today) return "今日";
+  if (date === addDays(today, 1)) return "明日";
+  if (date === addDays(today, -1)) return "きのう";
+  return formatWithWeekday(date);
+}
+
+export function weekIsOver(startedOn: string, today: string): boolean {
+  return daysBetween(startedOn, today) > 6;
+}
+
+/** 献立がある日の、ホームの今日カード。ないときは none。 */
+export type HomePlanStatus = "none" | "before" | "during" | "after";
+
+export function homePlanStatus(startedOn: string | undefined, today: string): HomePlanStatus {
+  if (!startedOn) return "none";
+  if (today < startedOn) return "before";
+  if (weekIsOver(startedOn, today)) return "after";
+  return "during";
+}
+
+/** 献立の中は料理名を出す。前後と、献立がないときだけこの文。 */
+export function todayCardTitle(status: HomePlanStatus, planStart: string, mealTitle?: string): string {
+  if (status === "during" && mealTitle) return mealTitle;
+  if (status === "before") return `${formatShort(planStart)}から始まります`;
+  if (status === "after") return "この1週間は終わりました";
+  return "献立はまだありません";
+}
+
+export function todayCardBody(status: HomePlanStatus, planStart: string): string {
+  if (status === "before") return `${formatShort(planStart)}からの献立ができています。`;
+  if (status === "after") return "次の1週間の献立を作ると、ここに出ます。";
+  if (status === "during") return "";
+  return "「今週の食費 5,000円」のように予算を入れると、朝と夜の献立と買い物リストが出ます。";
+}
+
+/** 前の献立が終わった日は出さない。新しい献立ができるまで、お昼代の案内は止める。 */
+export function lunchMoneyHint(startedOn: string | undefined, today: string, leftover: number): boolean {
+  if (leftover <= 0 || leftover > 4000) return false;
+  if (startedOn && weekIsOver(startedOn, today)) return false;
+  return true;
+}
+
+/** 献立は始めた日から7日間。そのあいだは同じ起点を使い、8日目以降は新しい週。 */
+export function resolvePlanStart(
+  previousStart: string | undefined,
+  today: string,
+): { startedOn: string; continueWeek: boolean } {
+  const continueWeek = Boolean(
+    previousStart && daysBetween(previousStart, today) >= 0 && daysBetween(previousStart, today) <= 6,
+  );
+  return {
+    startedOn: continueWeek && previousStart ? previousStart : today,
+    continueWeek,
+  };
+}
+
 export function weekRangeLabel(iso: string): string {
   const dow = weekdayIndex(iso);
   const mondayOffset = dow === 0 ? -6 : 1 - dow;
   const start = addDays(iso, mondayOffset);
   const end = addDays(start, 6);
   return `${formatShort(start)}–${formatShort(end)}`;
+}
+
+/**
+ * 食費の週の始め。
+ * "plan" は献立の始めた日から7日。"monday" はカレンダーの月曜。
+ * 後で家族に聞くまで、画面は "plan" にそろえる。
+ */
+export const EXPENSE_WEEK_ANCHOR: "plan" | "monday" = "plan";
+
+export function expenseRangeLabel(today: string, planStart?: string): string {
+  if (EXPENSE_WEEK_ANCHOR === "plan") {
+    const start = planStart || today;
+    return `${formatShort(start)}–${formatShort(addDays(start, 6))}`;
+  }
+  return weekRangeLabel(today);
 }

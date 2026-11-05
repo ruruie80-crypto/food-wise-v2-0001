@@ -1,4 +1,5 @@
 import { getIngredient, getRecipe } from "./catalog";
+import { usedItems } from "./household";
 import { percent } from "./format";
 import type { Ingredient, Nutrition, Plan } from "./types";
 
@@ -54,7 +55,7 @@ export function planIngredientNutrition(plan: Plan): Map<string, Nutrition> {
   for (const slot of plan.slots) {
     const recipe = getRecipe(slot.recipeId);
     if (!recipe) continue;
-    for (const item of recipe.items) {
+    for (const item of usedItems(recipe.id, recipe.items, plan.allowOptionalEggs === true)) {
       const ingredient = getIngredient(item.ingredientId);
       if (!ingredient) continue;
       const next = item.units * ingredient.gramsPerUnit * plan.people * plan.portion;
